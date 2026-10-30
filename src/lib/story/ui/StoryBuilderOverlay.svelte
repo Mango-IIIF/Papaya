@@ -6,14 +6,14 @@
   import StoryChapterOverlay from './ChapterOverlay.svelte';
   import StoryAnnotationOverlay from './StoryAnnotationOverlay.svelte';
   import SaveExportModal from './SaveExportModal.svelte';
-  import RectanglePlacementEditor from '../../features/annotations/RectanglePlacementEditor.svelte';
+  import RectanglePlacementEditor from '../annotations/RectanglePlacementEditor.svelte';
   import type {
     AnnotationPlacement,
     ChapterAdvance,
   } from '../../core/types/story';
-  import type { ViewBox } from '../../core/types/viewer';
+  import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
   import type { UIMode } from '../storyBuilderController';
-  import type { MediaType, MediaSource } from '../../iiif/mediaResolver';
+  import type { MediaType, MediaSource } from '@mango-iiif/iiif-viewer/core';
   import type { MediaMarksState } from '../mediaMarks';
   import type { ExportEnvelope } from '../storySerializer';
   import type { ChapterTaskId } from '../chapterTasks';

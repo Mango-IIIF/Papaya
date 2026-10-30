@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ViewerApi } from '../../../core/types/viewer-api';
+import type { ViewerApi } from '@mango-iiif/iiif-viewer/core';
 import { isViewBoxEqual, panToViewBox } from '../canvasPanner';
 
 const createViewer = (currentViewBox: { x: number; y: number; w: number; h: number } | null) => {

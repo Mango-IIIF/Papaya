@@ -25,42 +25,23 @@ There's nothing to see here!
           <select id="story-picker"></select>
         </div>
 
-        <mango-viewer
-          mode="story-viewer"
+        <mango-story-viewer
           config='{"showThumbnails":false,"showSearch":false,"showMetadata":false,"showAnnotations":false,"showTools":false}'
-        ></mango-viewer>
+        ></mango-story-viewer>
 
         <nav class="viewer-actions" aria-label="Story actions">
           <a class="viewer-actions__link" href="story-edit.html">Edit this story</a>
           <a class="viewer-actions__link" href="story-builder.html">
             Build a story from scratch
           </a>
-          <a class="viewer-actions__link" href="annotation-editor.html">
-            Open annotation editor
-          </a>
-          <a class="viewer-actions__link" href="annotation-editor-wellcome.html">
-            Open Wellcome annotation editor
-          </a>
-          <a class="viewer-actions__link" href="viewer-cdn.html">
-            Open CDN viewer demo
-          </a>
-          <a class="viewer-actions__link" href="cookbook.html">
-            Open cookbook demo
-          </a>
-          <a class="viewer-actions__link" href="config.html">
-            Configure the viewer
-          </a>
           <a class="viewer-actions__link" href="story-layers.html">
             Layers Transition Demo
-          </a>
-          <a class="viewer-actions__link" href="embed-third-party.html">
-            Third-party embed harness
           </a>
         </nav>
       </section>
     </div>
 
-    <script type="module" src="dist/mango-viewer-element.js"></script>
+    <script type="module" src="dist/mango-story-element.js"></script>
     <script>
       /*
        * The published stories are served from GitHub Pages, which sets

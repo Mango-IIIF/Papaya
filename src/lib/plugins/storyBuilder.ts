@@ -1,6 +1,6 @@
 import { get } from "svelte/store";
 import { mount, unmount } from "svelte";
-import type { PluginContext, ViewerPlugin } from "../core/types/plugin";
+import type { StoryPlugin, StoryPluginContext } from "../core/types/story";
 import {
   createStoryBuilderController,
   type StoryBuilderOptions,
@@ -13,18 +13,18 @@ import { translate } from '../core/i18n';
 
 export const createStoryBuilderPlugins = (
   options: StoryBuilderOptions = {},
-): ViewerPlugin[] => {
+): StoryPlugin[] => {
   const controller = createStoryBuilderController(options);
 
   const makePlugin = (
     id: string,
     label: string,
-    slot: ViewerPlugin["slot"],
+    slot: StoryPlugin["slot"],
     createMount: (
       target: HTMLElement,
-      ctx: PluginContext,
+      ctx: StoryPluginContext,
     ) => { destroy: () => void },
-  ): ViewerPlugin => {
+  ): StoryPlugin => {
     let detach: (() => void) | null = null;
     let handle: { destroy: () => void } | null = null;
 

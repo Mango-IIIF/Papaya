@@ -10,8 +10,8 @@
   import {
     ANNOTATION_TOOLS,
     annotationToolLabelKey,
-  } from "../../features/annotations/annotationTools";
-  import type { MediaSource, MediaType } from "../../iiif/mediaResolver";
+  } from "../annotations/annotationTools";
+  import type { MediaSource, MediaType } from "@mango-iiif/iiif-viewer/core";
   import type { MediaMarksState } from "../mediaMarks";
   import type { ChapterTaskId } from "../chapterTasks";
   import StoryBuilderWideNarration from "./StoryBuilderWideNarration.svelte";

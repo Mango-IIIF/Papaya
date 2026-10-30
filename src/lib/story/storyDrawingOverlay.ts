@@ -24,15 +24,15 @@ import {
   type ChapterAnnotationMotivation,
   type ChapterAnnotationStrokeWidth,
 } from '../core/types/story';
-import { resolveAnnotationJson } from '../features/annotations/canonical';
-import type { ResolvedAnnotation } from '../iiif/annotationResolver';
+import { resolveAnnotationJson } from '@mango-iiif/iiif-viewer/core';
+import type { ResolvedAnnotation } from '@mango-iiif/iiif-viewer/core';
 import {
   DEFAULT_DRAWING_COLOR,
   DEFAULT_DRAWING_FILL_MODE,
   DEFAULT_DRAWING_STROKE_WIDTH,
   DRAWING_TRANSPARENT_FILL_ALPHA,
 } from './storyDrawingAnnotations';
-import { rgbaFromHex } from '../features/annotations/style';
+import { rgbaFromHex } from '@mango-iiif/iiif-viewer/core';
 
 /** Path segment marking an overlay annotation as a drawing rather than a caption. */
 export const DRAWING_OVERLAY_SEGMENT = '/overlay/drawing/';

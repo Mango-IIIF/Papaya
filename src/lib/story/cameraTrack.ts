@@ -2,7 +2,7 @@ import type {
   ChapterCameraKeyframe,
   ChapterCameraTrack,
 } from '../core/types/story';
-import type { ViewBox } from '../core/types/viewer';
+import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
 
 export type CameraTrackSample = Pick<
   ChapterCameraKeyframe,

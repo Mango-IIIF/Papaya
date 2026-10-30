@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
-import { createEventBus } from "../../core/events/eventBus";
-import type { PluginContext } from "../../core/types/plugin";
+import { createEventBus } from "@mango-iiif/iiif-viewer/core";
+import type { StoryEventMap, StoryPluginContext } from "../../core/types/story";
 import {
   collectLatestNarrationSegments,
   createStoryBuilderController,
@@ -28,7 +28,7 @@ describe("story builder narration defaults", () => {
     const controller = createStoryBuilderController({
       initialStory: { chapters: [] },
     });
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const viewer = {
       getManifestId: () => (ready ? manifest : null),
       getState: () => null,
@@ -51,7 +51,7 @@ describe("story builder narration defaults", () => {
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     controller.loadManifestAndAddChapter(manifest);
     expect(get(controller.story).chapters).toHaveLength(0);
@@ -341,7 +341,7 @@ describe("story builder narration defaults", () => {
         ],
       },
     });
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const viewer = {
       getManifestId: () => "https://example.org/manifest.json",
       getState: () => null,
@@ -374,7 +374,7 @@ describe("story builder narration defaults", () => {
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     controller.selectChapter("chapter-1");
     controller.activeChapterTask.set("focus");
@@ -580,7 +580,7 @@ describe("story builder narration defaults", () => {
     const controller = createStoryBuilderController({
       initialStory: { chapters: [] },
     });
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const viewer = {
       getManifestId: () => "https://example.org/manifest.json",
       getState: () => null,
@@ -615,7 +615,7 @@ describe("story builder narration defaults", () => {
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     controller.addChapter();
     const framing = get(controller.story).chapters[0].viewBox!;
@@ -631,7 +631,7 @@ describe("story builder narration defaults", () => {
     const controller = createStoryBuilderController({
       initialStory: { chapters: [] },
     });
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const viewer = {
       getManifestId: () => "https://example.org/manifest.json",
       getState: () => null,
@@ -665,7 +665,7 @@ describe("story builder narration defaults", () => {
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     controller.addChapter();
     const first = get(controller.story).chapters[0].viewBox!;
@@ -758,7 +758,7 @@ describe("story builder narration defaults", () => {
         ],
       },
     });
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const viewer = {
       getManifestId: () => "https://example.org/manifest.json",
       getState: () => null,
@@ -795,7 +795,7 @@ describe("story builder narration defaults", () => {
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     controller.selectChapter("replayed");
     viewer.play.mockClear();
@@ -820,7 +820,7 @@ describe("story builder narration defaults", () => {
     const controller = createStoryBuilderController({
       initialStory: { chapters: [] },
     });
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const viewer = {
       getManifestId: () =>
         "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json",
@@ -865,7 +865,7 @@ describe("story builder narration defaults", () => {
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     controller.addChapter();
     expect(get(controller.story).chapters[0].media).toEqual({
@@ -959,10 +959,10 @@ describe("story builder source task", () => {
     });
     const detach = controller.attach({
       mount: document.createElement("div"),
-      events: createEventBus(),
+      events: createEventBus<StoryEventMap>(),
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectChapter("chapter-1");
     controller.activeChapterTask.set("source");
     return { controller, detach };
@@ -1059,13 +1059,13 @@ describe("story builder stage crossfade", () => {
     vi.useFakeTimers();
     const controller = createStoryBuilderController({ initialStory: twoCanvasStory });
     const viewer = createFadeViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     const fades: { opacity: number; durationMs: number }[] = [];
     const unsubscribe = controller.stageFade.subscribe((value) => {
@@ -1106,13 +1106,13 @@ describe("story builder stage crossfade", () => {
       },
     });
     const viewer = createFadeViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     const opacities: number[] = [];
     const unsubscribe = controller.stageFade.subscribe((value) => {
@@ -1134,13 +1134,13 @@ describe("story builder stage crossfade", () => {
     vi.useFakeTimers();
     const controller = createStoryBuilderController({ initialStory: twoCanvasStory });
     const viewer = createFadeViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     // Move to canvas 2, then change our mind before the fade has finished.
     controller.selectChapter("chapter-2");
@@ -1160,13 +1160,13 @@ describe("story builder stage crossfade", () => {
     vi.useFakeTimers();
     const controller = createStoryBuilderController({ initialStory: twoCanvasStory });
     const viewer = createFadeViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     let opacity = 1;
     const unsubscribe = controller.stageFade.subscribe((value) => {
@@ -1251,13 +1251,13 @@ describe("story builder chapter frame", () => {
   it("uses the fixed stage as the chapter frame instead of drawing a second rectangle", () => {
     const controller = createStoryBuilderController({ initialStory: frameStory });
     const viewer = createFrameViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
 
     controller.selectedChapterId.set("chapter-1");
 
@@ -1276,13 +1276,13 @@ describe("story builder chapter frame", () => {
   it("keeps motion points out of the rectangular frame layer", () => {
     const controller = createStoryBuilderController({ initialStory: frameStory });
     const viewer = createFrameViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
 
     controller.activeChapterTask.set("focus");
@@ -1313,13 +1313,13 @@ describe("story builder chapter frame", () => {
   it("keeps the camera in place when Frame opens and captures the fixed-stage view on Done", () => {
     const controller = createStoryBuilderController({ initialStory: frameStory });
     const viewer = createFrameViewer({ x: 400, y: 300, w: 600, h: 300 });
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
     viewer.setViewBox.mockClear();
 
@@ -1338,13 +1338,13 @@ describe("story builder chapter frame", () => {
   it("does not introduce rectangular motion frames around preview", () => {
     const controller = createStoryBuilderController({ initialStory: frameStory });
     const viewer = createFrameViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
     controller.activeChapterTask.set("motion");
     expect(lastFrames(viewer)).toEqual([]);
@@ -1383,10 +1383,10 @@ describe("story builder chapter frame", () => {
     const viewer = createFrameViewer();
     const detach = controller.attach({
       mount: document.createElement("div"),
-      events: createEventBus(),
+      events: createEventBus<StoryEventMap>(),
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
     const previousRaf = globalThis.requestAnimationFrame;
     const previousCancelRaf = globalThis.cancelAnimationFrame;
@@ -1441,10 +1441,10 @@ describe("story builder chapter frame", () => {
     const viewer = createFrameViewer(selectorUnion);
     const detach = controller.attach({
       mount: document.createElement("div"),
-      events: createEventBus(),
+      events: createEventBus<StoryEventMap>(),
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
     const previousRaf = globalThis.requestAnimationFrame;
     const previousCancelRaf = globalThis.cancelAnimationFrame;
@@ -1470,13 +1470,13 @@ describe("story builder chapter frame", () => {
   it("accepts a legacy chapter-frame commit without restoring the removed overlay", () => {
     const controller = createStoryBuilderController({ initialStory: frameStory });
     const viewer = createFrameViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
     viewer.setViewBox.mockClear();
 
@@ -1499,13 +1499,13 @@ describe("story builder chapter frame", () => {
   it("commits a dragged keyframe frame to that keyframe", () => {
     const controller = createStoryBuilderController({ initialStory: frameStory });
     const viewer = createFrameViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
     controller.activeChapterTask.set("motion");
 
@@ -1527,10 +1527,10 @@ describe("story builder chapter frame", () => {
     const viewer = createFrameViewer();
     const detach = controller.attach({
       mount: document.createElement("div"),
-      events: createEventBus(),
+      events: createEventBus<StoryEventMap>(),
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
 
     controller.setMotionPointFocus("kf-1", { x: 1900, y: 500 });
@@ -1548,13 +1548,13 @@ describe("story builder chapter frame", () => {
   it("holds every stored frame to the presentation aspect, whatever was asked for", () => {
     const controller = createStoryBuilderController({ initialStory: frameStory });
     const viewer = createFrameViewer();
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
 
     controller.setChapterPosition({ x: 200, y: 200, w: 300, h: 300 });
@@ -1573,13 +1573,13 @@ describe("story builder chapter frame", () => {
   it("starts a new camera point at the current viewport centre and stores its zoom", () => {
     const controller = createStoryBuilderController({ initialStory: frameStory });
     const viewer = createFrameViewer({ x: 800, y: 300, w: 600, h: 300 });
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
     controller.activeChapterTask.set("motion");
 
@@ -1621,10 +1621,10 @@ describe("story builder chapter frame", () => {
     const viewer = createFrameViewer({ x: 1500, y: 300, w: 400, h: 200 });
     const detach = controller.attach({
       mount: document.createElement("div"),
-      events: createEventBus(),
+      events: createEventBus<StoryEventMap>(),
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
 
     controller.updateMotionInitialDwell(5000);
@@ -1660,10 +1660,10 @@ describe("story builder chapter frame", () => {
     const viewer = createFrameViewer({ x: 800, y: 300, w: 600, h: 300 });
     const detach = controller.attach({
       mount: document.createElement("div"),
-      events: createEventBus(),
+      events: createEventBus<StoryEventMap>(),
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
 
     controller.updateMotionPointFromViewport("kf-1");
@@ -1687,13 +1687,13 @@ describe("story builder chapter frame", () => {
     const sentinel = { x: 1234, y: 321, w: 640, h: 480 };
     const controller = createStoryBuilderController({ initialStory: frameStory });
     const viewer = createFrameViewer(sentinel);
-    const events = createEventBus();
+    const events = createEventBus<StoryEventMap>();
     const detach = controller.attach({
       mount: document.createElement("div"),
       events,
       viewer,
       config: {},
-    } as unknown as PluginContext);
+    } as unknown as StoryPluginContext);
     controller.selectedChapterId.set("chapter-1");
 
     const storedBoxes = () => {

@@ -5,8 +5,8 @@
   import { resolveChapterTiming } from '../timing';
   import { animatableCameraDurationMs } from '../cameraTrack';
   import { t } from '../../core/i18n';
-  import { fetchManifest, manifestsStore } from '../../core/state/manifests';
-  import { resolveCanvasThumbnail } from '../../viewer/iiif/thumbnails';
+  import { fetchManifest, manifestsStore } from '@mango-iiif/iiif-viewer/core';
+  import { resolveCanvasThumbnail } from '@mango-iiif/iiif-viewer/core';
 
   export let story: Readable<StoryState> = readable({
     chapters: [],

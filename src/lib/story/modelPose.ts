@@ -1,5 +1,5 @@
 import type { ChapterModel } from '../core/types/story';
-import type { ModelViewChange } from '../core/types/events';
+import type { ModelViewChange } from '@mango-iiif/iiif-viewer/core';
 
 export type ModelPoseState = {
   lastPose: ChapterModel | null;

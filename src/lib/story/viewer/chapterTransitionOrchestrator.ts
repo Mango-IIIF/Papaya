@@ -2,10 +2,10 @@
  * Chapter Transition Orchestrator
  */
 
-import type { ViewerApi } from '../../core/types/viewer-api';
+import type { ViewerApi } from '@mango-iiif/iiif-viewer/core';
 import type { StoryWithDefaults } from './storyLoader';
-import type { ViewBox } from '../../core/types/viewer';
-import type { ModelPose, ModelPoseOptions } from '../../core/types/model';
+import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
+import type { ModelPose, ModelPoseOptions } from '@mango-iiif/iiif-viewer/core';
 import { isViewBoxEqual, panToViewBox } from './canvasPanner';
 import { animateLayerOpacities } from '../viewBoxAnimation';
 import { createTransitionGuard, type GateResult } from './transitionGuard';

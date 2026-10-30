@@ -1,5 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
-import type { ViewerApi } from '../../core/types/viewer-api';
+import type { ViewerApi } from '@mango-iiif/iiif-viewer/core';
 import type { StoryWithDefaults } from './storyLoader';
 import { resolveChapterTiming } from '../timing';
 import { animatableCameraDurationMs, sampleCameraTrack } from '../cameraTrack';

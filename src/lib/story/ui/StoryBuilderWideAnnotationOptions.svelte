@@ -1,6 +1,6 @@
 <script lang="ts">
   import { readable, type Readable } from "svelte/store";
-  import LanguageTabs from "../../features/annotations/LanguageTabs.svelte";
+  import LanguageTabs from "../annotations/LanguageTabs.svelte";
   import {
     CHAPTER_ANNOTATION_MOTIVATIONS,
     type ChapterDrawingAnnotation,

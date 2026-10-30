@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { StoryState } from '../../core/types/story';
-import type { ViewBox } from '../../core/types/viewer';
+import type { StoryState } from '../../types/story';
+import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
 import { createStoryStore } from '../story.svelte';
 
 const viewBox = (w = 100, h = 80): ViewBox => ({ x: 0, y: 0, w, h });

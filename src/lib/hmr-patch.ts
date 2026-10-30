@@ -1,5 +1,7 @@
 import { injectViewerCss } from "./shadow-css";
 
+const STORY_ELEMENTS = new Set(["mango-story-viewer", "mango-story-builder"]);
+
 // Monkey-patch customElements.define to prevent crashes during Hot Module Replacement (HMR)
 // and patch lifecycle callbacks before the browser registers and caches them.
 if (typeof window !== "undefined" && window.customElements) {
@@ -12,7 +14,7 @@ if (typeof window !== "undefined" && window.customElements) {
       return;
     }
 
-    if (name === "mango-viewer") {
+    if (STORY_ELEMENTS.has(name)) {
       const originalConnected = constructor.prototype.connectedCallback;
       constructor.prototype.connectedCallback = function (this: HTMLElement) {
         const result = originalConnected

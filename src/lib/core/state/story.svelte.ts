@@ -1,5 +1,5 @@
-import type { ViewBox } from '../types/viewer';
-import type { ModelPoseOptions } from '../types/model';
+import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
+import type { ModelPoseOptions } from '@mango-iiif/iiif-viewer/core';
 import type {
   AnnotationPlacement,
   Chapter,

@@ -1,4 +1,4 @@
-import type { ViewBox } from '../core/types/viewer';
+import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
 
 /*
  * Geometry for the chapter frame: a rectangle on the canvas, in canvas pixels,

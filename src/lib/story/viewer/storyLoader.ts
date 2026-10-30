@@ -4,7 +4,7 @@ import type {
   StoryState,
   Chapter,
 } from "../../core/types/story";
-import type { ViewBox } from "../../core/types/viewer";
+import type { ViewBox } from "@mango-iiif/iiif-viewer/core";
 import {
   MANGO_STORY_VERSION,
   mangoViewerStateVersion,

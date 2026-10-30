@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ViewBox } from '../../../core/types/viewer';
-import type { ViewerApi } from '../../../core/types/viewer-api';
+import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
+import type { ViewerApi } from '@mango-iiif/iiif-viewer/core';
 import type { StoryWithDefaults } from '../storyLoader';
 
 const panToViewBox = vi.fn(

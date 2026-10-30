@@ -1,5 +1,16 @@
-import type { ModelPose, ModelPoseOptions } from "./model";
-import type { ViewBox } from "./viewer";
+import type {
+  EventBus,
+  ModelPose,
+  ModelPoseOptions,
+  PluginContext,
+  ViewerPlugin,
+  ResolvedAnnotation,
+  ViewBox,
+  ViewerApi,
+  ViewerConfig,
+  ViewerEventMap,
+} from "@mango-iiif/iiif-viewer/core";
+import type { ExportEnvelope, SaveConfig } from "../../story/storySerializer";
 
 export type LanguageMap = Record<string, string>;
 
@@ -211,4 +222,71 @@ export type StoryState = {
     tracks: Record<string, NarrationTrack>;
   };
   chapters: Chapter[];
+};
+
+/** Viewer config plus the story-only keys the story hosts read. */
+export type StoryConfig = ViewerConfig & {
+  story?: {
+    showDebug?: boolean;
+    languages?: string[];
+    /** Public HTTP(S) identifier used for new story AnnotationPage exports. */
+    annotationPageId?: string;
+    /** Optional chapter Annotation base. Defaults to `${annotationPageId}/annotation/`. */
+    annotationBase?: string;
+    /** Prevent authors from changing host-supplied canonical identifiers. */
+    identifiersLocked?: boolean;
+    save?: SaveConfig;
+  };
+};
+
+/** Events the story hosts add to the viewer's own. */
+export type StoryEventMap = ViewerEventMap & {
+  /**
+   * A frame drawn on the stage was moved or resized and the gesture ended.
+   * The box is in canvas pixels and already holds the frame's locked aspect.
+   */
+  storyFrameChange: { frameId: string; viewBox: ViewBox };
+  /** The author took hold of a different frame on the stage. */
+  storyFrameSelect: { frameId: string | null };
+  /**
+   * Requests a stage opacity, so the builder can hide the swap between two
+   * unrelated sources while it changes chapter.
+   */
+  stageFade: { opacity: number; durationMs: number };
+  storyViewerError: { message: string; cause?: unknown };
+  /** The Story Builder Save action was requested with portable IIIF JSON. */
+  storySaveRequest: { story: ExportEnvelope };
+  /** The Story Builder Export action produced portable IIIF JSON. */
+  storyExport: { story: ExportEnvelope };
+};
+
+/**
+ * The viewer API as the story builder sees it: the embedded viewer's own
+ * methods plus the stage surfaces the builder host draws over it.
+ */
+export type StoryViewerApi = ViewerApi & {
+  setAnnotationTool?: (tool: ChapterAnnotationTool) => void;
+  setStoryAnnotations?: (annotations: ResolvedAnnotation[]) => void;
+  setStoryAnnotationEditing?: (enabled: boolean) => void;
+  setStoryAnnotationSelection?: (annotationId: string | null) => void;
+  /** Fixed width/height contract for the builder's authored output surface. */
+  setStoryPresentationAspect?: (aspect: number) => void;
+  /**
+   * Camera-keyframe objects the story builder wants drawn on the stage.
+   * Chapter framing itself is the fixed stage camera, not a second rectangle.
+   */
+  setStoryFrames?: (frames: StoryFrame[]) => void;
+  /** Which of the frames carries the handles. */
+  setStoryFrameSelection?: (frameId: string | null) => void;
+};
+
+export type StoryPluginContext = Omit<PluginContext, "viewer" | "events" | "config"> & {
+  viewer: StoryViewerApi;
+  events: EventBus<StoryEventMap>;
+  config: StoryConfig;
+};
+
+/** A viewer plugin mounted by a story host, which hands it the story context. */
+export type StoryPlugin = Omit<ViewerPlugin, "init"> & {
+  init: (ctx: StoryPluginContext) => void | Promise<void>;
 };

@@ -1,5 +1,5 @@
-import type { ModelPose } from '../core/types/model';
-import type { ViewerApi } from '../core/types/viewer-api';
+import type { ModelPose } from '@mango-iiif/iiif-viewer/core';
+import type { ViewerApi } from '@mango-iiif/iiif-viewer/core';
 import type { CapturePayload } from '../core/state/story.svelte';
 import { constrainViewBoxToContent } from './framing';
 

@@ -17,7 +17,7 @@ type StageMeasure = {
 };
 
 const measureStage = (page: Page): Promise<StageMeasure> =>
-  page.locator("mango-viewer").evaluate((element: any) => {
+  page.locator(":is(mango-story-viewer, mango-story-builder)").evaluate((element: any) => {
     const container = element.shadowRoot?.querySelector(
       ".openseadragon-container",
     ) as HTMLElement | null;
@@ -44,7 +44,7 @@ const waitForStage = async (page: Page) => {
 };
 
 const selectChapterSix = async (page: Page) => {
-  const viewer = page.locator('mango-viewer');
+  const viewer = page.locator(':is(mango-story-viewer, mango-story-builder)');
   const chaptersToggle = viewer.locator('[data-testid="builder-toggle-chapters"]');
   if ((await chaptersToggle.getAttribute('aria-expanded')) !== 'true') {
     await chaptersToggle.click();
@@ -73,7 +73,7 @@ const selectChapterSix = async (page: Page) => {
 
 test("places Reload manifest below the source URL", async ({ page }) => {
   await waitForStage(page);
-  const viewer = page.locator("mango-viewer");
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   await viewer.locator('[data-testid="inspector-group-source"]').click();
 
   const input = viewer.getByTestId("chapter-manifest");
@@ -94,7 +94,7 @@ test("loads a new story source without a canvas-selection step", async ({
   page,
 }) => {
   await page.goto("/story-edit.html");
-  const viewer = page.locator("mango-viewer");
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   await expect(viewer.getByTestId("story-source-setup")).toBeVisible();
   await expect(viewer.getByTestId("chapter-canvas-select")).toHaveCount(0);
 
@@ -132,7 +132,7 @@ test("fills desktop, tablet, and phone workspaces while keeping the authored reg
     await page.setViewportSize(viewport);
     await waitForStage(page);
     await selectChapterSix(page);
-    const viewer = page.locator("mango-viewer");
+    const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
 
     const storyStage = viewer.locator('[data-testid="story-stage"]');
     const surface = viewer.locator('[data-testid="story-stage-surface"]');
@@ -151,7 +151,7 @@ test("keeps the current view in step with the stage after a window resize", asyn
   await page.setViewportSize({ width: 1600, height: 900 });
   await waitForStage(page);
   await selectChapterSix(page);
-  const viewer = page.locator("mango-viewer");
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   await viewer.evaluate((element: any) => {
     (window as any).__viewBoxEvents = [];
     element.addEventListener("viewBoxChange", (event: CustomEvent) => {
@@ -190,7 +190,7 @@ test("leaves the stage the same size whatever chrome the author opens", async ({
 }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await waitForStage(page);
-  const viewer = page.locator("mango-viewer");
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   const chapterRows = viewer.locator('[data-testid^="chapter-row-"]');
   await expect(chapterRows.first()).toBeVisible();
 
@@ -273,7 +273,7 @@ test("opens narration in a full-stage modal and keeps its controls in reach", as
 }) => {
   await page.setViewportSize({ width: 1440, height: 700 });
   await waitForStage(page);
-  const viewer = page.locator("mango-viewer");
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   const stageBefore = await measureStage(page);
 
   await viewer.locator('[data-testid="inspector-group-timing"]').click();
@@ -332,7 +332,7 @@ test("keeps audio and video timing inside the modal without resizing the stage",
    */
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto("/story-builder.html?iiif-content=test-story/feature-showcase.json");
-  const viewer = page.locator("mango-viewer");
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   const audioRow = viewer.locator('[data-testid="chapter-row-chapter_11"]');
   await expect(audioRow).toBeVisible({ timeout: 30_000 });
   await audioRow.locator("button").first().click();
@@ -425,7 +425,7 @@ test("keeps audio and video timing inside the modal without resizing the stage",
     'visibility',
     'hidden',
   );
-  await expect(viewer.locator('.stage__primary')).toHaveCSS(
+  await expect(viewer.locator(".stage__primary:not(.viewer--headless .stage__primary)")).toHaveCSS(
     'visibility',
     'hidden',
   );
@@ -436,7 +436,7 @@ test("hides both sidebars while annotations are being created", async ({
 }) => {
   await page.setViewportSize({ width: 543, height: 591 });
   await waitForStage(page);
-  const viewer = page.locator('mango-viewer');
+  const viewer = page.locator(':is(mango-story-viewer, mango-story-builder)');
   const chaptersToggle = viewer.locator('[data-testid="builder-toggle-chapters"]');
   if ((await chaptersToggle.getAttribute('aria-expanded')) !== 'true') {
     await chaptersToggle.click();

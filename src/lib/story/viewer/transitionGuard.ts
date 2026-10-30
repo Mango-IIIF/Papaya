@@ -1,4 +1,4 @@
-import type { ViewerApi } from '../../core/types/viewer-api';
+import type { ViewerApi } from '@mango-iiif/iiif-viewer/core';
 
 export type GateResult = { ok: boolean; degraded: boolean };
 

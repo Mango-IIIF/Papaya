@@ -6,14 +6,14 @@ import {
   type ChapterAnnotationStrokeWidth,
   type ChapterDrawingAnnotation,
 } from '../core/types/story';
-import type { ResolvedAnnotation } from '../iiif/annotationResolver';
-import { createMangoAnnotation, projectToResolved } from '../features/annotations/canonical';
+import type { ResolvedAnnotation } from '@mango-iiif/iiif-viewer/core';
+import { createMangoAnnotation, projectToResolved } from '@mango-iiif/iiif-viewer/core';
 import {
   buildAnnotationStylesheet,
   rgbaFromHex,
   safeAnnotationColor,
   styleClassForLayer,
-} from '../features/annotations/style';
+} from '@mango-iiif/iiif-viewer/core';
 
 /**
  * Whole pixels for the one shape that becomes a media fragment.

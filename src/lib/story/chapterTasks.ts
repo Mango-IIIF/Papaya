@@ -1,5 +1,5 @@
 import type { Chapter, StoryState } from '../core/types/story';
-import type { MediaSource, MediaType } from '../iiif/mediaResolver';
+import type { MediaSource, MediaType } from '@mango-iiif/iiif-viewer/core';
 import { translate } from '../core/i18n';
 
 export type ChapterTaskId =

@@ -12,7 +12,7 @@ if (
 }
 
 const customElementConfig = (filename: string | undefined) => {
-  if (filename?.includes('ViewerElement.svelte')) {
+  if (/(StoryViewer|StoryBuilder)Element\.svelte$/.test(filename ?? '')) {
     return { customElement: true };
   }
   return {};
@@ -20,6 +20,14 @@ const customElementConfig = (filename: string | undefined) => {
 
 export default defineConfig({
   root: resolve(__dirname, 'src'),
+  /*
+   * `@mango-iiif/iiif-viewer` may be linked from a sibling checkout, which
+   * would otherwise resolve its own copies of these from its own
+   * node_modules: two Svelte runtimes cannot share components or stores.
+   */
+  resolve: {
+    dedupe: ['svelte', '@lucide/svelte', '@mango-iiif/annotation', '@mango-iiif/w3c-parser'],
+  },
   plugins: [
     svelte({
       configFile: resolve(__dirname, 'svelte.config.js'),
@@ -28,10 +36,10 @@ export default defineConfig({
       },
     }),
     {
-      name: 'mango-element-shadow-css',
+      name: 'mango-story-element-shadow-css',
       closeBundle() {
-        const jsPath = resolve(__dirname, 'src/dist/mango-viewer-element.js');
-        const cssPath = resolve(__dirname, 'src/dist/mango-viewer-element.css');
+        const jsPath = resolve(__dirname, 'src/dist/mango-story-element.js');
+        const cssPath = resolve(__dirname, 'src/dist/mango-story-element.css');
 
         console.log('[CSS Inject] Checking files:', jsPath, cssPath);
         const jsExists = existsSync(jsPath);
@@ -49,7 +57,7 @@ export default defineConfig({
         console.log('[CSS Inject] Injecting CSS of length:', css.length);
         writeFileSync(
           jsPath,
-          `${js}\n/* mango-css-injected */\n;if (typeof window !== 'undefined' && window.__setMangoViewerCss) { window.__setMangoViewerCss(${JSON.stringify(css)}); }`
+          `${js}\n/* mango-css-injected */\n;if (typeof window !== 'undefined' && window.__setMangoStoryCss) { window.__setMangoStoryCss(${JSON.stringify(css)}); }`
         );
         console.log('[CSS Inject] Successfully injected CSS!');
       },
@@ -57,14 +65,14 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/lib/element.ts'),
-      name: 'MangoViewerElement',
+      entry: resolve(__dirname, 'src/lib/element-bundle.ts'),
+      name: 'MangoStoryElement',
       formats: ['es'],
-      fileName: () => 'mango-viewer-element.js',
+      fileName: () => 'mango-story-element.js',
     },
     rolldownOptions: {
       output: {
-        assetFileNames: 'mango-viewer-element.[ext]',
+        assetFileNames: 'mango-story-element.[ext]',
       },
     },
     outDir: resolve(__dirname, 'src/dist'),

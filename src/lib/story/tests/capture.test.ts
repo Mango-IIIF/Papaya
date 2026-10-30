@@ -1,27 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import type { ViewerApi } from '../../core/types/viewer-api';
+import type { ViewerApi } from '@mango-iiif/iiif-viewer/core';
 import { captureAudioVideo, captureImagePdf, captureModel } from '../capture';
 
-const createViewer = (overrides: Partial<ViewerApi>): ViewerApi => ({
-  getViewBox: () => ({ x: 1, y: 2, w: 300, h: 200 }),
-  setViewBox: () => undefined,
-  getMediaType: () => 'image',
-  getState: () => null,
-  getCanvasIndex: () => 0,
-  getCanvasId: () => null,
-  setCanvasByIndex: () => undefined,
-  setCanvasById: () => undefined,
-  setManifest: () => undefined,
-  getManifestId: () => 'https://example.org/manifest.json',
-  setModelOrbit: () => undefined,
-  setModelTarget: () => undefined,
-  setModelOrientation: () => undefined,
-  addAnnotation: () => Promise.resolve(),
-  removeAnnotation: () => Promise.resolve(),
-  on: () => () => undefined,
-  off: () => undefined,
-  ...overrides,
-});
+const createViewer = (overrides: Partial<ViewerApi>): ViewerApi =>
+  ({
+    getViewBox: () => ({ x: 1, y: 2, w: 300, h: 200 }),
+    setViewBox: () => undefined,
+    getMediaType: () => 'image',
+    getState: () => null,
+    getCanvasIndex: () => 0,
+    getCanvasId: () => null,
+    setCanvasByIndex: () => undefined,
+    setCanvasById: () => undefined,
+    setManifest: () => undefined,
+    getManifestId: () => 'https://example.org/manifest.json',
+    setModelOrbit: () => undefined,
+    setModelTarget: () => undefined,
+    setModelOrientation: () => undefined,
+    addAnnotation: () => Promise.resolve(),
+    removeAnnotation: () => Promise.resolve(),
+    on: () => () => undefined,
+    off: () => undefined,
+    ...overrides,
+  }) as ViewerApi;
 
 describe('captureImagePdf', () => {
   it('captures viewBox for image media', () => {

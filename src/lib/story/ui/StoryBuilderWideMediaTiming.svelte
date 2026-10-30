@@ -3,7 +3,7 @@
   import { onDestroy } from "svelte";
   import type { Readable } from "svelte/store";
   import type { StoryState } from "../../core/types/story";
-  import type { MediaSource, MediaType } from "../../iiif/mediaResolver";
+  import type { MediaSource, MediaType } from "@mango-iiif/iiif-viewer/core";
   import type { MediaMarksState } from "../mediaMarks";
   import AudioRegionEditor from "./AudioRegionEditor.svelte";
   import { t } from '../../core/i18n';

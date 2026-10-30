@@ -9,7 +9,7 @@ import {
   type RectGeometry,
   type TemporalFragment,
 } from '@mango-iiif/w3c-parser';
-import { createMangoAnnotation } from '../features/annotations/canonical';
+import { createMangoAnnotation } from '@mango-iiif/iiif-viewer/core';
 import {
   createMangoViewerStateBody,
   IIIF_PRESENTATION_3_CONTEXT,

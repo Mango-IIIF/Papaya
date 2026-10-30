@@ -1,5 +1,5 @@
 import type { Chapter, StoryState } from '../core/types/story';
-import type { ViewBox } from '../core/types/viewer';
+import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
 
 /**
  * Every stored framing is held to one canonical aspect, the story's

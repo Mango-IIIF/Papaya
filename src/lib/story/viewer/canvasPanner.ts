@@ -1,5 +1,5 @@
-import type { ViewerApi } from '../../core/types/viewer-api';
-import type { ViewBox } from '../../core/types/viewer';
+import type { ViewerApi } from '@mango-iiif/iiif-viewer/core';
+import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
 import { animateViewBoxTransition } from '../viewBoxAnimation';
 import { framingsWithin } from '../framing';
 

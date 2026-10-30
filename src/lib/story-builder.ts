@@ -1,3 +1,4 @@
+export { default as StoryBuilder } from './story/host/StoryBuilder.svelte';
 export { default as StoryMainSidebar } from './story/ui/MainSidebar.svelte';
 export { default as StoryBottomAuthoringBar } from './story/ui/BottomAuthoringBar.svelte';
 export { default as StoryNarrationOverlay } from './story/ui/NarrationOverlay.svelte';

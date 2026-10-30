@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../../core/i18n';
-  import LanguageTabs from '../../features/annotations/LanguageTabs.svelte';
+  import LanguageTabs from '../annotations/LanguageTabs.svelte';
 
   /*
    * The chapter's words: which language is being written, and the title and

@@ -11,7 +11,7 @@ test("reader preserves the same IIIF chapter region on desktop, tablet, and phon
   ]) {
     await page.setViewportSize(viewport);
     await page.goto("/index.html?iiif-content=test-story/demo.json");
-    const viewer = page.locator("mango-viewer");
+    const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
     await viewer.locator('[data-testid="story-controls-page-6"]').click();
     await expect(viewer.locator('.story-shell__title')).toHaveText('Chapter 6');
     const pause = viewer.getByRole('button', { name: 'Pause', exact: true });
@@ -54,7 +54,7 @@ test("keeps viewer zoom shortcuts scoped away from story metadata fields", async
 
   const stage = page.getByRole("application", { name: "Viewer stage" });
   await stage.focus();
-  const viewer = page.locator("mango-viewer");
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   const viewBefore = await viewer.evaluate((element: any) => element.getViewBox());
   await stage.press("+");
   await expect
@@ -72,11 +72,11 @@ test("previews saved chapter motion without showing authoring frames", async ({
   await expect
     .poll(() =>
       page
-        .locator("mango-viewer")
+        .locator(":is(mango-story-viewer, mango-story-builder)")
         .evaluate((element: any) => element.getViewBox()),
     )
     .not.toBeNull();
-  await page.locator("mango-viewer").evaluate((element: any) => {
+  await page.locator(":is(mango-story-viewer, mango-story-builder)").evaluate((element: any) => {
     const view = element.getViewBox();
     element.setViewBox({
       x: view.x + view.w * 0.2,
@@ -97,7 +97,7 @@ test("previews saved chapter motion without showing authoring frames", async ({
   });
   await addPoint.click();
   await expect(page.locator(".story-wide-authoring__point")).toHaveCount(1);
-  await page.locator("mango-viewer").evaluate((element: any) => {
+  await page.locator(":is(mango-story-viewer, mango-story-builder)").evaluate((element: any) => {
     const view = element.getViewBox();
     element.setViewBox({
       x: view.x + view.w * 0.15,
@@ -116,7 +116,7 @@ test("previews saved chapter motion without showing authoring frames", async ({
   await expect(page.locator(".story-frame--keyframe")).toHaveCount(0);
   await expect(page.locator(".story-frame--chapter")).toHaveCount(0);
 
-  const viewer = page.locator("mango-viewer");
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   const viewBeforePreview = await viewer.evaluate((element: any) =>
     element.getViewBox(),
   );
@@ -145,7 +145,7 @@ test("authors stable diagonal motion with independent pin position and zoom", as
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/story-builder.html?iiif-content=test-story/demo.json");
-  const viewer = page.locator("mango-viewer");
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   await viewer.locator('[data-testid="inspector-group-timing"]').click();
   const motionTask = viewer.locator('[data-testid="inspector-activate-motion"]');
   await expect(motionTask).toBeVisible();
@@ -272,7 +272,7 @@ test("authors stable diagonal motion with independent pin position and zoom", as
   await duration.fill("3");
   await duration.blur();
   await viewer.getByTestId("motion-preview-next-to-done").click();
-  const viewerRoot = viewer.locator(".viewer");
+  const viewerRoot = viewer.locator(".viewer:not(.viewer--headless)");
   await expect(viewerRoot).toHaveClass(/viewer--story-preview/);
   await expect(viewer.locator(".panel-stack--left")).toHaveCSS("display", "none");
   await expect(viewer.locator(".panel-stack--right")).toHaveCSS("display", "none");

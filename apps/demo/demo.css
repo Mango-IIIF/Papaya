@@ -227,7 +227,8 @@ body {
   --mango-viewer-height: 100%;
 }
 
-.viewer-shell mango-viewer {
+.viewer-shell mango-story-viewer,
+.viewer-shell mango-story-builder {
   display: block;
   flex: 0 0 auto;
   min-height: 0;

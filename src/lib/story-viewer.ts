@@ -1,3 +1,4 @@
+export { default as StoryViewer } from './story/host/StoryViewer.svelte';
 export { default as StoryControlsStage } from './story/viewer/StoryControlsStage.svelte';
 export { default as StoryAnnotationOverlay } from './story/ui/StoryAnnotationOverlay.svelte';
 export {

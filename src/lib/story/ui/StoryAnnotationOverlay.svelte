@@ -3,12 +3,12 @@
   import { readable, type Readable } from 'svelte/store';
   import { ANNOTATION_STROKE_WIDTH_PX } from '../../core/types/story';
   import type { ChapterDrawingAnnotation, StoryState } from '../../core/types/story';
-  import type { ViewBox } from '../../core/types/viewer';
+  import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
   import {
     fitRectangleLabelLayout,
     rectangleLabelOutlineWidth,
     STORY_LABEL_SIZING,
-  } from '../../features/annotations/rectangleLabelLayout';
+  } from '../annotations/rectangleLabelLayout';
   import { coerceAnnotationPlacement, DEFAULT_ANNOTATION_PLACEMENT } from '../annotationPlacement';
 
   export let story: Readable<StoryState>;

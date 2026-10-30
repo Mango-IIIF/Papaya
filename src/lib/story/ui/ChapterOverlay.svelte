@@ -7,8 +7,8 @@
     type ChapterAdvance,
     type StoryState,
   } from "../../core/types/story";
-  import type { ViewBox } from "../../core/types/viewer";
-  import type { MediaType, MediaSource } from "../../iiif/mediaResolver";
+  import type { ViewBox } from "@mango-iiif/iiif-viewer/core";
+  import type { MediaType, MediaSource } from "@mango-iiif/iiif-viewer/core";
   import type { MediaMarksState } from "../mediaMarks";
   import { animatableCameraDurationMs } from "../cameraTrack";
   import {

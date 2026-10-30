@@ -5,8 +5,8 @@
  * Used by both story viewer and story builder for consistent smooth transitions.
  */
 
-import type { ViewBox } from '../core/types/viewer';
-import type { ViewerApi } from '../core/types/viewer-api';
+import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
+import type { ViewerApi } from '@mango-iiif/iiif-viewer/core';
 
 type AnimationDeps = {
   now?: () => number;

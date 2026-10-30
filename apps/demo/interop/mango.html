@@ -6,19 +6,18 @@
     <style>
       body { margin: 0; font-family: system-ui, sans-serif; background: #f4efe6; }
       #note { padding: 8px 12px; font-size: 13px; }
-      mango-viewer { display: block; height: 82vh; }
+      mango-story-viewer { display: block; height: 82vh; }
     </style>
-    <script type="module" src="/dist/mango-viewer-element.js"></script>
+    <script type="module" src="/dist/mango-story-element.js"></script>
   </head>
   <body>
     <div id="note">
       Mango story-viewer reading <code>gottingen-story.json</code> — a plain
       AnnotationPage with no Mango vocabulary.
     </div>
-    <mango-viewer
-      mode="story-viewer"
+    <mango-story-viewer
       story-url="../interop/gottingen-story.json"
       config='{"showThumbnails":false,"showSearch":false,"showMetadata":false,"showAnnotations":false,"showTools":false}'
-    ></mango-viewer>
+    ></mango-story-viewer>
   </body>
 </html>

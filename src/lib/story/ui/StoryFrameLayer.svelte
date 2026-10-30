@@ -9,7 +9,7 @@
     type ShapeData,
   } from '@mango-iiif/annotation';
   import type { StoryFrame } from '../../core/types/story';
-  import type { ViewBox } from '../../core/types/viewer';
+  import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
   import { lockRectAspect } from '../frameGeometry';
   import { translate } from '../../core/i18n';
 

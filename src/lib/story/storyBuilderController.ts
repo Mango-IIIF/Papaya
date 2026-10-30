@@ -5,9 +5,8 @@ import {
   type Readable,
   type Writable,
 } from "svelte/store";
-import type { MediaSource, MediaType } from "../iiif/mediaResolver";
+import type { MediaSource, MediaType } from "@mango-iiif/iiif-viewer/core";
 import { translate } from '../core/i18n';
-import type { PluginContext } from "../core/types/plugin";
 import { createStoryStore } from "../core/state/story.svelte";
 import { createMediaMarks, type MediaMarksState } from "./mediaMarks";
 import { createModelPose } from "./modelPose";
@@ -57,16 +56,17 @@ import type {
   ChapterAdvance,
   ChapterModel,
   NarrationSegment,
+  StoryConfig,
   StoryFrame,
+  StoryPluginContext,
   StoryState,
 } from "../core/types/story";
-import type { ViewBox } from "../core/types/viewer";
-import type { ViewerConfig } from "../core/types/config";
+import type { ViewBox } from "@mango-iiif/iiif-viewer/core";
 import type { ChapterTaskId } from "./chapterTasks";
-import type { ResolvedAnnotation } from "../iiif/annotationResolver";
+import type { ResolvedAnnotation } from "@mango-iiif/iiif-viewer/core";
 import { normalizeStoryAnnotations } from "./normalizeAnnotations";
 import { storyDrawingToResolved } from "./storyDrawingAnnotations";
-import { normaliseAuthoringLanguages } from "../features/annotations/languages";
+import { normaliseAuthoringLanguages } from "./annotations/languages";
 
 export type StoryBuilderController = {
   story: Readable<StoryState>;
@@ -98,7 +98,7 @@ export type StoryBuilderController = {
   saveModalOpen: Readable<boolean>;
   saveModalPayload: Readable<ExportEnvelope | null>;
   setSaveConfig: (
-    config: ViewerConfig["story"] extends infer S
+    config: StoryConfig["story"] extends infer S
       ? S extends { save?: infer T }
         ? T
         : Record<string, never>
@@ -108,7 +108,7 @@ export type StoryBuilderController = {
   mediaSources: Readable<MediaSource[]>;
   layerOpacities: Readable<Record<string, number>>;
   updateLayerOpacity: (id: string, opacity: number) => void;
-  attach: (ctx: PluginContext) => () => void;
+  attach: (ctx: StoryPluginContext) => () => void;
   loadStory: (storyToLoad: StoryState) => void;
   setAnnotationLanguage: (lang: string) => void;
   setChapterAnnotationTool: (tool: ChapterAnnotationTool) => void;
@@ -436,8 +436,8 @@ export const createStoryBuilderController = (
   let latestNarrationSegments =
     collectLatestNarrationSegments(initialStoryData);
 
-  let viewer: PluginContext["viewer"] | null = null;
-  let eventBus: PluginContext["events"] | null = null;
+  let viewer: StoryPluginContext["viewer"] | null = null;
+  let eventBus: StoryPluginContext["events"] | null = null;
   let attachedCount = 0;
   let detachEvents: (() => void) | null = null;
   let lastManifest: string | null = null;
@@ -1638,7 +1638,7 @@ export const createStoryBuilderController = (
     viewer.setStoryFrameSelection?.(selection);
   };
 
-  const attach = (ctx: PluginContext) => {
+  const attach = (ctx: StoryPluginContext) => {
     if (!ctx?.viewer) {
       return () => undefined;
     }

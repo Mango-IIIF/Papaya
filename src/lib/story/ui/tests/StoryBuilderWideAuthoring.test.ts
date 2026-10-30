@@ -3,7 +3,7 @@ import { mount, unmount } from "svelte";
 import { writable } from "svelte/store";
 import { describe, expect, it, vi } from "vitest";
 import type { StoryState } from "../../../core/types/story";
-import type { MediaType } from "../../../iiif/mediaResolver";
+import type { MediaType } from "@mango-iiif/iiif-viewer/core";
 import type { ChapterTaskId } from "../../chapterTasks";
 import StoryBuilderWideAuthoring from "../StoryBuilderWideAuthoring.svelte";
 

@@ -6,8 +6,8 @@ import type {
   ChapterDrawingAnnotation,
 } from "../core/types/story";
 import { resolveChapterTiming } from "./timing";
-import type { ViewBox } from "../core/types/viewer";
-import type { ModelPoseOptions } from "../core/types/model";
+import type { ViewBox } from "@mango-iiif/iiif-viewer/core";
+import type { ModelPoseOptions } from "@mango-iiif/iiif-viewer/core";
 
 export const IIIF_PRESENTATION_3_CONTEXT =
   "http://iiif.io/api/presentation/3/context.json" as const;
