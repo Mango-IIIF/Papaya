@@ -82,7 +82,8 @@
   },
   "dependencies": {
     "@lucide/svelte": "^1.25.0",
-    "@mango-iiif/annotation": "^1.0.0",
+    "@mango-iiif/annotation": "^2.0.0",
+    "@mango-iiif/av": "^1.0.0",
     "@mango-iiif/iiif-viewer": "0.6.1",
     "@mango-iiif/w3c-parser": "^1.0.0",
     "wavesurfer.js": "^7.12.11"
