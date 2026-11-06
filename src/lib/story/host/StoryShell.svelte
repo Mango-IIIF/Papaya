@@ -262,8 +262,9 @@
     --viewer-danger: #ffb8b8;
     --viewer-success: #72cea4;
     --viewer-warning: #e8b85f;
-    --story-builder-accent: #b4551f;
-    --story-builder-accent-hover: #a8480f;
+    --story-builder-accent: #2ac7ff;
+    --story-builder-accent-hover: #5bd5ff;
+    --story-timeline-accent: #9a57ff;
     /*
        * Sunken surfaces — inputs, scrub tracks, timeline wells. These sit *below*
        * their panel, so they cannot be mixed from `--viewer-text` the way raised

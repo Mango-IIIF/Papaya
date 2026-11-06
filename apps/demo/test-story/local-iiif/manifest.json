@@ -20,7 +20,7 @@
               "type": "Annotation",
               "motivation": "painting",
               "body": {
-                "id": "http://localhost:5173/test-story/local-iiif/jatte-full.jpg",
+                "id": "/test-story/local-iiif/jatte-full.jpg",
                 "type": "Image",
                 "format": "image/jpeg",
                 "width": 9310,

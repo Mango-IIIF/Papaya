@@ -6,6 +6,7 @@
   import StoryChapterOverlay from './ChapterOverlay.svelte';
   import StoryAnnotationOverlay from './StoryAnnotationOverlay.svelte';
   import SaveExportModal from './SaveExportModal.svelte';
+  import StoryKeyframeInspector from './StoryKeyframeInspector.svelte';
   import RectanglePlacementEditor from '../annotations/RectanglePlacementEditor.svelte';
   import type {
     AnnotationPlacement,
@@ -34,6 +35,9 @@
     keyframeId: string,
     focus: { x: number; y: number },
   ) => void = () => {};
+  export let onGoToMotionPoint: (keyframeId: string) => void = () => {};
+  export let onUpdateMotionPointFromViewport: (keyframeId: string) => void = () => {};
+  export let onDeleteMotionPoint: (keyframeId: string) => void = () => {};
   export let onChapterTaskChange: ((task: ChapterTaskId | null) => void) | undefined = undefined;
   export let validationErrors: Readable<string[]>;
   export let uiMode: Readable<UIMode>;
@@ -87,6 +91,10 @@
   let currentMode: UIMode = 'idle';
   let narrationOpen = false;
   let chapterOpen = false;
+  let inspectorMode: 'keyframe' | 'chapter' = 'chapter';
+  let motionPointCount = 0;
+  let inspectorChapterId: string | null = null;
+  let lastInspectorPointId: string | null = null;
   $: chapterId = $selectedChapterId;
   $: manifestValue = $currentManifest;
   $: currentMode = $uiMode;
@@ -95,6 +103,19 @@
     currentMode === 'chapterEdit' ||
     (Boolean(chapterId) && currentMode !== 'narrationPanel') ||
     ((!manifestValue || $story.chapters.length === 0) && currentMode !== 'narrationPanel');
+  $: motionPointCount =
+    $story.chapters.find((entry) => entry.id === chapterId)?.cameraTrack?.keyframes.length ?? 0;
+  $: if (chapterId !== inspectorChapterId) {
+    inspectorChapterId = chapterId;
+    const firstPoint = $story.chapters.find((entry) => entry.id === chapterId)?.cameraTrack
+      ?.keyframes[0];
+    inspectorMode = firstPoint ? 'keyframe' : 'chapter';
+    if (firstPoint && !$selectedMotionPointId) onSelectMotionPoint(firstPoint.id);
+  }
+  $: if ($selectedMotionPointId !== lastInspectorPointId) {
+    lastInspectorPointId = $selectedMotionPointId;
+    if ($selectedMotionPointId && motionPointCount > 0) inspectorMode = 'keyframe';
+  }
   let overlayAnnotationLanguage = language;
   $: overlayAnnotationLanguage = $annotationLanguage ?? language;
   let exportPayload: ExportEnvelope | null = null;
@@ -445,7 +466,41 @@
     data-testid="story-builder-inspector"
   >
     {#if chapterId}
-      <StoryChapterOverlay
+      <div
+        class="story-builder-inspector-tabs"
+        role="tablist"
+        aria-label={$t('storyBuilder.cameraTimeline.inspectorMode')}
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={inspectorMode === 'keyframe'}
+          disabled={motionPointCount === 0}
+          on:click={() => (inspectorMode = 'keyframe')}
+        >
+          {$t('storyBuilder.cameraTimeline.keyframe')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={inspectorMode === 'chapter'}
+          on:click={() => (inspectorMode = 'chapter')}
+        >
+          {$t('storyBuilder.cameraTimeline.chapter')}
+        </button>
+      </div>
+      {#if inspectorMode === 'keyframe' && motionPointCount > 0}
+        <StoryKeyframeInspector
+          {story}
+          {selectedChapterId}
+          selectedPointId={selectedMotionPointId}
+          {language}
+          onGoToPoint={onGoToMotionPoint}
+          onUpdatePointFromView={onUpdateMotionPointFromViewport}
+          onDeletePoint={onDeleteMotionPoint}
+        />
+      {:else}
+        <StoryChapterOverlay
         {story}
         open={chapterOpen}
         docked={true}
@@ -492,6 +547,7 @@
         {onUpdateLayerOpacity}
         {onChapterTaskChange}
       />
+      {/if}
     {:else}
       <div class="story-builder-inspector-empty">
         <strong>{$t('storyBuilder.overlay.noChapter')}</strong>
@@ -615,11 +671,47 @@
   }
 
   .story-builder-inspector-root {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     height: 100%;
     min-height: 0;
     overflow: hidden;
     background: var(--viewer-panel, #121922);
     color: var(--viewer-text, #e8edf4);
+  }
+
+  .story-builder-inspector-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin: 12px 12px 0;
+    padding: 3px;
+    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.12));
+    border-radius: 11px;
+    background: var(--viewer-well-bg, rgba(0, 0, 0, 0.2));
+  }
+
+  .story-builder-inspector-tabs button {
+    min-height: 36px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--viewer-muted, #9aa6b2);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .story-builder-inspector-tabs button[aria-selected='true'] {
+    border-color: color-mix(in srgb, var(--story-builder-accent, #2ed9e8) 45%, transparent);
+    background: color-mix(in srgb, var(--story-builder-accent, #2ed9e8) 14%, transparent);
+    color: var(--story-builder-accent, #2ed9e8);
+  }
+
+  .story-builder-inspector-tabs button:disabled {
+    cursor: default;
+    opacity: 0.4;
   }
 
   .story-builder-motion-markers {

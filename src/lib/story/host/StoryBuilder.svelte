@@ -728,15 +728,8 @@
       column-gap 240ms ease;
   }
 
-  /*
-     * Story builder: one full-width stage with the panels floating above it.
-     *
-     * Docked panels took roughly 60% of the window, so the author composed in a
-     * tall narrow box and the reader saw a wide one — the framing that looked
-     * right while editing was never the framing they got. Overlaying the panels
-     * gives the stage the shape a reader's does, and collapsing them is how you
-     * check a chapter against the real thing without leaving the editor.
-     */
+  /* Desktop is a stable three-column authoring shell. Narrow layouts below
+     1025px retain the existing drawers so the artwork still has usable space. */
   .viewer__grid--builder-overlay {
     position: relative;
     --builder-panel-inline: min(340px, 30vw);
@@ -1095,7 +1088,8 @@
     position: relative;
     z-index: 0;
     isolation: isolate;
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) clamp(160px, 23%, 210px);
+    gap: 12px;
     align-content: stretch;
     overflow: hidden;
   }
@@ -1112,6 +1106,18 @@
     overflow: auto;
     overscroll-behavior: contain;
     box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+  }
+
+  /* The persistent camera timeline is part of the editor's layout, not a
+     floating card over the artwork. Contextual tools and modals keep the
+     overlay treatment above. */
+  .stage--story-builder .stage__bottom:has(:global(.camera-timeline)) {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-block-size: 100%;
+    overflow: auto;
+    box-shadow: none;
   }
 
   .stage--story-builder .stage__bottom:has(:global(.story-wide-modal)) {
@@ -1134,6 +1140,52 @@
     border-radius: var(--viewer-chrome-radius);
     background: var(--viewer-stage-bottom-bg, rgba(12, 16, 22, 0.72));
     border: 1px solid var(--viewer-panel-border);
+  }
+
+  @container mango-viewer (min-width: 1025px) {
+    :global(.viewer--story-builder) .viewer__grid--builder-overlay {
+      grid-template-columns:
+        clamp(250px, 30vw, 340px)
+        minmax(0, 1fr)
+        clamp(270px, 30vw, 340px);
+      grid-template-rows: minmax(0, 1fr);
+      column-gap: 12px;
+    }
+
+    :global(.viewer--story-builder) .viewer__grid--builder-overlay :global(.panel-stack--left),
+    :global(.viewer--story-builder) .viewer__grid--builder-overlay .panel-stack--right {
+      position: relative;
+      inset: auto;
+      width: auto;
+      height: 100%;
+      z-index: 1;
+      transform: none;
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    :global(.viewer--story-builder) .viewer__grid--builder-overlay :global(.panel-stack--left) {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    :global(.viewer--story-builder) .viewer__grid--builder-overlay > .stage {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    :global(.viewer--story-builder) .viewer__grid--builder-overlay .panel-stack--right {
+      grid-column: 3;
+      grid-row: 1;
+    }
+
+    :global(.viewer--story-builder) .viewer__grid--builder-overlay .builder-panel-toggle {
+      display: none;
+    }
+
   }
 
   @container mango-viewer (max-width: 1024px) {
@@ -1177,7 +1229,7 @@
       display: grid;
     }
     .stage--story-builder {
-      grid-template-rows: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) clamp(160px, 23%, 210px);
       overflow: hidden;
     }
     .viewer__grid {

@@ -259,13 +259,13 @@ test("leaves the stage the same size whatever chrome the author opens", async ({
     await expectUnchanged(`showing ${group}`);
   }
 
-  // Collapsing and restoring each column.
+  // Desktop columns are docked. Their restore handles are reserved for the
+  // drawer layout below the desktop breakpoint.
   for (const toggle of ["builder-toggle-chapters", "builder-toggle-tools"]) {
-    await viewer.locator(`[data-testid="${toggle}"]`).click();
-    await expectUnchanged(`collapsing ${toggle}`);
-    await viewer.locator(`[data-testid="${toggle}"]`).click();
-    await expectUnchanged(`restoring ${toggle}`);
+    await expect(viewer.locator(`[data-testid="${toggle}"]`)).toBeHidden();
   }
+  await expect(viewer.locator(".panel-stack--left")).toHaveCSS("position", "relative");
+  await expect(viewer.locator(".panel-stack--right")).toHaveCSS("position", "relative");
 });
 
 test("opens narration in a full-stage modal and keeps its controls in reach", async ({

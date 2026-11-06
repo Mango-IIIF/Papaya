@@ -70,6 +70,8 @@ describe('motion authoring surfaces', () => {
     expect(button('Curved Spline')).toBeUndefined();
     expect(button('1.0s')).toBeUndefined();
     expect(button('Ease out')).toBeUndefined();
+    button('Chapter').click();
+    await tick();
     expect(target.querySelector('[data-testid="inspector-summary-motion"]')).toBeTruthy();
     unmount(instance);
     target.remove();

@@ -19,6 +19,7 @@
   import ChapterMotionPanel from "./ChapterMotionPanel.svelte";
   import StoryBuilderWideAnnotations from "./StoryBuilderWideAnnotations.svelte";
   import StoryBuilderWideAnnotationOptions from "./StoryBuilderWideAnnotationOptions.svelte";
+  import StoryCameraTimeline from "./StoryCameraTimeline.svelte";
   import { t } from '../../core/i18n';
   import { animatableCameraDurationMs, balanceCameraTrackKeyframes } from '../cameraTrack';
 
@@ -496,6 +497,17 @@
   <div class="story-wide-authoring--bare" aria-hidden="true"></div>
 {:else if chapter && $activeTask === "motion" && $motionPreviewing}
   <div class="story-wide-preview-controls" aria-hidden="true"></div>
+{:else if chapter}
+  <StoryCameraTimeline
+    {story}
+    {selectedChapterId}
+    {selectedPointId}
+    {motionPreviewing}
+    {onAddPoint}
+    {onGoToPoint}
+    {onPreviewMotion}
+    {onStopMotionPreview}
+  />
 {:else}
   <div class="story-wide-authoring--empty" aria-hidden="true"></div>
 {/if}
@@ -503,6 +515,26 @@
 <style>
 
   :global(.stage__bottom:has(.story-wide-authoring--empty)) {
+    display: none;
+  }
+  :global(.stage__bottom:has(.camera-timeline)) {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  :global(.stage__bottom:has(.camera-timeline) .plugin-slot),
+  :global(.stage__bottom:has(.camera-timeline) .plugin-panel),
+  :global(.stage__bottom:has(.camera-timeline) .plugin-panel__panel),
+  :global(.stage__bottom:has(.camera-timeline) .plugin-panel__body) {
+    width: 100%;
+    min-width: 0;
+  }
+  :global(.stage__bottom:has(.camera-timeline) .plugin-panel__panel) {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  :global(.stage__bottom:has(.camera-timeline) .plugin-panel__title) {
     display: none;
   }
   :global(.stage--story-builder:has(#motion-options-panel) .story-builder-motion-markers) {
