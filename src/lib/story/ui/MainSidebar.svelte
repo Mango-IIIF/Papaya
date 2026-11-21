@@ -127,7 +127,7 @@
   $: {
     for (const manifestId of manifestIds) {
       const entry = $manifestsStore[manifestId];
-      if (!entry?.json && !entry?.isFetching) {
+      if (!entry?.json && !entry?.isFetching && !entry?.error) {
         void fetchManifest(manifestId);
       }
     }

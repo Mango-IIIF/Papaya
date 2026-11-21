@@ -216,13 +216,19 @@
 
   const startMarkerDrag = (event: PointerEvent, pointId: string) => {
     if (!onMovePointTime) return;
+    event.preventDefault();
     event.stopPropagation();
     draggingMarkerId = pointId;
     markerMoved = false;
     onSelectPoint(pointId);
     const startX = event.clientX;
-    const target = event.currentTarget as HTMLElement;
-    target.setPointerCapture?.(event.pointerId);
+    // Capture on the stable track element rather than the marker button, which
+    // may reorder in the DOM when dragged past a neighbouring keyframe.
+    try {
+      trackEl?.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Synthetic events in tests may not have an active pointer id.
+    }
 
     const onMove = (moveEvent: PointerEvent) => {
       if (draggingMarkerId !== pointId) return;
@@ -238,7 +244,17 @@
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      try {
+        trackEl?.releasePointerCapture?.(event.pointerId);
+      } catch {
+        // Ignore if capture was already released.
+      }
       draggingMarkerId = null;
+      if (markerMoved) {
+        setTimeout(() => {
+          markerMoved = false;
+        }, 0);
+      }
     };
 
     window.addEventListener("pointermove", onMove);
@@ -754,8 +770,8 @@
     left: var(--point-position);
     top: 50%;
     z-index: 4;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -768,13 +784,19 @@
   }
   .camera-timeline__marker span {
     display: block;
-    width: 10px;
-    height: 10px;
-    margin: 5px;
+    width: 12px;
+    height: 12px;
+    margin: 6px;
     box-sizing: border-box;
     border: 2px solid var(--viewer-text, #e8edf4);
     border-radius: 50%;
     background: var(--viewer-panel, #121922);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .camera-timeline__marker:hover span,
+  .camera-timeline__marker--dragging span {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--timeline-accent) 28%, transparent);
   }
   .camera-timeline__marker--selected span {
     border-color: var(--timeline-accent);

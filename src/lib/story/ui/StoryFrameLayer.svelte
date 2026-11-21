@@ -89,6 +89,15 @@
     ...(frame.label ? { label: frame.label } : {}),
   });
 
+  /*
+   * Keep the editable frame last so it renders above passive guides and wins
+   * OSDAnnotationEditor's top-down hitTest whenever keyframes overlap.
+   */
+  const orderedShapes = (): RectAnnotation[] => [
+    ...frames.filter((frame) => !frame.editable).map(toShape),
+    ...frames.filter((frame) => frame.editable).map(toShape),
+  ];
+
   const bounds = () =>
     canvasWidth > 0 && canvasHeight > 0 ? { width: canvasWidth, height: canvasHeight } : null;
 
@@ -159,7 +168,7 @@
   };
 
   /** The grab band inside the frame's edge, in screen pixels. */
-  const HALO_WIDTH_PX = 7;
+  const HALO_WIDTH_PX = 12;
   /** The tag in the frame's corner, in screen pixels. */
   const TAG_FONT_PX = 10;
   const TAG_INSET_PX = 8;
@@ -236,7 +245,12 @@
       tag.setAttribute('font-size', String(TAG_FONT_PX / scale));
       tag.setAttribute('stroke-width', String(3 / scale));
       tag.setAttribute('class', 'story-frame__tag');
-      tag.style.pointerEvents = 'none';
+      if (named) {
+        tag.style.pointerEvents = 'all';
+        tag.style.cursor = 'move';
+      } else {
+        tag.style.pointerEvents = 'none';
+      }
       group.append(tag);
     }
     group.setAttribute(
@@ -274,7 +288,7 @@
       keyboardTarget,
       canvasSize: { width: canvasWidth, height: canvasHeight },
       mode: 'select',
-      annotations: frames.map(toShape),
+      annotations: orderedShapes(),
       selectedId: selectedFrameId,
       policy: (shape) => {
         const frame = frameById(shape.id);
@@ -343,10 +357,11 @@
       root.classList.add('story-frame-layer');
       root.dataset.storyFrameLayer = '';
     }
-    for (const shape of untrack(() => frames.map(toShape))) {
+    const initialShapes = untrack(() => orderedShapes());
+    for (const shape of initialShapes) {
       pushedGeometry.set(shape.id, JSON.stringify(shape.geometry));
     }
-    lastPushedShapes = JSON.stringify(untrack(() => frames.map(toShape)));
+    lastPushedShapes = JSON.stringify(initialShapes);
     editor = instance;
     return () => {
       instance.destroy();
@@ -359,7 +374,7 @@
 
   $effect(() => {
     if (!editor) return;
-    const shapes = frames.map(toShape);
+    const shapes = orderedShapes();
     const serialised = JSON.stringify(shapes);
     const selection = selectedFrameId;
     if (serialised !== lastPushedShapes) {
@@ -395,7 +410,7 @@
 
   :global(.story-frame__halo) {
     stroke: rgba(10, 14, 20, 0.35);
-    stroke-width: 7;
+    stroke-width: 12;
   }
 
   :global(.story-frame__line) {

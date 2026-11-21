@@ -1041,13 +1041,13 @@
 
     .chapter-overlay--docked .chapter-overlay__panel {
       width: 100%;
-      max-width: none;
+      max-width: 100%;
       border-left: 0;
       background: var(--viewer-panel, #121922);
     }
 
     .chapter-overlay--docked .chapter-overlay__header {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       padding: 16px;
     }
 
@@ -1076,7 +1076,8 @@
       background: var(--viewer-panel, #121922);
       color: var(--viewer-text, #e8edf4);
       box-shadow: none;
-      overflow: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
       box-sizing: border-box;
     }
 
@@ -1085,13 +1086,19 @@
       top: 0;
       z-index: 3;
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 12px;
       align-items: center;
+      min-width: 0;
       padding: 16px 18px;
       background: var(--viewer-panel, #121922);
       border-bottom: 1px solid
         var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
+    }
+
+    .chapter-overlay__header > div {
+      min-width: 0;
+      max-width: 100%;
     }
 
     /* Annotation editing is a focused workspace, not another dashboard view.
@@ -1123,6 +1130,9 @@
       font-weight: 600;
       color: var(--viewer-text, #e8edf4);
       letter-spacing: 0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .chapter-overlay__source-context {
@@ -1130,12 +1140,15 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      min-width: 0;
+      max-width: 100%;
       margin-top: 6px;
       font-size: 11px;
       color: var(--viewer-muted, #9aa6b2);
     }
 
     .chapter-overlay__source-context > span {
+      flex: 1 1 auto;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
