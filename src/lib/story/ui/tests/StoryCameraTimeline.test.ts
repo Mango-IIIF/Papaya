@@ -140,12 +140,28 @@ describe("Story camera timeline", () => {
     expect(byId("camera-timeline-narration")).toBeNull();
     expect(node.querySelectorAll(".camera-timeline__marker")).toHaveLength(0);
     expect(byId("camera-timeline-play")!.disabled).toBe(true);
-    expect(byId("camera-timeline-options")!.disabled).toBe(true);
     expect(byId("camera-timeline-empty")?.textContent).toContain("No camera motion");
     // Capture is always available: it is how motion starts.
     expect(byId("camera-timeline-capture")!.disabled).toBe(false);
 
     cleanup();
+  });
+
+  it("opens the motion presets from the chapter frame before any keyframe exists", async () => {
+    const framed = mountTimeline({ chapters: [chapter(0)] });
+    const options = framed.byId("camera-timeline-options")!;
+    expect(options.disabled).toBe(false);
+    options.click();
+    await tick();
+    expect(framed.byId("camera-timeline-options-panel")).not.toBeNull();
+    framed.cleanup();
+
+    // Without a frame there is nothing for a preset to be shaped from.
+    const unframed = { ...chapter(0) };
+    delete unframed.viewBox;
+    const missing = mountTimeline({ chapters: [unframed] });
+    expect(missing.byId("camera-timeline-options")!.disabled).toBe(true);
+    missing.cleanup();
   });
 
   it("asks for a second keyframe before calling one keyframe motion", () => {

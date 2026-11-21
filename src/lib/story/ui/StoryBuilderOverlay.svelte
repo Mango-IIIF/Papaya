@@ -15,7 +15,6 @@
   import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
   import type { UIMode } from '../storyBuilderController';
   import type { MediaType, MediaSource } from '@mango-iiif/iiif-viewer/core';
-  import type { MediaMarksState } from '../mediaMarks';
   import type { ExportEnvelope } from '../storySerializer';
   import type { ChapterTaskId } from '../chapterTasks';
   import { t } from '../../core/i18n';
@@ -33,8 +32,6 @@
   export let validationErrors: Readable<string[]>;
   export let uiMode: Readable<UIMode>;
   export let mediaType: Readable<MediaType | null>;
-  export let mediaMarks: Readable<MediaMarksState>;
-  export let avMarksValid: Readable<boolean>;
   export let transitionDelayDefault: Readable<number>;
   export let saveModalOpen: Readable<boolean>;
   export let saveModalPayload: Readable<ExportEnvelope | null>;
@@ -45,18 +42,13 @@
   export let languages: string[] = ['en'];
   export let onCloseNarration: () => void;
   export let onCloseChapter: () => void;
-  export let onSetMediaMarks: (start: number | null, end: number | null) => void;
   export let positioningLanguage: Readable<string | null>;
   export let onStartAnnotationPositioning: (lang: string) => void;
   export let onConfirmAnnotationPositioning: () => void;
   export let onCancelAnnotationPositioning: () => void;
-  export let onPreviewMediaSegment: () => void;
-  export let onStopPreviewMediaSegment: () => void;
   export let onSetNarrationTrack: (lang: string, src: string) => void;
   export let onUpdateStoryTitle: (lang: string, value: string) => void;
   export let onUpdateStoryIdentifiers: (id: string, annotationBase: string) => void;
-  export let onAssignSegment: (lang: string, start: number, end: number) => void;
-  export let onSkipNarration: (lang: string) => void;
   export let onUpdateManifest: (manifest: string) => void;
   export let onReloadManifest: (manifest: string, canvasIndex: number) => void;
   export let onLoadManifest: (manifest: string) => void;
@@ -64,7 +56,6 @@
   export let onAddChapter: () => void;
   export let onUpdateChapterTitle: (lang: string, value: string) => void;
   export let onUpdateChapterDescription: (lang: string, value: string) => void;
-  export let onUpdateAnnotationText: (lang: string, text: string) => void;
   export let onUpdateAnnotationPlacement: (lang: string, placement: AnnotationPlacement) => void;
   export let onUpdateAdvanceMode: (mode: ChapterAdvance['mode']) => void;
   export let onUpdateDelay: (delayMs?: number) => void;
@@ -314,18 +305,10 @@
         validationErrors={$validationErrors}
         currentManifest={manifestValue}
         {mediaType}
-        {mediaMarks}
-        {avMarksValid}
         transitionDelayDefaultMs={$transitionDelayDefault}
         language={overlayAnnotationLanguage}
         {languages}
         onClose={onCloseChapter}
-        {onSetNarrationTrack}
-        {onAssignSegment}
-        {onSkipNarration}
-        {onSetMediaMarks}
-        {onPreviewMediaSegment}
-        {onStopPreviewMediaSegment}
         onUpdateManifest={(chapterId, manifest) => onUpdateManifest(manifest)}
         {onLoadManifest}
         onCreateChapter={onAddChapter}
@@ -334,9 +317,6 @@
         onUpdateChapterTitle={(chapterId, lang, value) => onUpdateChapterTitle(lang, value)}
         onUpdateChapterDescription={(chapterId, lang, value) =>
           onUpdateChapterDescription(lang, value)}
-        onUpdateAnnotationText={(chapterId, lang, text) => onUpdateAnnotationText(lang, text)}
-        onUpdateAnnotationPlacement={(chapterId, lang, placement) =>
-          onUpdateAnnotationPlacement(lang, placement)}
         onUpdateAdvanceMode={(chapterId, mode) => onUpdateAdvanceMode(mode)}
         onUpdateDelay={(chapterId, delayMs) => onUpdateDelay(delayMs)}
         onSetChapterPosition={(chapterId, viewBox) => onSetChapterPosition(viewBox)}

@@ -212,6 +212,11 @@
       if (mobile && !isMobileLayout && !builderLeftCollapsed && !builderRightCollapsed) {
         builderRightCollapsed = true;
       }
+      // Drawers closed on a small screen come back as columns on a wide one.
+      if (!mobile && isMobileLayout) {
+        builderLeftCollapsed = false;
+        builderRightCollapsed = false;
+      }
       isMobileLayout = mobile;
     });
     observer.observe(root);
@@ -242,6 +247,22 @@
       }
     });
   });
+
+  /*
+   * Builder shortcuts (undo, redo, play motion, delete the selection) answer
+   * keys pressed inside the builder, or with nothing focused at all. Keys meant
+   * for the rest of a host page are left alone.
+   */
+  const handleBuilderKeydown = (event: KeyboardEvent) => {
+    if (!builderController || !root) return;
+    const path = event.composedPath?.() ?? [];
+    const origin = path[0] ?? event.target;
+    const inBuilder =
+      origin === document.body ||
+      origin === document.documentElement ||
+      path.includes(root);
+    if (inBuilder) builderController.handleShortcut(event);
+  };
 
   /* The story being edited, and the builder plugins made for it. */
   let builderPlugins = $state<StoryPlugin[]>([]);
@@ -436,6 +457,8 @@
     bridge.events.off(event, handler);
   }
 </script>
+
+<svelte:window onkeydown={handleBuilderKeydown} />
 
 <StoryShell variant="builder" theme={normalisedConfig.theme} bind:root>
   {#snippet actions()}
@@ -709,8 +732,8 @@
       column-gap 240ms ease;
   }
 
-  /* Desktop is a stable three-column authoring shell. Narrow layouts below
-     1025px retain the existing drawers so the artwork still has usable space. */
+  /* Desktop is a three-column authoring shell whose side columns collapse to
+     give the image their width. Narrow layouts below 1025px use drawers. */
   .viewer__grid--builder-overlay {
     position: relative;
     --builder-panel-inline: min(340px, 30vw);
@@ -888,20 +911,6 @@
     inset-inline-end: 18px;
   }
 
-  /* In the focused annotation workspace this becomes a labelled control in
-       the inspector's own top-right corner. Keeping it inside avoids a wide pill
-       covering the artwork; once collapsed, the general rule above returns the
-       icon to the stage edge so the inspector is easy to restore. */
-  .viewer__grid--builder-annotation-editing:not(.viewer__grid--builder-right-collapsed)
-    .builder-panel-toggle--right {
-    left: calc(100% - 224px) !important;
-    right: auto !important;
-    inset-inline-start: calc(100% - 224px) !important;
-    inset-inline-end: auto !important;
-    inline-size: 200px;
-    justify-content: center;
-  }
-
   :global(.viewer--story-builder) .viewer__grid {
     row-gap: 14px;
   }
@@ -1058,10 +1067,12 @@
     :global(.viewer--story-builder) .viewer__grid--builder-overlay {
       /* The image is what is being edited; the panels take what they need
          and no more, so it keeps a workable width in an ordinary window. */
+      --builder-left-track: clamp(220px, 21vw, 300px);
+      --builder-right-track: clamp(280px, 26vw, 340px);
       grid-template-columns:
-        clamp(220px, 21vw, 300px)
+        var(--builder-left-track)
         minmax(0, 1fr)
-        clamp(280px, 26vw, 340px);
+        var(--builder-right-track);
       grid-template-rows: minmax(0, 1fr) auto;
       column-gap: 12px;
     }
@@ -1096,8 +1107,35 @@
       grid-row: 1;
     }
 
-    :global(.viewer--story-builder) .viewer__grid--builder-overlay .builder-panel-toggle {
+    /* Collapsing a column hands its width to the image: the canvas-focus view
+       for checking a framing on a laptop-sized window. */
+    :global(.viewer--story-builder)
+      .viewer__grid--builder-overlay.viewer__grid--builder-left-collapsed {
+      --builder-left-track: 0px;
+    }
+
+    :global(.viewer--story-builder)
+      .viewer__grid--builder-overlay.viewer__grid--builder-right-collapsed {
+      --builder-right-track: 0px;
+    }
+
+    :global(.viewer--story-builder)
+      .viewer__grid--builder-overlay.viewer__grid--builder-left-collapsed
+      :global(.panel-stack--left),
+    :global(.viewer--story-builder)
+      .viewer__grid--builder-overlay.viewer__grid--builder-right-collapsed
+      .panel-stack--right {
       display: none;
+    }
+
+    /* Each handle sits just inside the stage's top corner beside its column,
+       and follows the column's edge as it opens and closes. */
+    :global(.viewer--story-builder) .viewer__grid--builder-overlay .builder-panel-toggle--left {
+      inset-inline-start: calc(var(--builder-left-track) + 24px);
+    }
+
+    :global(.viewer--story-builder) .viewer__grid--builder-overlay .builder-panel-toggle--right {
+      inset-inline-end: calc(var(--builder-right-track) + 24px);
     }
 
   }
@@ -1142,6 +1180,19 @@
        */
     .builder-panel-toggle {
       display: grid;
+    }
+    /* In the focused annotation workspace this becomes a labelled control in
+         the inspector's own top-right corner. Keeping it inside avoids a wide pill
+         covering the artwork; once collapsed, the general rule returns the icon
+         to the stage edge so the inspector is easy to restore. */
+    .viewer__grid--builder-annotation-editing:not(.viewer__grid--builder-right-collapsed)
+      .builder-panel-toggle--right {
+      left: calc(100% - 224px) !important;
+      right: auto !important;
+      inset-inline-start: calc(100% - 224px) !important;
+      inset-inline-end: auto !important;
+      inline-size: 200px;
+      justify-content: center;
     }
     .stage--story-builder {
       grid-template-rows: minmax(0, 1fr);

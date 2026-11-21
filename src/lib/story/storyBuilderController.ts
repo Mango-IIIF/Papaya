@@ -232,6 +232,8 @@ export type StoryBuilderController = {
   saveStory: () => Promise<SaveResult>;
   undo: () => void;
   redo: () => void;
+  /** Builder keyboard shortcuts; returns whether the key was taken. */
+  handleShortcut: (event: KeyboardEvent) => boolean;
   isPreviewing: Readable<boolean>;
   /** Stage opacity while a chapter change swaps the Manifest or Canvas. */
   stageFade: Readable<StageFade>;
@@ -505,7 +507,10 @@ export const createStoryBuilderController = (
     // in-panel Cancel path clears the snapshot before changing the task, so it
     // never reaches this branch.
     if (annotationTransactionSnapshot) {
-      if (annotationTransactionChanged) history.push(annotationTransactionSnapshot);
+      if (annotationTransactionChanged) {
+        history.push(annotationTransactionSnapshot);
+        historyRun = null;
+      }
       annotationTransactionSnapshot = null;
       annotationTransactionChanged = false;
       canUndo.set(history.canUndo());
@@ -886,13 +891,37 @@ export const createStoryBuilderController = (
     );
   };
 
-  const pushHistorySnapshot = () => {
+  /*
+   * Typing is one edit, not one per keystroke. Changes to the same field that
+   * each follow the last within HISTORY_COALESCE_MS share the snapshot taken
+   * before the run began, so one undo takes back the whole run. Any other edit
+   * — or an undo or redo — ends the run.
+   */
+  const HISTORY_COALESCE_MS = 1000;
+  let historyRun: { key: string; at: number } | null = null;
+
+  const pushHistorySnapshot = (coalesceKey?: string) => {
+    const now = Date.now();
+    if (
+      coalesceKey &&
+      historyRun?.key === coalesceKey &&
+      now - historyRun.at < HISTORY_COALESCE_MS
+    ) {
+      historyRun.at = now;
+      return;
+    }
+    historyRun = coalesceKey ? { key: coalesceKey, at: now } : null;
     history.push(storyStoreWrapper.exportStory());
     canUndo.set(history.canUndo());
     canRedo.set(history.canRedo());
   };
 
+  /** The run key for a typed field of the selected chapter. */
+  const chapterFieldKey = (field: string, lang = ""): string =>
+    `${field}:${get(selectedChapterId) ?? ""}:${lang}`;
+
   const restoreHistoryStory = (next: StoryState | null) => {
+    historyRun = null;
     if (!next) return;
     activeChapterTask.set(null);
     runesStore.loadStory(next);
@@ -2333,18 +2362,18 @@ export const createStoryBuilderController = (
   };
 
   const setNarrationTrack = (lang: string, src: string) => {
-    pushHistorySnapshot();
+    pushHistorySnapshot(`narration-track::${lang}`);
     chapterActions.setNarrationTrack(lang, src);
   };
 
   const updateStoryTitle = (lang: string, value: string) => {
-    pushHistorySnapshot();
+    pushHistorySnapshot(`story-title::${lang}`);
     storyStoreWrapper.setStoryTitle({ language: lang, value });
   };
 
   const updateStoryIdentifiers = (id: string, annotationBase: string) => {
     if (get(storyStore).publication?.identifiersLocked) return;
-    pushHistorySnapshot();
+    pushHistorySnapshot("story-identifiers");
     storyStoreWrapper.setStoryIdentifiers({ id, annotationBase });
   };
 
@@ -2780,12 +2809,12 @@ export const createStoryBuilderController = (
   };
 
   const updateChapterTitle = (lang: string, value: string) => {
-    pushHistorySnapshot();
+    pushHistorySnapshot(chapterFieldKey("title", lang));
     chapterActions.updateChapterTitle(lang, value);
   };
 
   const updateChapterDescription = (lang: string, value: string) => {
-    pushHistorySnapshot();
+    pushHistorySnapshot(chapterFieldKey("description", lang));
     chapterActions.updateChapterDescription(lang, value);
   };
 
@@ -2819,12 +2848,12 @@ export const createStoryBuilderController = (
   };
 
   const updateAdvanceMode = (mode: ChapterAdvance["mode"]) => {
-    pushHistorySnapshot();
+    pushHistorySnapshot(chapterFieldKey("transition"));
     chapterActions.updateAdvanceMode(mode);
   };
 
   const updateDelay = (delayMs?: number) => {
-    pushHistorySnapshot();
+    pushHistorySnapshot(chapterFieldKey("transition"));
     chapterActions.updateDelay(delayMs);
     if (Number.isFinite(delayMs) && (delayMs as number) >= 0) {
       transitionDelayDefault.set(delayMs as number);
@@ -2847,7 +2876,7 @@ export const createStoryBuilderController = (
   };
 
   const updateManifest = (manifest: string) => {
-    pushHistorySnapshot();
+    pushHistorySnapshot(chapterFieldKey("manifest"));
     chapterActions.updateManifest(manifest);
   };
 
@@ -2943,6 +2972,7 @@ export const createStoryBuilderController = (
     if (get(activeChapterTask) === "focus") {
       if (annotationTransactionSnapshot && annotationTransactionChanged) {
         history.push(annotationTransactionSnapshot);
+        historyRun = null;
       }
       annotationTransactionSnapshot = null;
       annotationTransactionChanged = false;
@@ -3037,9 +3067,92 @@ export const createStoryBuilderController = (
     // Auto-select the first chapter so the editor shows content on load
     autoSelectFirstChapterIfNeeded();
     history.reset(storyStoreWrapper.exportStory());
+    historyRun = null;
     canUndo.set(false);
     canRedo.set(false);
     dirty.set(false);
+  };
+
+  /** Where a key belongs to the field or control that has focus, not the builder. */
+  const isTypingTarget = (target: EventTarget | null): boolean => {
+    if (!target || typeof (target as Element).closest !== "function") return false;
+    const element = target as HTMLElement;
+    return (
+      element.isContentEditable ||
+      Boolean(element.closest("input, textarea, select, [contenteditable='true']"))
+    );
+  };
+
+  const activatesOnSpace = (target: EventTarget | null): boolean => {
+    if (!target || typeof (target as Element).closest !== "function") return false;
+    return Boolean(
+      (target as Element).closest("button, a[href], summary, [role='button'], [role='tab']"),
+    );
+  };
+
+  /*
+   * Builder shortcuts. Undo and redo follow the platform; Space plays or stops
+   * the selected chapter's camera motion; Delete removes whatever is selected
+   * on the stage. Keys typed into a field are the field's own, and nothing
+   * fires while the story is playing as a reader would see it or a dialog is
+   * open. Returns whether the key was taken.
+   */
+  const handleShortcut = (event: KeyboardEvent): boolean => {
+    if (event.defaultPrevented || event.isComposing) return false;
+    // Inside the builder's shadow root `target` is the host element; the
+    // composed path still starts at the element that has focus.
+    const origin = event.composedPath?.()[0] ?? event.target;
+    if (isTypingTarget(origin)) return false;
+    if (get(isPreviewing) || get(saveModalOpen)) return false;
+
+    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+    const mod = event.metaKey || event.ctrlKey;
+
+    if (mod && !event.altKey && (key === "z" || (key === "y" && event.ctrlKey))) {
+      const wantsRedo = key === "y" || event.shiftKey;
+      // During a drawing transaction the story history is held back on purpose.
+      if (wantsRedo ? !get(canRedo) : !get(canUndo)) return false;
+      event.preventDefault();
+      if (wantsRedo) redo();
+      else undo();
+      return true;
+    }
+
+    if (mod || event.altKey) return false;
+
+    if (key === " ") {
+      if (activatesOnSpace(origin)) return false;
+      if (get(motionPreviewing)) {
+        event.preventDefault();
+        stopMotionPreview();
+        return true;
+      }
+      const chapter = get(storyStore).chapters.find(
+        (item) => item.id === get(selectedChapterId),
+      );
+      if ((chapter?.cameraTrack?.keyframes.length ?? 0) < 2) return false;
+      event.preventDefault();
+      previewMotion();
+      return true;
+    }
+
+    if (key === "Delete" || key === "Backspace") {
+      const annotationId =
+        get(activeChapterTask) === "focus" ? get(selectedDrawingAnnotationId) : null;
+      if (annotationId) {
+        event.preventDefault();
+        deleteChapterDrawingAnnotation(annotationId);
+        return true;
+      }
+      const keyframeId = get(selectedMotionPointId);
+      if (keyframeId) {
+        event.preventDefault();
+        deleteMotionPoint(keyframeId);
+        return true;
+      }
+    }
+
+    return false;
   };
 
   const controller: StoryBuilderController = {
@@ -3135,6 +3248,7 @@ export const createStoryBuilderController = (
     saveStory,
     undo,
     redo,
+    handleShortcut,
     setSaveConfig,
     setAnnotationLanguage,
     setChapterAnnotationTool,

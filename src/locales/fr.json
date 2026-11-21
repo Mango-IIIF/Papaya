@@ -93,7 +93,6 @@
     },
     "tasks": {
       "title": "Outils du chapitre",
-      "description": "Tout sur ce chapitre, en trois groupes. Les sections qui travaillent sur la scène s’ouvrent d’ici.",
       "status": {
         "attention": "Nécessite une attention"
       },
@@ -176,7 +175,7 @@
       "videoTiming": "Minutage de la vidéo du manifeste",
       "audioTiming": "Minutage de l'audio du manifeste",
       "chooseSegment": "Choisissez le segment {type} du manifeste pour ce chapitre",
-      "editorHint": "L'éditeur de forme d'onde sous le visualiseur ne contrôle que {type} source. La narration de l'histoire se modifie séparément.",
+      "editorHint": "L'éditeur de forme d'onde ne contrôle que {type} source. La narration de l'histoire se modifie séparément.",
       "dragSelection": "Faites glisser la sélection ombrée pour déplacer son début et sa fin ensemble.",
       "dragEdge": "Faites glisser l'un ou l'autre bord pour ajuster l'heure de début ou de fin.",
       "longMediaHint": "Pour les médias longs, zoomez et faites défiler la forme d'onde. Utilisez « Afficher la sélection » pour revenir à la plage du chapitre.",
@@ -203,7 +202,7 @@
       "storyAudioSource": "Source audio de l'histoire",
       "skip": "Ignorer la narration pour ce chapitre",
       "editor": "Éditeur de narration",
-      "editorHint": "Utilisez l'éditeur large sous le visualiseur pour choisir l'audio et définir la plage de ce chapitre."
+      "editorHint": "Choisissez l'audio et définissez la plage de ce chapitre dans l'éditeur de narration."
     },
     "content": {
       "language": "Langue du contenu",
@@ -350,7 +349,7 @@
       "chapterPreviewPlaying": "Lecture de ce chapitre. Cliquez pour arrêter.",
       "sourceHint": "Ajoutez la source de votre histoire pour créer le premier chapitre. Utilisez les commandes de la visionneuse pour changer de canevas, puis ajustez le placement de l'image si nécessaire.",
       "noChapter": "Aucun chapitre sélectionné",
-      "noChapterHint": "Capturez un chapitre ou sélectionnez-en un dans la chronologie pour modifier son contenu.",
+      "noChapterHint": "Capturez un chapitre ou sélectionnez-en un dans la liste des chapitres pour modifier son contenu.",
       "confirmPosition": "Confirmer la position"
     },
     "comparison": {
@@ -391,7 +390,8 @@
       "edit": "Modifier",
       "open": "Ouvrir",
       "done": "Terminé",
-      "annotationsSummary": "{count} annotations. Utilisez l’espace de travail de la scène pour les ajouter, les sélectionner et les modifier.",
+      "annotationsSummary": "{count} annotations dans ce chapitre.",
+      "annotationsSummaryOne": "{count} annotation dans ce chapitre.",
       "narrationNone": "Aucun segment de narration pour {language}.",
       "narrationSummary": "{language} : {start}–{end}",
       "mediaSummary": "Lit {start}–{end} de la source.",

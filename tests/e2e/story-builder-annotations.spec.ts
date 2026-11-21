@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const openExampleStoryBuilder = async (page: Page) => {
   await page.goto("/story-builder.html?iiif-content=test-story/demo.json");
@@ -39,6 +39,23 @@ const drawings = (page: Page, chapterIndex = 0) =>
     (element: any, index) => element.getStory().chapters[index].drawingAnnotations ?? [],
     chapterIndex,
   );
+
+/*
+ * The annotation layer re-creates its shapes as the story settles after an
+ * edit, so a box read at an unlucky moment belongs to a node already replaced
+ * and comes back null. Read it once there is a shape to read.
+ */
+type Box = NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>;
+const settledBox = async (locator: Locator): Promise<Box> => {
+  let box: Box | null = null;
+  await expect
+    .poll(async () => {
+      box = await locator.boundingBox();
+      return box !== null;
+    })
+    .toBe(true);
+  return box as unknown as Box;
+};
 
 const openAnnotations = async (page: Page) => {
   const viewer = builder(page);
@@ -141,9 +158,7 @@ test("draws, labels, moves, resizes and keeps an annotation", async ({ page }) =
   const shape = viewer
     .locator(`${EDITOR} [data-annotation-id]:not([data-handle])`)
     .first();
-  const shapeBox = await shape.boundingBox();
-  expect(shapeBox).not.toBeNull();
-  if (!shapeBox) return;
+  const shapeBox = await settledBox(shape);
   await page.mouse.move(shapeBox.x + shapeBox.width / 2, shapeBox.y + shapeBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(
@@ -160,9 +175,7 @@ test("draws, labels, moves, resizes and keeps an annotation", async ({ page }) =
   // Resize it by its corner handle.
   const handle = viewer.locator(`${EDITOR} [data-handle="se"]`);
   await expect(handle).toBeVisible();
-  const handleBox = await handle.boundingBox();
-  expect(handleBox).not.toBeNull();
-  if (!handleBox) return;
+  const handleBox = await settledBox(handle);
   await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(

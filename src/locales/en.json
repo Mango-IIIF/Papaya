@@ -93,7 +93,6 @@
     },
     "tasks": {
       "title": "Chapter tools",
-      "description": "Everything about this chapter, in three groups. Sections that work on the stage open from here.",
       "status": {
         "attention": "Needs attention"
       },
@@ -176,7 +175,7 @@
       "videoTiming": "Manifest video timing",
       "audioTiming": "Manifest audio timing",
       "chooseSegment": "Choose the chapter’s manifest {type} segment",
-      "editorHint": "The waveform editor below the viewer controls source {type} only. Story narration is edited separately.",
+      "editorHint": "The waveform editor controls the source {type} only. Story narration is edited separately.",
       "dragSelection": "Drag the shaded selection to move its start and end together.",
       "dragEdge": "Drag either edge to adjust the start or end time.",
       "longMediaHint": "For long media, zoom and scroll the waveform. Use “Show selection” to return to the chapter range.",
@@ -203,7 +202,7 @@
       "storyAudioSource": "Story audio source",
       "skip": "Skip narration for this chapter",
       "editor": "Narration editor",
-      "editorHint": "Use the wide editor below the viewer to choose audio and set this chapter's range."
+      "editorHint": "Choose audio and set this chapter's range in the narration editor."
     },
     "content": {
       "language": "Content language",
@@ -350,7 +349,7 @@
       "chapterPreviewPlaying": "Playing this chapter. Click to stop.",
       "sourceHint": "Add the source for your story to create the first chapter. Use the viewer controls to change canvas; image placement can be adjusted afterwards.",
       "noChapter": "No chapter selected",
-      "noChapterHint": "Capture a chapter or select one from the timeline to edit its content.",
+      "noChapterHint": "Capture a chapter or select one from the chapter list to edit its content.",
       "confirmPosition": "Confirm Position"
     },
     "comparison": {
@@ -392,6 +391,7 @@
       "open": "Open",
       "done": "Done",
       "annotationsSummary": "{count} annotations on this chapter.",
+      "annotationsSummaryOne": "{count} annotation on this chapter.",
       "narrationNone": "No narration segment for {language}.",
       "narrationSummary": "{language}: {start}–{end}",
       "mediaSummary": "Plays {start}–{end} of the source.",

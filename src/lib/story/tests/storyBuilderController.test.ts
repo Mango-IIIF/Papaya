@@ -1761,3 +1761,160 @@ describe("story builder chapter frame", () => {
     detach();
   });
 });
+
+describe("story builder history and shortcuts", () => {
+  const chapterWithMotion = () => ({
+    id: "chapter-1",
+    manifest: "https://example.org/manifest.json",
+    canvasIndex: 0,
+    viewBox: { x: 0, y: 0, w: 400, h: 300 },
+    title: { en: "Original" },
+    cameraTrack: {
+      durationMs: 4000,
+      keyframes: [
+        { id: "kf-1", timeMs: 0, viewBox: { x: 0, y: 0, w: 400, h: 300 } },
+        { id: "kf-2", timeMs: 4000, viewBox: { x: 100, y: 0, w: 400, h: 300 } },
+      ],
+    },
+  });
+
+  const key = (init: KeyboardEventInit & { key: string }) =>
+    new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+
+  it("takes back a run of typing in one field with a single undo", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    const controller = createStoryBuilderController({
+      initialStory: { chapters: [chapterWithMotion()] },
+    });
+    controller.selectedChapterId.set("chapter-1");
+    const title = () => get(controller.story).chapters[0].title?.en;
+
+    for (const value of ["A", "Ab", "Abc"]) {
+      controller.updateChapterTitle("en", value);
+      vi.advanceTimersByTime(200);
+    }
+    expect(title()).toBe("Abc");
+    controller.undo();
+    expect(title()).toBe("Original");
+    expect(get(controller.canUndo)).toBe(false);
+
+    // A pause, or another field, starts a new step.
+    controller.updateChapterTitle("en", "First");
+    vi.advanceTimersByTime(1500);
+    controller.updateChapterTitle("en", "First draft");
+    controller.updateChapterDescription("en", "Summary");
+    controller.undo();
+    expect(get(controller.story).chapters[0].description?.en ?? "").toBe("");
+    expect(title()).toBe("First draft");
+    controller.undo();
+    expect(title()).toBe("First");
+    controller.undo();
+    expect(title()).toBe("Original");
+
+    vi.useRealTimers();
+  });
+
+  it("undoes and redoes from the keyboard, but leaves typing in a field alone", () => {
+    const controller = createStoryBuilderController({
+      initialStory: { chapters: [chapterWithMotion()] },
+    });
+    controller.selectedChapterId.set("chapter-1");
+    controller.updateChapterTitle("en", "Changed");
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    let taken: boolean | null = null;
+    input.addEventListener("keydown", (event) => {
+      taken = controller.handleShortcut(event);
+    });
+    input.dispatchEvent(key({ key: "z", metaKey: true }));
+    expect(taken).toBe(false);
+    expect(get(controller.story).chapters[0].title?.en).toBe("Changed");
+    input.remove();
+
+    const undo = key({ key: "z", metaKey: true });
+    expect(controller.handleShortcut(undo)).toBe(true);
+    expect(undo.defaultPrevented).toBe(true);
+    expect(get(controller.story).chapters[0].title?.en).toBe("Original");
+
+    expect(controller.handleShortcut(key({ key: "Z", ctrlKey: true, shiftKey: true }))).toBe(true);
+    expect(get(controller.story).chapters[0].title?.en).toBe("Changed");
+
+    // Nothing left to redo: the key is not taken.
+    expect(controller.handleShortcut(key({ key: "y", ctrlKey: true }))).toBe(false);
+  });
+
+  it("deletes the selected keyframe and plays the motion from the keyboard", () => {
+    const controller = createStoryBuilderController({
+      initialStory: {
+        chapters: [
+          {
+            ...chapterWithMotion(),
+            cameraTrack: {
+              durationMs: 4000,
+              keyframes: [
+                { id: "kf-1", timeMs: 0, viewBox: { x: 0, y: 0, w: 400, h: 300 } },
+                { id: "kf-2", timeMs: 2000, viewBox: { x: 50, y: 0, w: 400, h: 300 } },
+                { id: "kf-3", timeMs: 4000, viewBox: { x: 100, y: 0, w: 400, h: 300 } },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    const events = createEventBus<StoryEventMap>();
+    const setViewBox = vi.fn();
+    const detach = controller.attach({
+      mount: document.createElement("div"),
+      events,
+      viewer: {
+        getManifestId: () => "https://example.org/manifest.json",
+        getState: () => null,
+        getViewBox: () => ({ x: 0, y: 0, w: 400, h: 300 }),
+        getContentSize: () => ({ width: 1000, height: 800 }),
+        getCanvasIndex: () => 0,
+        getCanvasCount: () => 1,
+        getMediaType: () => "image",
+        getMediaSources: () => [],
+        getLayerOpacities: () => ({}),
+        setViewBox,
+      },
+      config: {},
+    } as unknown as StoryPluginContext);
+    controller.selectedChapterId.set("chapter-1");
+    const keyframeIds = () =>
+      get(controller.story).chapters[0].cameraTrack!.keyframes.map((point) => point.id);
+
+    // Nothing selected: Delete is not taken.
+    controller.selectedMotionPointId.set(null);
+    expect(controller.handleShortcut(key({ key: "Delete" }))).toBe(false);
+
+    controller.selectedMotionPointId.set("kf-2");
+    expect(controller.handleShortcut(key({ key: "Backspace" }))).toBe(true);
+    expect(keyframeIds()).toEqual(["kf-1", "kf-3"]);
+    expect(get(controller.selectedMotionPointId)).toBeNull();
+
+    setViewBox.mockClear();
+    const play = key({ key: " " });
+    expect(controller.handleShortcut(play)).toBe(true);
+    expect(play.defaultPrevented).toBe(true);
+    expect(setViewBox).toHaveBeenCalled();
+    expect(get(controller.motionPreviewing)).toBe(true);
+    expect(controller.handleShortcut(key({ key: " " }))).toBe(true);
+    expect(get(controller.motionPreviewing)).toBe(false);
+
+    // Space on a focused button is the button's own.
+    const button = document.createElement("button");
+    document.body.appendChild(button);
+    let taken: boolean | null = null;
+    button.addEventListener("keydown", (event) => {
+      taken = controller.handleShortcut(event);
+    });
+    button.dispatchEvent(key({ key: " " }));
+    expect(taken).toBe(false);
+    button.remove();
+
+    detach();
+  });
+});

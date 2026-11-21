@@ -93,7 +93,6 @@
     },
     "tasks": {
       "title": "Offer y bennod",
-      "description": "Popeth am y bennod hon, mewn tri grŵp. Mae adrannau sy'n gweithio ar y llwyfan yn agor oddi yma.",
       "status": {
         "attention": "Angen sylw"
       },
@@ -176,7 +175,7 @@
       "videoTiming": "Amseru fideo'r maniffest",
       "audioTiming": "Amseru sain y maniffest",
       "chooseSegment": "Dewiswch segment {type} maniffest y bennod",
-      "editorHint": "Dim ond {type} y ffynhonnell y mae'r golygydd tonffurf o dan y gwyliwr yn ei reoli. Caiff adroddiant y stori ei olygu ar wahân.",
+      "editorHint": "Dim ond {type} y ffynhonnell y mae'r golygydd tonffurf yn ei reoli. Caiff adroddiant y stori ei olygu ar wahân.",
       "dragSelection": "Llusgwch y dewisiad cysgodol i symud ei ddechrau a'i ddiwedd gyda'i gilydd.",
       "dragEdge": "Llusgwch y naill ymyl neu'r llall i addasu'r amser dechrau neu ddiwedd.",
       "longMediaHint": "Ar gyfer cyfryngau hir, chwyddwch a sgroliwch y donffurf. Defnyddiwch “Dangos y dewisiad” i ddychwelyd at ystod y bennod.",
@@ -203,7 +202,7 @@
       "storyAudioSource": "Ffynhonnell sain y stori",
       "skip": "Hepgor yr adroddiant ar gyfer y bennod hon",
       "editor": "Golygydd adroddiant",
-      "editorHint": "Defnyddiwch y golygydd llydan o dan y gwyliwr i ddewis sain a gosod ystod y bennod hon."
+      "editorHint": "Dewiswch sain a gosodwch ystod y bennod hon yn y golygydd adroddiant."
     },
     "content": {
       "language": "Iaith y cynnwys",
@@ -350,7 +349,7 @@
       "chapterPreviewPlaying": "Yn chwarae'r bennod hon. Cliciwch i atal.",
       "sourceHint": "Ychwanegwch ffynhonnell eich stori i greu'r bennod gyntaf. Defnyddiwch reolyddion y gwyliwr i newid cynfas; gallwch addasu lleoliad y ddelwedd wedyn.",
       "noChapter": "Dim pennod wedi'i dewis",
-      "noChapterHint": "Cipiwch bennod neu dewiswch un o'r llinell amser i olygu ei chynnwys.",
+      "noChapterHint": "Cipiwch bennod neu dewiswch un o'r rhestr penodau i olygu ei chynnwys.",
       "confirmPosition": "Cadarnhau'r Safle"
     },
     "comparison": {
@@ -391,7 +390,8 @@
       "edit": "Golygu",
       "open": "Agor",
       "done": "Wedi gorffen",
-      "annotationsSummary": "{count} anodiad. Defnyddiwch weithfan y llwyfan i'w hychwanegu, eu dewis a'u golygu.",
+      "annotationsSummary": "{count} anodiad ar y bennod hon.",
+      "annotationsSummaryOne": "{count} anodiad ar y bennod hon.",
       "narrationNone": "Dim segment adrodd ar gyfer {language}.",
       "narrationSummary": "{language}: {start}–{end}",
       "mediaSummary": "Yn chwarae {start}–{end} o'r ffynhonnell.",

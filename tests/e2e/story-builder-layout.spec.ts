@@ -258,13 +258,49 @@ test("leaves the stage the same size whatever chrome the author opens", async ({
   await viewer.locator('[data-testid="inspector-more"]').click();
   await expectUnchanged("opening More");
 
-  // Desktop columns are docked. Their restore handles are reserved for the
-  // drawer layout below the desktop breakpoint.
-  for (const toggle of ["builder-toggle-chapters", "builder-toggle-tools"]) {
-    await expect(viewer.locator(`[data-testid="${toggle}"]`)).toBeHidden();
-  }
+  // Desktop columns are docked beside the stage, not floated over it.
   await expect(viewer.locator(".panel-stack--left")).toHaveCSS("position", "relative");
   await expect(viewer.locator(".panel-stack--right")).toHaveCSS("position", "relative");
+});
+
+test("collapses the desktop columns to give the image their width", async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 760 });
+  await waitForStage(page);
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
+  const chapters = viewer.locator(".panel-stack--left");
+  const inspector = viewer.locator(".panel-stack--right");
+  const chaptersToggle = viewer.locator('[data-testid="builder-toggle-chapters"]');
+  const toolsToggle = viewer.locator('[data-testid="builder-toggle-tools"]');
+  const stageWidth = async () => Math.round((await measureStage(page)).width);
+
+  await expect(chapters).toBeVisible();
+  await expect(inspector).toBeVisible();
+  await expect(chaptersToggle).toBeVisible();
+  await expect(toolsToggle).toBeVisible();
+  await expect(chaptersToggle).toHaveAttribute("aria-expanded", "true");
+  const docked = await stageWidth();
+
+  // A handle never sits on its own column: it is just inside the stage.
+  const chaptersBox = (await chapters.boundingBox())!;
+  const toggleBox = (await chaptersToggle.boundingBox())!;
+  expect(toggleBox.x).toBeGreaterThanOrEqual(chaptersBox.x + chaptersBox.width);
+
+  await chaptersToggle.click();
+  await expect(chaptersToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(chapters).toBeHidden();
+  await expect.poll(stageWidth).toBeGreaterThan(docked + 150);
+  const leftOnly = await stageWidth();
+
+  await toolsToggle.click();
+  await expect(inspector).toBeHidden();
+  await expect.poll(stageWidth).toBeGreaterThan(leftOnly + 200);
+
+  // Both come back as they were, and so does the stage.
+  await chaptersToggle.click();
+  await toolsToggle.click();
+  await expect(chapters).toBeVisible();
+  await expect(inspector).toBeVisible();
+  await expect.poll(stageWidth).toBe(docked);
 });
 
 test("opens narration in a modal over the editor and keeps its controls in reach", async ({

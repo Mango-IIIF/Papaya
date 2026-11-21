@@ -215,7 +215,7 @@ describe("Chapter inspector", () => {
     );
 
     const annotations = section("focus")!;
-    expect(annotations.textContent).toContain("1 annotations");
+    expect(annotations.textContent).toContain("1 annotation on this chapter.");
     expect(annotations.textContent).toContain("Open");
     expect(annotations.textContent).not.toContain("Draw to add or edit");
     expect(annotations.querySelector(".story-wide-annotations__delete")).toBeNull();

@@ -93,7 +93,6 @@
     },
     "tasks": {
       "title": "チャプターツール",
-      "description": "このチャプターに関するすべてを 3 つのグループで表示します。ステージ上で操作するセクションはここから開きます。",
       "status": {
         "attention": "要確認"
       },
@@ -176,7 +175,7 @@
       "videoTiming": "マニフェスト動画のタイミング",
       "audioTiming": "マニフェスト音声のタイミング",
       "chooseSegment": "チャプターのマニフェスト{type}セグメントを選択",
-      "editorHint": "ビューア下の波形エディタはソース{type}のみを制御します。ストーリーのナレーションは別途編集されます。",
+      "editorHint": "波形エディタはソース{type}のみを制御します。ストーリーのナレーションは別途編集されます。",
       "dragSelection": "ドラッグして選択範囲を指定",
       "dragEdge": "端をドラッグして調整",
       "longMediaHint": "長時間のメディアの場合はズーム機能を使用してください。",
@@ -203,7 +202,7 @@
       "storyAudioSource": "ストーリー音声ソース",
       "skip": "スキップ",
       "editor": "ナレーションエディタ",
-      "editorHint": "チャプター再生中に表示するナレーションテキストを入力してください。"
+      "editorHint": "ナレーションエディタで音声を選び、このチャプターの範囲を設定します。"
     },
     "content": {
       "language": "Content language",
@@ -350,7 +349,7 @@
       "chapterPreviewPlaying": "このチャプターを再生中です。クリックで停止します。",
       "sourceHint": "ストーリーのソースを追加して最初のチャプターを作成します。キャンバスの切り替えにはビューアーのコントロールを使用します。",
       "noChapter": "チャプターが選択されていません",
-      "noChapterHint": "タイムラインからチャプターを選択するか、新しいチャプターを作成してください。",
+      "noChapterHint": "チャプター一覧からチャプターを選択するか、新しいチャプターを作成してください。",
       "confirmPosition": "ビューアの位置を確定"
     },
     "comparison": {
@@ -391,7 +390,8 @@
       "edit": "編集",
       "open": "開く",
       "done": "完了",
-      "annotationsSummary": "アノテーション {count} 件。ステージのワークスペースで追加、選択、編集できます。",
+      "annotationsSummary": "このチャプターのアノテーション {count} 件。",
+      "annotationsSummaryOne": "このチャプターのアノテーション {count} 件。",
       "narrationNone": "{language} のナレーション区間はありません。",
       "narrationSummary": "{language}: {start}–{end}",
       "mediaSummary": "ソースの {start}–{end} を再生します。",

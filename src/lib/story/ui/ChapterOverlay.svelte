@@ -1,22 +1,13 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
   import { ChevronDown, Play, Square } from "@lucide/svelte";
   import { readable, writable, type Readable } from "svelte/store";
   import {
-    type AnnotationPlacement,
     type ChapterAdvance,
     type ChapterDrawingAnnotation,
     type StoryState,
   } from "../../core/types/story";
   import type { ViewBox } from "@mango-iiif/iiif-viewer/core";
   import type { MediaType, MediaSource } from "@mango-iiif/iiif-viewer/core";
-  import type { MediaMarksState } from "../mediaMarks";
-  import {
-    coerceAnnotationPlacement,
-    cloneAnnotationPlacement,
-    DEFAULT_ANNOTATION_PLACEMENT,
-  } from "../annotationPlacement";
-  import ChapterTimelineSection from "./ChapterTimelineSection.svelte";
   import ChapterTextForm from "./ChapterTextForm.svelte";
   import ChapterPositionSection from "./ChapterPositionSection.svelte";
   import ChapterCameraConfig from "./ChapterCameraConfig.svelte";
@@ -53,26 +44,11 @@
   export let activeChapterTask: Readable<ChapterTaskId | null> = readable(null);
   export let validationErrors: string[] = [];
   export let mediaType: Readable<MediaType | null>;
-  export let mediaMarks: Readable<MediaMarksState> = readable({
-    lastTime: 0,
-    markIn: null,
-    markOut: null,
-  });
-  export let avMarksValid: Readable<boolean> = readable(true);
   export let transitionDelayDefaultMs = 2000;
   export let language = "en";
   export let languages: string[] = ["en"];
   export let currentManifest: string | null = null;
   export let onClose: (() => void) | undefined;
-  export let onSetMediaMarks:
-    ((start: number | null, end: number | null) => void) | undefined;
-  export let onPreviewMediaSegment: (() => void) | undefined;
-  export let onStopPreviewMediaSegment: (() => void) | undefined;
-  export let onSetNarrationTrack:
-    ((lang: string, src: string) => void) | undefined;
-  export let onAssignSegment:
-    ((lang: string, start: number, end: number) => void) | undefined;
-  export let onSkipNarration: ((lang: string) => void) | undefined;
   export let onSetAnnotationLanguage: ((lang: string) => void) | undefined;
   export let onUpdateManifest:
     ((chapterId: string, manifest: string) => void) | undefined;
@@ -85,15 +61,6 @@
     ((chapterId: string, lang: string, value: string) => void) | undefined;
   export let onUpdateChapterDescription:
     ((chapterId: string, lang: string, value: string) => void) | undefined;
-  export let onUpdateAnnotationText:
-    ((chapterId: string, lang: string, text: string) => void) | undefined;
-  export let onUpdateAnnotationPlacement:
-    | ((
-        chapterId: string,
-        lang: string,
-        placement: AnnotationPlacement,
-      ) => void)
-    | undefined;
   export let onUpdateAdvanceMode:
     ((chapterId: string, mode: ChapterAdvance["mode"]) => void) | undefined;
   export let onUpdateDelay:
@@ -154,28 +121,10 @@
   let chapterTitleDrafts: Record<string, string> = {};
   let chapterDescriptionDrafts: Record<string, string> = {};
   let manifestDraft = "";
-  let annotationDraft = "";
-  let annotationDrafts: Record<string, string> = {};
-  let placementDraft: AnnotationPlacement = cloneAnnotationPlacement(
-    DEFAULT_ANNOTATION_PLACEMENT,
-  );
   let advanceModeDraft: ChapterAdvance["mode"] = "manual";
   let delayDraft: number | undefined = undefined;
   let lastChapterId: string | null = null;
   let lastCurrentManifest: string | null = null;
-  let markInDraft = "";
-  let markOutDraft = "";
-  let lastMarksApplied: { markIn: number | null; markOut: number | null } = {
-    markIn: null,
-    markOut: null,
-  };
-  let currentMarks: MediaMarksState = {
-    lastTime: 0,
-    markIn: null,
-    markOut: null,
-  };
-  let hasAvMedia = false;
-  let marksValid = true;
   let mediaTypeValue: MediaType | null = null;
   let taskEvaluations: ChapterTaskEvaluation[] = [];
   let chapterIndex = -1;
@@ -263,26 +212,9 @@
     moreOpen = true;
   }
 
-  let fallbackPlacement: AnnotationPlacement | undefined;
   let delayMs: number | undefined;
-
-  let narrationUrls: Record<string, string> = {};
-  let narrationStartDrafts: Record<string, string> = {};
-  let narrationEndDrafts: Record<string, string> = {};
-  let narrationLastTimes: Record<string, number> = {};
-  let narrationAudioRefs: Record<string, HTMLAudioElement | null> = {};
-  let currentNarrationAudioRef: HTMLAudioElement | null = null;
-  let lastNarrationSyncKey = "";
   let lastActiveLanguage = activeLanguage;
 
-  let narrationPreviewing = false;
-  let narrationPreviewLanguage: string | null = null;
-  let detachNarrationPreviewStop: (() => void) | null = null;
-
-  let activeNarrationUrl = "";
-  let narrationSectionCollapsed = false;
-  let avSectionCollapsed = false;
-  let lastSectionSyncKey = "";
   let positionDrafts: { x: string; y: string; w: string; h: string } = {
     x: "",
     y: "",
@@ -372,10 +304,6 @@
     }
   };
 
-  $: if (currentNarrationAudioRef) {
-    narrationAudioRefs[activeLanguage] = currentNarrationAudioRef;
-  }
-
   $: if (language !== lastLanguageProp) {
     lastLanguageProp = language;
     activeLanguage = language;
@@ -384,10 +312,6 @@
 
   $: if (activeLanguage !== lastActiveLanguage) {
     const activeChapter = $story.chapters.find((item) => item.id === chapterId);
-    const nextAnnotation =
-      activeChapter?.annotations?.[activeLanguage]?.text ??
-      annotationDrafts[activeLanguage] ??
-      "";
     const nextTitle =
       activeChapter?.title?.[activeLanguage] ??
       chapterTitleDrafts[activeLanguage] ??
@@ -397,13 +321,10 @@
       chapterDescriptionDrafts[activeLanguage] ??
       "";
 
-    annotationDraft = nextAnnotation;
-    annotationDrafts[activeLanguage] = nextAnnotation;
     chapterTitleDraft = nextTitle;
     chapterDescriptionDraft = nextDescription;
     chapterTitleDrafts[activeLanguage] = nextTitle;
     chapterDescriptionDrafts[activeLanguage] = nextDescription;
-    narrationLastTimes[activeLanguage] = 0;
 
     lastActiveLanguage = activeLanguage;
     onSetAnnotationLanguage?.(activeLanguage);
@@ -419,187 +340,6 @@
       .map((part) => String(part).padStart(2, "0"))
       .join(":");
   };
-
-  const parseHms = (value: string): number | null => {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-    const parts = trimmed.split(":").map((entry) => Number(entry));
-    if (parts.some((entry) => Number.isNaN(entry) || entry < 0)) return null;
-    if (parts.length > 3) return null;
-    const [a = 0, b = 0, c = 0] =
-      parts.length === 3
-        ? parts
-        : parts.length === 2
-          ? [0, parts[0], parts[1]]
-          : [0, 0, parts[0]];
-    const totalSeconds = a * 3600 + b * 60 + c;
-    return Number.isFinite(totalSeconds) ? totalSeconds : null;
-  };
-
-  const hasValidRange = (startValue: string, endValue: string): boolean => {
-    const start = parseHms(startValue);
-    const end = parseHms(endValue);
-    return start != null && end != null && end > start;
-  };
-
-  const applyMarkDrafts = (markIn: number | null, markOut: number | null) => {
-    lastMarksApplied = { markIn, markOut };
-    markInDraft = formatHms(markIn);
-    markOutDraft = formatHms(markOut);
-  };
-
-  const commitMediaMarks = () => {
-    const start = parseHms(markInDraft);
-    const end = parseHms(markOutDraft);
-    onSetMediaMarks?.(start, end);
-  };
-
-  const useCurrentTime = (target: "in" | "out") => {
-    const state = $mediaMarks;
-    const time = Number.isFinite(state.lastTime) ? state.lastTime : null;
-    if (target === "in") {
-      onSetMediaMarks?.(time, state.markOut);
-    } else {
-      onSetMediaMarks?.(state.markIn, time);
-    }
-  };
-
-  const getNarrationTrack = (lang: string): string => {
-    return $story.narration?.tracks?.[lang]?.src ?? "";
-  };
-
-  const applyNarrationDrafts = (
-    lang: string,
-    start: number | null,
-    end: number | null,
-  ) => {
-    narrationStartDrafts[lang] = formatHms(start);
-    narrationEndDrafts[lang] = formatHms(end);
-  };
-
-  const commitNarrationMarks = (lang: string) => () => {
-    const start = parseHms(narrationStartDrafts[lang] ?? "");
-    const end = parseHms(narrationEndDrafts[lang] ?? "");
-    if (start != null && end != null && end > start && chapterId) {
-      onAssignSegment?.(lang, start, end);
-    }
-  };
-
-  const updateNarrationFromState = (lang: string) => {
-    narrationUrls[lang] = getNarrationTrack(lang);
-    const chapterSegment = $story.chapters.find((item) => item.id === chapterId)
-      ?.narrationSegment?.[lang];
-    applyNarrationDrafts(
-      lang,
-      chapterSegment?.start ?? null,
-      chapterSegment?.end ?? null,
-    );
-  };
-
-  const narrationCurrentTime = (lang: string): number => {
-    const ref = narrationAudioRefs[lang];
-    if (
-      ref &&
-      ref.isConnected &&
-      Number.isFinite(ref.currentTime) &&
-      ref.readyState >= 1
-    ) {
-      return ref.currentTime;
-    }
-    return narrationLastTimes[lang] ?? 0;
-  };
-
-  const handleNarrationLoadedMetadata = (lang: string) => () => {
-    const ref = narrationAudioRefs[lang];
-    if (ref && Number.isFinite(ref.duration))
-      narrationLastTimes[lang] = ref.currentTime;
-  };
-
-  const handleNarrationTimeUpdate = (lang: string) => () => {
-    const ref = narrationAudioRefs[lang];
-    if (ref && ref.isConnected && Number.isFinite(ref.currentTime)) {
-      narrationLastTimes[lang] = ref.currentTime;
-    }
-  };
-
-  const useNarrationCurrentTime =
-    (lang: string, target: "start" | "end") => () => {
-      const time = narrationCurrentTime(lang);
-      if (!Number.isFinite(time)) return;
-      if (target === "start") {
-        narrationStartDrafts[lang] = formatHms(time);
-      } else {
-        narrationEndDrafts[lang] = formatHms(time);
-      }
-      commitNarrationMarks(lang)();
-    };
-
-  const clearNarrationPreviewListener = () => {
-    detachNarrationPreviewStop?.();
-    detachNarrationPreviewStop = null;
-  };
-
-  const stopNarrationSegmentPlayback = (lang?: string) => {
-    const key = lang ?? narrationPreviewLanguage;
-    if (!key) return;
-
-    const ref = narrationAudioRefs[key];
-    ref?.pause();
-
-    clearNarrationPreviewListener();
-    narrationPreviewLanguage = null;
-    narrationPreviewing = false;
-  };
-
-  const startNarrationSegmentPlayback = (lang: string) => {
-    const ref = narrationAudioRefs[lang];
-    if (!ref || !ref.isConnected || ref.readyState < 1) return;
-
-    const start = parseHms(narrationStartDrafts[lang] ?? "");
-    const end = parseHms(narrationEndDrafts[lang] ?? "");
-    if (start == null || end == null || end <= start) return;
-
-    stopNarrationSegmentPlayback();
-
-    ref.currentTime = start;
-    narrationPreviewLanguage = lang;
-    narrationPreviewing = true;
-
-    const stopAt = end;
-    const onTimeUpdate = () => {
-      if (!ref.isConnected) return;
-      if (ref.currentTime >= stopAt) {
-        stopNarrationSegmentPlayback(lang);
-      }
-    };
-
-    ref.addEventListener("timeupdate", onTimeUpdate);
-    detachNarrationPreviewStop = () => {
-      ref.removeEventListener("timeupdate", onTimeUpdate);
-    };
-
-    void ref.play();
-  };
-
-  const toggleNarrationSegmentPlayback = (lang: string) => () => {
-    if (narrationPreviewing && narrationPreviewLanguage === lang) {
-      stopNarrationSegmentPlayback(lang);
-      return;
-    }
-    startNarrationSegmentPlayback(lang);
-  };
-
-  $: if (!open && narrationPreviewing) {
-    stopNarrationSegmentPlayback();
-  }
-
-  $: if (
-    narrationPreviewing &&
-    narrationPreviewLanguage &&
-    narrationPreviewLanguage !== activeLanguage
-  ) {
-    stopNarrationSegmentPlayback(narrationPreviewLanguage);
-  }
 
   $: chapter = $story.chapters.find((item) => item.id === chapterId) ?? null;
   $: presentationAspect =
@@ -652,28 +392,6 @@
     chapterTitleDraft = chapterTitleDrafts[activeLanguage] ?? "";
     chapterDescriptionDraft = chapterDescriptionDrafts[activeLanguage] ?? "";
 
-    annotationDrafts = {};
-    if (chapter?.annotations) {
-      for (const [lang, entry] of Object.entries(chapter.annotations)) {
-        annotationDrafts[lang] = entry?.text ?? "";
-      }
-    }
-
-    annotationDraft = annotationDrafts[activeLanguage] ?? "";
-
-    const activePlacement = coerceAnnotationPlacement(
-      chapter?.annotations?.[activeLanguage]?.placement,
-    );
-    const chapterPlacementFallback = Object.values(chapter?.annotations ?? {})
-      .map((entry) => coerceAnnotationPlacement(entry?.placement))
-      .find((entry): entry is AnnotationPlacement => Boolean(entry));
-
-    placementDraft =
-      activePlacement ??
-      coerceAnnotationPlacement(chapter?.annotationPlacement) ??
-      chapterPlacementFallback ??
-      cloneAnnotationPlacement(DEFAULT_ANNOTATION_PLACEMENT);
-
     advanceModeDraft = chapter?.advance?.mode ?? "auto";
     delayDraft =
       chapter?.advance?.mode === "manual"
@@ -685,11 +403,6 @@
       lastCurrentManifest = currentManifest;
     }
 
-    const marks = $mediaMarks;
-    applyMarkDrafts(
-      chapter?.media?.start ?? marks.markIn ?? null,
-      chapter?.media?.end ?? marks.markOut ?? null,
-    );
   }
 
   $: if (chapter && chapterId === lastChapterId) {
@@ -709,29 +422,6 @@
       chapterDescriptionDraft = nextDescription;
     }
     chapterDescriptionDrafts[activeLanguage] = nextDescription;
-
-    const nextText = chapter.annotations?.[activeLanguage]?.text ?? "";
-    if (annotationDraft !== nextText) {
-      annotationDraft = nextText;
-    }
-    annotationDrafts[activeLanguage] = nextText;
-
-    const activePlacement = coerceAnnotationPlacement(
-      chapter.annotations?.[activeLanguage]?.placement,
-    );
-    const nextPlacement =
-      activePlacement ??
-      coerceAnnotationPlacement(chapter.annotationPlacement) ??
-      fallbackPlacement ??
-      cloneAnnotationPlacement(DEFAULT_ANNOTATION_PLACEMENT);
-    if (
-      placementDraft.x !== nextPlacement.x ||
-      placementDraft.y !== nextPlacement.y ||
-      placementDraft.w !== nextPlacement.w ||
-      placementDraft.h !== nextPlacement.h
-    ) {
-      placementDraft = nextPlacement;
-    }
 
     const nextAdvanceMode = chapter.advance?.mode ?? "auto";
     if (advanceModeDraft !== nextAdvanceMode) {
@@ -761,49 +451,8 @@
   $: if (!chapter) {
     chapterTitleDraft = chapterTitleDrafts[activeLanguage] ?? "";
     chapterDescriptionDraft = chapterDescriptionDrafts[activeLanguage] ?? "";
-    annotationDraft = annotationDrafts[activeLanguage] ?? "";
   }
 
-  $: {
-    const narrationSyncKey = JSON.stringify({
-      chapterId,
-      tracks: $story.narration?.tracks ?? {},
-      segments: chapter?.narrationSegment ?? {},
-    });
-    if (narrationSyncKey !== lastNarrationSyncKey) {
-      lastNarrationSyncKey = narrationSyncKey;
-      stopNarrationSegmentPlayback();
-      for (const lang of languages) {
-        updateNarrationFromState(lang);
-      }
-    }
-  }
-
-  const applyDrafts = (targetId: string) => {
-    if (manifestDraft.trim()) {
-      onUpdateManifest?.(targetId, manifestDraft.trim());
-    }
-
-    for (const [lang, value] of Object.entries(chapterTitleDrafts)) {
-      onUpdateChapterTitle?.(targetId, lang, value);
-    }
-
-    for (const [lang, value] of Object.entries(chapterDescriptionDrafts)) {
-      onUpdateChapterDescription?.(targetId, lang, value);
-    }
-
-    for (const [lang, text] of Object.entries(annotationDrafts)) {
-      if (text.trim()) {
-        onUpdateAnnotationText?.(targetId, lang, text);
-      }
-    }
-
-    onUpdateAnnotationPlacement?.(targetId, activeLanguage, placementDraft);
-  };
-
-  $: fallbackPlacement = Object.values(chapter?.annotations ?? {})
-    .map((entry) => coerceAnnotationPlacement(entry?.placement))
-    .find((entry): entry is AnnotationPlacement => Boolean(entry));
   $: delayMs = delayDraft;
 
   const handleManifestInput = (event: Event) => {
@@ -856,10 +505,9 @@
     }
   };
 
+  /* Every field saves as it is typed, so finishing a tool only closes it. */
   const handleSave = () => {
     if (!chapterId || !chapter) return;
-    commitMediaMarks();
-    applyDrafts(chapterId);
     onSave?.();
   };
 
@@ -888,19 +536,6 @@
         languages,
       })
     : [];
-  $: hasAvMedia = mediaTypeValue === "audio" || mediaTypeValue === "video";
-  $: marksValid = $avMarksValid;
-  $: currentMarks = $mediaMarks;
-
-  $: if (
-    currentMarks.markIn !== lastMarksApplied.markIn ||
-    currentMarks.markOut !== lastMarksApplied.markOut
-  ) {
-    applyMarkDrafts(currentMarks.markIn, currentMarks.markOut);
-  }
-
-  $: activeNarrationUrl = $story.narration?.tracks?.[activeLanguage]?.src ?? "";
-
   /*
    * One line each for the stage tools while they are closed, so the inspector
    * says what a chapter has without the tool having to be opened to find out.
@@ -918,6 +553,7 @@
       end: formatHms(segment.end),
     });
   })();
+  $: annotationCount = chapter?.drawingAnnotations?.length ?? 0;
   $: mediaSummary = chapter?.media
     ? $t('storyBuilder.inspector.mediaSummary', {
         start: formatHms(chapter.media.start),
@@ -925,51 +561,9 @@
       })
     : $t('storyBuilder.inspector.mediaWhole');
 
-  $: {
-    const nextSyncKey = `${open ? "1" : "0"}:${chapterId ?? ""}:${activeLanguage}`;
-    if (nextSyncKey !== lastSectionSyncKey) {
-      lastSectionSyncKey = nextSyncKey;
-      narrationSectionCollapsed = false;
-      avSectionCollapsed = !hasValidRange(markInDraft, markOutDraft);
-    }
-  }
-
-  onDestroy(() => {
-    clearNarrationPreviewListener();
-  });
-
-  const handleNarrationTrackInput = (event: Event) => {
-    const value = (event.target as HTMLInputElement).value;
-    narrationUrls = {
-      ...narrationUrls,
-      [activeLanguage]: value,
-    };
-    onSetNarrationTrack?.(activeLanguage, value);
-  };
-
   const handleLanguageChange = (value: string) => {
     activeLanguage = value;
     onSetAnnotationLanguage?.(value);
-  };
-
-  const handleNarrationStartInput = (event: Event) => {
-    narrationStartDrafts[activeLanguage] = (
-      event.target as HTMLInputElement
-    ).value;
-  };
-
-  const handleNarrationEndInput = (event: Event) => {
-    narrationEndDrafts[activeLanguage] = (
-      event.target as HTMLInputElement
-    ).value;
-  };
-
-  const handleMarkInInput = (event: Event) => {
-    markInDraft = (event.target as HTMLInputElement).value;
-  };
-
-  const handleMarkOutInput = (event: Event) => {
-    markOutDraft = (event.target as HTMLInputElement).value;
   };
 </script>
 
@@ -1167,9 +761,12 @@
                 {/if}
               {:else}
                 <p class="chapter-overlay__hint" data-testid="inspector-summary-focus">
-                  {$t('storyBuilder.inspector.annotationsSummary', {
-                    count: chapter.drawingAnnotations?.length ?? 0,
-                  })}
+                  {$t(
+                    annotationCount === 1
+                      ? 'storyBuilder.inspector.annotationsSummaryOne'
+                      : 'storyBuilder.inspector.annotationsSummary',
+                    { count: annotationCount },
+                  )}
                 </p>
               {/if}
             </InspectorSection>
@@ -1188,57 +785,6 @@
                 <div class="chapter-overlay__wide-tool-note">
                   <strong>{$t('storyBuilder.narration.editor')}</strong>
                   <span>{$t('storyBuilder.narration.editorHint')}</span>
-                </div>
-                <div class="chapter-overlay__narration-compat">
-                  <ChapterTimelineSection
-                    {activeLanguage}
-                    {hasAvMedia}
-                    {marksValid}
-                    {markInDraft}
-                    {markOutDraft}
-                    {activeNarrationUrl}
-                    {narrationSectionCollapsed}
-                    {avSectionCollapsed}
-                    {narrationPreviewing}
-                    {narrationPreviewLanguage}
-                    narrationStartDraft={narrationStartDrafts[activeLanguage] ?? ""}
-                    narrationEndDraft={narrationEndDrafts[activeLanguage] ?? ""}
-                    bind:currentNarrationAudioRef
-                    {parseHms}
-                    onToggleNarration={() => {
-                      narrationSectionCollapsed = !narrationSectionCollapsed;
-                    }}
-                    onNarrationTrackInput={handleNarrationTrackInput}
-                    onNarrationTimeUpdate={handleNarrationTimeUpdate(activeLanguage)}
-                    onNarrationLoadedMetadata={handleNarrationLoadedMetadata(
-                      activeLanguage,
-                    )}
-                    onToggleNarrationPlayback={toggleNarrationSegmentPlayback(
-                      activeLanguage,
-                    )}
-                    onNarrationStartInput={handleNarrationStartInput}
-                    onNarrationEndInput={handleNarrationEndInput}
-                    onNarrationMarksCommit={commitNarrationMarks(activeLanguage)}
-                    onUseNarrationStartCurrent={useNarrationCurrentTime(
-                      activeLanguage,
-                      "start",
-                    )}
-                    onUseNarrationEndCurrent={useNarrationCurrentTime(
-                      activeLanguage,
-                      "end",
-                    )}
-                    onSkipNarration={() => onSkipNarration?.(activeLanguage)}
-                    onToggleAv={() => {
-                      avSectionCollapsed = !avSectionCollapsed;
-                    }}
-                    onCommitMediaMarks={commitMediaMarks}
-                    onMarkInInput={handleMarkInInput}
-                    onMarkOutInput={handleMarkOutInput}
-                    onUseMarkInCurrent={() => useCurrentTime("in")}
-                    onUseMarkOutCurrent={() => useCurrentTime("out")}
-                    onPreviewMedia={onPreviewMediaSegment}
-                    onStopPreviewMedia={onStopPreviewMediaSegment}
-                  />
                 </div>
               {:else}
                 <p class="chapter-overlay__hint" data-testid="inspector-summary-audio-timing">
@@ -1738,27 +1284,6 @@
       gap: 0;
     }
 
-    .chapter-inspector__tool-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .chapter-overlay--annotation-task .chapter-inspector__tool-actions {
-      position: sticky;
-      bottom: 0;
-      z-index: 4;
-      margin: 2px -14px -14px;
-      padding: 10px 14px 12px;
-      border-top: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
-      background: color-mix(in srgb, var(--viewer-panel, #121922) 96%, transparent);
-      box-shadow: 0 -10px 20px rgba(0, 0, 0, 0.16);
-    }
-
-    .chapter-inspector__tool-actions .chapter-overlay__button {
-      flex: 1 1 120px;
-    }
-
     .chapter-overlay__wide-tool-note {
       display: grid;
       gap: 4px;
@@ -1784,9 +1309,6 @@
       color: var(--viewer-muted, #9aa6b2);
       font-size: 10px;
       line-height: 1.45;
-    }
-    .chapter-overlay__narration-compat {
-      display: none;
     }
     .chapter-overlay__annotation-tools {
       display: grid;
@@ -1816,25 +1338,7 @@
       width: 14px;
       height: 14px;
     }
-    .chapter-overlay__annotation-tools
-      .chapter-overlay__annotation-tool--active {
-      border-color: var(--viewer-accent-2, #2ac7ff);
-      background: color-mix(in srgb, var(--viewer-accent-2, #2ac7ff) 12%, transparent);
-      color: var(--viewer-text, #e8edf4);
-    }
-    .chapter-overlay__annotation-editor { display:grid; gap:14px; }
     .chapter-overlay__field { display:grid; gap:7px; color:var(--viewer-muted, #9aa6b2); font-size:10px; font-weight:700; }
-    .chapter-overlay__translation-field { display:grid; grid-template-columns:28px minmax(0,1fr); align-items:center; gap:7px; }
-    .chapter-overlay__translation-field small { color:var(--viewer-muted, #9aa6b2); font-size:9px; }
-    .chapter-overlay__translation-field :is(input, textarea) { min-width:0; box-sizing:border-box; border:1px solid var(--viewer-panel-border, rgba(255,255,255,.1)); border-radius:8px; padding:8px 9px; background:var(--viewer-well-bg, rgba(4, 9, 15, 0.35)); color:var(--viewer-text, #e8edf4); font:inherit; }
-    .chapter-overlay__translation-field textarea { resize:vertical; line-height:1.4; }
-    .chapter-overlay__annotation-palette { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
-    .chapter-overlay__annotation-palette button { width:25px; height:25px; border:2px solid transparent; border-radius:999px; background:var(--annotation-color); cursor:pointer; }
-    .chapter-overlay__annotation-palette .chapter-overlay__annotation-swatch--active { border-color:var(--viewer-text, #fff); box-shadow:0 0 0 2px var(--annotation-color); }
-    .chapter-overlay__annotation-palette input[type="color"] { width:30px; height:27px; padding:1px; border:1px solid var(--viewer-panel-border, rgba(255,255,255,.1)); border-radius:7px; background:transparent; cursor:pointer; }
-    .chapter-overlay__segmented-control { display:flex; gap:5px; }
-    .chapter-overlay__segmented-control button { flex:1; border:1px solid var(--viewer-panel-border, rgba(255,255,255,.1)); border-radius:8px; padding:7px; background:transparent; color:var(--viewer-muted, #9aa6b2); text-transform:capitalize; cursor:pointer; }
-    .chapter-overlay__segmented-control .chapter-overlay__segmented-control--active { border-color:var(--accent, var(--story-builder-accent, #2ac7ff)); background:color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 14%, transparent); color:var(--viewer-text, #e8edf4); }
 
     .chapter-overlay__section {
       display: grid;
@@ -1856,13 +1360,6 @@
       font-weight: 700;
     }
 
-    .chapter-overlay__section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
     .chapter-overlay__section-content {
       display: grid;
       gap: 10px;
@@ -1872,74 +1369,6 @@
       display: none;
     }
 
-    .chapter-overlay__language-tabs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .chapter-overlay__language-tab {
-      min-width: 48px;
-      border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
-      border-radius: 9px;
-      padding: 8px 10px;
-      background: var(--viewer-panel-strong, #1b242e);
-      color: var(--viewer-muted, #9aa6b2);
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .chapter-overlay__language-tab--active {
-      border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
-      background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 16%, transparent);
-      /*
-       * A 16% tint, so the label sits on the panel colour rather than on the
-       * accent — white would disappear on the light themes' pale tint.
-       */
-      color: var(--viewer-text, #fff);
-    }
-
-    .chapter-overlay__collapse-toggle {
-      width: 26px;
-      height: 26px;
-      border-radius: 9px;
-      border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
-      background: var(--viewer-panel-strong, #1b242e);
-      color: var(--viewer-text, #e8edf4);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition:
-        border-color 0.16s ease,
-        background 0.16s ease;
-    }
-
-    .chapter-overlay__collapse-toggle:hover {
-      border-color: color-mix(
-        in srgb,
-        var(--viewer-muted, #9aa6b2) 55%,
-        transparent
-      );
-      background: color-mix(
-        in srgb,
-        var(--viewer-panel-strong, #1b242e) 80%,
-        white
-      );
-    }
-
-    .chapter-overlay__collapse-icon {
-      font-size: 13px;
-      line-height: 1;
-      transform: rotate(0deg);
-      transition: transform 0.14s ease;
-    }
-
-    .chapter-overlay__collapse-icon--collapsed {
-      transform: rotate(-90deg);
-    }
-
     .chapter-overlay__label {
       display: grid;
       gap: 6px;
@@ -1947,10 +1376,6 @@
       text-transform: uppercase;
       letter-spacing: 0.1em;
       color: var(--viewer-muted, #9aa6b2);
-    }
-
-    .chapter-overlay__label--inline {
-      width: 100%;
     }
 
     .chapter-overlay__hint {
@@ -1974,7 +1399,6 @@
     }
 
     .chapter-overlay__input,
-    .chapter-overlay__select,
     .chapter-overlay__textarea {
       border: 1px solid color-mix(in srgb, var(--viewer-text, #e8edf4) 22%, transparent);
       border-radius: 8px;
@@ -1991,7 +1415,6 @@
     }
 
     .chapter-overlay__input:focus,
-    .chapter-overlay__select:focus,
     .chapter-overlay__textarea:focus {
       border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
       outline: 2px solid var(--viewer-focus-ring, rgba(42, 199, 255, 0.7));
@@ -2004,7 +1427,6 @@
     }
 
     .chapter-overlay__input:disabled,
-    .chapter-overlay__select:disabled,
     .chapter-overlay__textarea:disabled {
       opacity: 0.56;
       cursor: not-allowed;
@@ -2015,19 +1437,6 @@
       grid-template-columns: 1fr auto;
       gap: 8px;
       align-items: end;
-    }
-
-    .chapter-overlay__row--tight {
-      align-items: center;
-    }
-
-    .chapter-overlay__onboarding-finish {
-      display: grid;
-      gap: 10px;
-    }
-
-    .chapter-overlay__onboarding-finish .chapter-overlay__button {
-      justify-self: start;
     }
 
     .chapter-overlay__button {
@@ -2052,8 +1461,7 @@
       cursor: not-allowed;
     }
 
-    .chapter-overlay__button--primary,
-    .chapter-overlay__button--accent {
+    .chapter-overlay__button--primary {
       background: var(--accent, var(--story-builder-accent, #2ac7ff));
       border-color: transparent;
       color: var(--story-builder-on-accent, #06141d);
@@ -2076,64 +1484,8 @@
       );
     }
 
-    .chapter-overlay__button--primary:not(:disabled):hover,
-    .chapter-overlay__button--accent:not(:disabled):hover {
+    .chapter-overlay__button--primary:not(:disabled):hover {
       background: var(--story-builder-accent-hover, #5bd5ff);
-    }
-
-    .chapter-overlay__audio-source {
-      display: none;
-    }
-
-    .chapter-overlay__timegrid {
-      display: grid;
-      gap: 10px;
-    }
-
-    .chapter-overlay__timerow {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      align-items: end;
-    }
-
-    .chapter-overlay__input--time {
-      width: 100%;
-    }
-
-    .chapter-overlay__timerow .chapter-overlay__input,
-    .chapter-overlay__timerow .chapter-overlay__button {
-      box-sizing: border-box;
-      height: 38px;
-    }
-
-    .chapter-overlay__placement-editor {
-      position: relative;
-      width: 100%;
-      height: 168px;
-      border-radius: 12px;
-      border: 1px solid color-mix(in srgb, var(--viewer-text, #e8edf4) 14%, transparent);
-      background:
-        linear-gradient(
-          to right,
-          color-mix(in srgb, var(--viewer-text, #e8edf4) 6%, transparent) 1px,
-          transparent 1px
-        ),
-        linear-gradient(
-          to bottom,
-          color-mix(in srgb, var(--viewer-text, #e8edf4) 6%, transparent) 1px,
-          transparent 1px
-        ),
-        var(--viewer-panel, #121922);
-      background-size:
-        16px 16px,
-        16px 16px,
-        auto;
-      overflow: hidden;
-    }
-
-    .chapter-overlay__hint--placement {
-      margin-top: -2px;
     }
 
     .chapter-overlay__layer-item {
@@ -2190,7 +1542,6 @@
         border-radius: 0;
       }
 
-      .chapter-overlay__timerow,
       .chapter-overlay__row {
         grid-template-columns: 1fr;
       }

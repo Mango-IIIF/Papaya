@@ -85,7 +85,10 @@
     narrationMs > holdMs &&
     Math.abs(narrationMs - durationMs) > 100;
 
-  $: if (!chapter || points.length === 0) optionsOpen = false;
+  /* A preset is shaped from the chapter frame alone, so the options open as
+     soon as there is a frame; keyframes are not a precondition. */
+  $: canOpenOptions = Boolean(chapter?.viewBox) || points.length > 0;
+  $: if (!chapter || !canOpenOptions) optionsOpen = false;
 
   const position = (timeMs: number): string =>
     durationMs > 0
@@ -236,7 +239,7 @@
         class="camera-timeline__button camera-timeline__button--icon"
         type="button"
         data-testid="camera-timeline-options"
-        disabled={points.length === 0}
+        disabled={!canOpenOptions}
         aria-expanded={optionsOpen}
         aria-controls="camera-timeline-options"
         aria-label={$t("storyBuilder.cameraTimeline.options")}
