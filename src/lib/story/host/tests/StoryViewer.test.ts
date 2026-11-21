@@ -27,7 +27,8 @@ describe('StoryViewer', () => {
     await waitFor(() => Boolean(target.querySelector('[data-testid="story-controls-stage"]')));
 
     expect(target.querySelector('[data-testid="story-controls-stage"]')).toBeTruthy();
-    expect(target.querySelector('.story-stage--fluid')).toBeTruthy();
+    expect(target.querySelector('[data-testid="story-stage"]')).toBeTruthy();
+    expect(target.querySelector('.story-stage--fluid')).toBeNull();
     expect(target.querySelector('.viewer__top-row')).toBeTruthy();
     expect(target.querySelector('.stage__media--fill')).toBeTruthy();
     expect(target.querySelector('nav[aria-label="Story chapters"]')).toBeTruthy();
@@ -35,6 +36,79 @@ describe('StoryViewer', () => {
     expect(target.querySelector('.stage__counter')).toBeNull();
     expect(target.querySelector('.panel-stack')).toBeNull();
     expect(target.querySelector('.viewer__header')).toBeNull();
+
+    unmount(instance);
+    target.remove();
+  });
+
+  it('supports fluid fill framing via story.framingMode config', async () => {
+    const target = createTarget();
+
+    const instance = mount(StoryViewer, {
+      target,
+      props: { config: { story: { framingMode: 'fill' } } },
+    });
+
+    await waitFor(() => Boolean(target.querySelector('[data-testid="story-controls-stage"]')));
+    expect(target.querySelector('.story-stage--fluid')).toBeTruthy();
+
+    unmount(instance);
+    target.remove();
+  });
+
+  it('switches languages in the reader when a story carries multiple languages', async () => {
+    const target = createTarget();
+    const multilingualStory = {
+      '@context': [
+        'http://www.w3.org/ns/anno.jsonld',
+        'https://mangoviewer.dev/schema/story/1/context.json',
+        'http://iiif.io/api/presentation/3/context.json',
+      ],
+      id: 'https://example.org/stories/multilingual',
+      type: 'AnnotationPage',
+      label: { en: ['English Story'], cy: ['Stori Gymraeg'] },
+      items: [
+        {
+          id: 'https://example.org/stories/multilingual/annotation/1',
+          type: 'Annotation',
+          motivation: 'supplementing',
+          label: { en: ['Opening'], cy: ['Agoriad'] },
+          summary: { en: ['See **detail**'], cy: ['Gweler **manylion**'] },
+          target: {
+            source: 'https://example.org/canvas/1',
+            type: 'SpecificResource',
+            partOf: { id: 'https://example.org/manifest.json', type: 'Manifest' },
+            selector: {
+              type: 'FragmentSelector',
+              conformsTo: 'http://www.w3.org/TR/media-frags/',
+              value: 'xywh=0,0,100,100',
+            },
+          },
+          body: {
+            id: 'https://example.org/stories/multilingual/annotation/1/state',
+            type: 'mango:ViewerState',
+            format: 'application/vnd.mango.story-state+json',
+            mangoState: { canvasIndex: 0, playback: { advance: 'manual' } },
+          },
+        },
+      ],
+    };
+
+    const instance = mount(StoryViewer, {
+      target,
+      props: { story: multilingualStory },
+    });
+
+    await waitFor(() => Boolean(target.querySelector('[data-testid="story-viewer-language"] select')));
+    const select = target.querySelector('[data-testid="story-viewer-language"] select') as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(['en', 'cy']);
+    expect(target.querySelector('.story-shell__title')?.textContent).toBe('Opening');
+    expect(target.querySelector('[data-testid="story-shell-description"] strong')?.textContent).toBe('detail');
+
+    select.value = 'cy';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => target.querySelector('.story-shell__title')?.textContent === 'Agoriad');
+    expect(target.querySelector('[data-testid="story-shell-description"] strong')?.textContent).toBe('manylion');
 
     unmount(instance);
     target.remove();

@@ -34,6 +34,10 @@ import type { StageFade } from "./viewer/storyViewerController";
 import {
   animatableCameraDurationMs,
   configureCameraTrackPreset,
+  evenSpaceCameraTrack,
+  insertCameraKeyframeAtTime,
+  moveCameraKeyframeTime,
+  reorderCameraKeyframes,
   retimeCameraKeyframes,
   sampleCameraTrack,
 } from "./cameraTrack";
@@ -98,6 +102,14 @@ export type StoryBuilderController = {
   canRedo: Readable<boolean>;
   saveModalOpen: Readable<boolean>;
   saveModalPayload: Readable<ExportEnvelope | null>;
+  sourcesModalOpen: Readable<boolean>;
+  openSourcesModal: () => void;
+  closeSourcesModal: () => void;
+  selectSourceCanvas: (
+    manifest: string,
+    canvasIndex: number,
+    mode: "add" | "replace",
+  ) => void;
   setSaveConfig: (
     config: StoryConfig["story"] extends infer S
       ? S extends { save?: infer T }
@@ -170,16 +182,25 @@ export type StoryBuilderController = {
   setNarrationTrack: (lang: string, src: string) => void;
   updateStoryTitle: (lang: string, value: string) => void;
   updateStoryIdentifiers: (id: string, annotationBase: string) => void;
+  updateStoryAspect: (aspect: number) => void;
   /**
    * Adds a camera point. For an image chapter it starts as a frame nested
    * inside the previous point's (or the chapter's) frame, ready to be dragged
    * into place on the stage; for a 3D chapter it holds the current pose.
    */
-  addMotionPoint: () => void;
+  addMotionPoint: (atTimeMs?: number) => void;
   /** Where a camera point's frame was moved or resized to, in canvas pixels. */
   setMotionPointViewBox: (keyframeId: string, viewBox: ViewBox) => void;
   /** Moves a camera point's pin while preserving its framing/zoom. */
   setMotionPointFocus: (keyframeId: string, focus: { x: number; y: number }) => void;
+  /** Moves a camera keyframe to an explicit timestamp on the chapter timeline. */
+  moveMotionPointTime: (keyframeId: string, timeMs: number) => void;
+  /** Swaps a keyframe earlier (-1) or later (+1) in the sequence. */
+  reorderMotionPoint: (keyframeId: string, direction: -1 | 1) => void;
+  /** Resets keyframe timestamps to even spacing across the chapter duration. */
+  evenSpaceMotionPoints: () => void;
+  /** Scrubs the live viewer to the interpolated camera state at `timeMs`. */
+  scrubMotionTo: (timeMs: number) => void;
   /** Selects a point without moving the live camera; `null` lets go of it. */
   selectMotionPoint: (keyframeId: string | null) => void;
   /** Replaces a point's view with what the author is looking at now. */
@@ -198,7 +219,7 @@ export type StoryBuilderController = {
     preset: NonNullable<Chapter["cameraTrack"]>["preset"],
   ) => void;
   motionPreviewing: Readable<boolean>;
-  previewMotion: () => void;
+  previewMotion: (options?: { startMs?: number; withAudio?: boolean }) => void;
   stopMotionPreview: () => void;
   updateChapterTitle: (lang: string, value: string) => void;
   updateChapterDescription: (lang: string, value: string) => void;
@@ -382,6 +403,7 @@ export const createStoryBuilderController = (
     setChapterTitle: wrapMutation(runesStore.setChapterTitle),
     setStoryTitle: wrapMutation(runesStore.setStoryTitle),
     setStoryIdentifiers: wrapMutation(runesStore.setStoryIdentifiers),
+    setStoryPresentationAspect: wrapMutation(runesStore.setStoryPresentationAspect),
     setChapterCameraTrack: wrapMutation(runesStore.setChapterCameraTrack),
     setChapterViewBox: wrapMutation(runesStore.setChapterViewBox),
     setChapterDescription: wrapMutation(runesStore.setChapterDescription),
@@ -429,6 +451,7 @@ export const createStoryBuilderController = (
   const canRedo = writable(false);
   const saveModalOpen = writable(false);
   const saveModalPayload = writable<ExportEnvelope | null>(null);
+  const sourcesModalOpen = writable(false);
   const mediaSourcesStore = writable<MediaSource[]>([]);
   const layerOpacitiesStore = writable<Record<string, number>>({});
   let saveConfig: SaveConfig | null = null;
@@ -1003,7 +1026,7 @@ export const createStoryBuilderController = (
     selectedChapterId.set(chapter.id);
     const token = ++activePlaybackToken;
     const narration = getNarrationSegment(chapter);
-    startMotionTrackPlayback(chapter);
+    startMotionTrackPlayback(chapter, { withAudio: false });
     const run = async () => {
       if (narration) {
         await narrationPlayer.playSegment(narration);
@@ -2377,6 +2400,70 @@ export const createStoryBuilderController = (
     storyStoreWrapper.setStoryIdentifiers({ id, annotationBase });
   };
 
+  const updateStoryAspect = (aspect: number) => {
+    if (!Number.isFinite(aspect) || aspect <= 0) return;
+    pushHistorySnapshot("story-aspect");
+    storyStoreWrapper.setStoryPresentationAspect(aspect);
+    viewer?.setStoryPresentationAspect?.(aspect);
+  };
+
+  const openSourcesModal = () => {
+    stopMotionPreview();
+    sourcesModalOpen.set(true);
+  };
+
+  const closeSourcesModal = () => {
+    sourcesModalOpen.set(false);
+  };
+
+  const selectSourceCanvas = (
+    manifest: string,
+    canvasIndex: number,
+    mode: "add" | "replace",
+  ) => {
+    const trimmed = manifest.trim();
+    if (!trimmed || !viewer) return;
+    sourcesModalOpen.set(false);
+    const safeIndex = Math.max(0, Math.floor(canvasIndex));
+
+    if (mode === "replace" && get(selectedChapterId)) {
+      const currentChapterId = get(selectedChapterId);
+      if (currentChapterId) {
+        updateManifest(trimmed);
+      }
+      viewer.setManifest(trimmed);
+      viewer.setCanvasByIndex(safeIndex);
+      lastManifest = trimmed;
+      currentManifest.set(trimmed);
+      scheduleSourceRetargetCapture(true);
+      return;
+    }
+
+    if (pendingAddChapter) return;
+    loadManifest(trimmed);
+    viewer.setCanvasByIndex(safeIndex);
+    pendingAddChapter = true;
+    pushHistorySnapshot();
+    const attemptCapture = (remainingAttempts: number) => {
+      if (viewer?.getCanvasIndex?.() !== safeIndex) {
+        viewer?.setCanvasByIndex?.(safeIndex);
+      }
+      const result = capture();
+      if (
+        (result.ok &&
+          result.capture.manifest === trimmed &&
+          result.capture.canvasIndex === safeIndex) ||
+        remainingAttempts <= 0
+      ) {
+        pendingAddChapter = false;
+        handleCaptureResult(result);
+        return;
+      }
+      setTimeout(() => attemptCapture(remainingAttempts - 1), 100);
+    };
+    setTimeout(() => attemptCapture(40), 120);
+  };
+
   const motionPointId = (): string =>
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
@@ -2419,15 +2506,26 @@ export const createStoryBuilderController = (
    * story-shaped box inside the current viewport. A 3D point similarly records
    * the live pose.
    */
-  const addMotionPoint = () => {
+  const addMotionPoint = (atTimeMs?: number) => {
     const created: { id: string | null } = { id: null };
     updateCameraTrack((chapter) => {
-      const durationMs = Math.max(
+      const narrationSeg =
+        chapter.narrationSegment?.[language] ??
+        Object.values(chapter.narrationSegment ?? {})[0];
+      const narrationDurationMs =
+        narrationSeg && narrationSeg.end > narrationSeg.start
+          ? Math.round((narrationSeg.end - narrationSeg.start) * 1000)
+          : 0;
+      const defaultDurationMs = Math.max(
         1,
         chapter.cameraTrack?.durationMs ??
           chapter.presentationDurationMs ??
           5000,
       );
+      const durationMs =
+        typeof atTimeMs === "number" && Number.isFinite(atTimeMs)
+          ? Math.max(defaultDurationMs, narrationDurationMs, Math.round(atTimeMs))
+          : defaultDurationMs;
       const existing = chapter.cameraTrack?.keyframes ?? [];
       const activePreset = chapter.cameraTrack?.preset ?? "custom";
       const pointViewBox = currentViewFrame() ?? chapter.viewBox ?? undefined;
@@ -2445,11 +2543,39 @@ export const createStoryBuilderController = (
         ...(capturedLayers ? { layerOpacities: capturedLayers } : {}),
       };
       created.id = point.id;
-      const nextTrack: NonNullable<Chapter["cameraTrack"]> = {
+
+      const baseTrack: NonNullable<Chapter["cameraTrack"]> = {
         ...chapter.cameraTrack,
         durationMs,
         preset: activePreset,
         easing: chapter.cameraTrack?.easing ?? "ease-in-out",
+        keyframes: existing,
+      };
+
+      if (
+        typeof atTimeMs === "number" &&
+        Number.isFinite(atTimeMs) &&
+        (existing.length > 0 || atTimeMs > 0)
+      ) {
+        const nextTrack = insertCameraKeyframeAtTime(baseTrack, point, atTimeMs);
+        return activePreset !== "custom" && chapter.viewBox
+          ? configureCameraTrackPreset(
+              nextTrack,
+              activePreset,
+              chapter.viewBox,
+              nextTrack.durationMs,
+              { preservePoints: true },
+            )
+          : nextTrack;
+      }
+
+      if (chapter.cameraTrack?.timingMode === "custom" && existing.length > 0) {
+        const nextTrack = insertCameraKeyframeAtTime(baseTrack, point, durationMs);
+        return nextTrack;
+      }
+
+      const nextTrack: NonNullable<Chapter["cameraTrack"]> = {
+        ...baseTrack,
         keyframes: retimeCameraKeyframes([...existing, point], durationMs),
       };
       return activePreset !== "custom" && chapter.viewBox
@@ -2503,7 +2629,10 @@ export const createStoryBuilderController = (
       const nextTrack: NonNullable<Chapter["cameraTrack"]> = {
         ...track,
         preset,
-        keyframes: retimeCameraKeyframes(keyframes, track.durationMs),
+        keyframes:
+          track.timingMode === "custom"
+            ? keyframes
+            : retimeCameraKeyframes(keyframes, track.durationMs),
       };
       return preset !== "custom" && chapter.viewBox
         ? configureCameraTrackPreset(
@@ -2590,19 +2719,58 @@ export const createStoryBuilderController = (
       const point = track?.keyframes.find((entry) => entry.id === keyframeId);
       if (!track || !point) return track;
       // The keyframe becomes the view: where it looks and how far in.
+      const updatedKeyframes = track.keyframes.map((entry) =>
+        entry.id === keyframeId
+          ? { ...entry, focus: centreOf(viewFrame), viewBox: viewFrame }
+          : entry,
+      );
       return {
         ...track,
         preset: "custom",
-        keyframes: retimeCameraKeyframes(
-          track.keyframes.map((entry) =>
-            entry.id === keyframeId
-              ? { ...entry, focus: centreOf(viewFrame), viewBox: viewFrame }
-              : entry,
-          ),
-          track.durationMs,
-        ),
+        keyframes:
+          track.timingMode === "custom"
+            ? updatedKeyframes
+            : retimeCameraKeyframes(updatedKeyframes, track.durationMs),
       };
     });
+  };
+
+  const moveMotionPointTime = (keyframeId: string, timeMs: number) => {
+    const chapterId = get(selectedChapterId);
+    const chapter = get(storyStore).chapters.find((item) => item.id === chapterId);
+    if (!chapterId || !chapter?.cameraTrack) return;
+    pushHistorySnapshot(`motion-time::${chapterId}::${keyframeId}`);
+    storyStoreWrapper.setChapterCameraTrack({
+      chapterId,
+      cameraTrack: moveCameraKeyframeTime(chapter.cameraTrack, keyframeId, timeMs),
+    });
+  };
+
+  const reorderMotionPoint = (keyframeId: string, direction: -1 | 1) => {
+    updateCameraTrack((chapter) => {
+      if (!chapter.cameraTrack) return chapter.cameraTrack;
+      return reorderCameraKeyframes(chapter.cameraTrack, keyframeId, direction);
+    });
+  };
+
+  const evenSpaceMotionPoints = () => {
+    updateCameraTrack((chapter) => {
+      if (!chapter.cameraTrack) return chapter.cameraTrack;
+      return evenSpaceCameraTrack(chapter.cameraTrack);
+    });
+  };
+
+  const scrubMotionTo = (timeMs: number) => {
+    stopMotionPreview();
+    const chapterId = get(selectedChapterId);
+    const chapter = get(storyStore).chapters.find((item) => item.id === chapterId);
+    if (!chapter?.cameraTrack || chapter.cameraTrack.keyframes.length < 2 || !viewer) return;
+    const sample = sampleCameraTrack(chapter.cameraTrack, timeMs);
+    if (sample?.viewBox) viewer.setViewBox?.(sample.viewBox);
+    if (sample?.model) viewer.setModelPose?.(sample.model);
+    for (const [id, opacity] of Object.entries(sample?.layerOpacities ?? {})) {
+      viewer.updateLayerOpacity?.(id, opacity);
+    }
   };
 
   const deleteMotionPoint = (keyframeId: string) => {
@@ -2615,10 +2783,10 @@ export const createStoryBuilderController = (
       return {
         ...chapter.cameraTrack,
         preset: "custom",
-        keyframes: retimeCameraKeyframes(
-          keyframes,
-          chapter.cameraTrack.durationMs,
-        ),
+        keyframes:
+          chapter.cameraTrack.timingMode === "custom"
+            ? keyframes
+            : retimeCameraKeyframes(keyframes, chapter.cameraTrack.durationMs),
       };
     });
   };
@@ -2629,15 +2797,27 @@ export const createStoryBuilderController = (
         1,
         Number.isFinite(durationMs) ? durationMs : 5000,
       );
+      const track = chapter.cameraTrack;
+      if (track?.timingMode === "custom" && track.keyframes.length > 0) {
+        const previousDuration = Math.max(1, animatableCameraDurationMs(track) || track.durationMs || 1);
+        const scale = safeDuration / previousDuration;
+        return {
+          ...track,
+          durationMs: safeDuration,
+          preset: track.preset ?? "custom",
+          easing: track.easing ?? "ease-in-out",
+          keyframes: track.keyframes.map((point) => ({
+            ...point,
+            timeMs: Math.max(0, Math.min(safeDuration, Math.round(point.timeMs * scale))),
+          })),
+        };
+      }
       return {
-        ...chapter.cameraTrack,
+        ...track,
         durationMs: safeDuration,
-        preset: chapter.cameraTrack?.preset ?? "custom",
-        easing: chapter.cameraTrack?.easing ?? "ease-in-out",
-        keyframes: retimeCameraKeyframes(
-          chapter.cameraTrack?.keyframes ?? [],
-          safeDuration,
-        ),
+        preset: track?.preset ?? "custom",
+        easing: track?.easing ?? "ease-in-out",
+        keyframes: retimeCameraKeyframes(track?.keyframes ?? [], safeDuration),
       };
     });
   };
@@ -2740,6 +2920,8 @@ export const createStoryBuilderController = (
     });
   };
 
+  let motionPreviewOwnsAudio = false;
+
   const stopMotionPreview = () => {
     if (
       motionPreviewFrame !== null &&
@@ -2748,19 +2930,29 @@ export const createStoryBuilderController = (
       cancelAnimationFrame(motionPreviewFrame);
     }
     motionPreviewFrame = null;
+    if (motionPreviewOwnsAudio) {
+      motionPreviewOwnsAudio = false;
+      narrationPlayer.stop();
+    }
     motionPreviewing.set(false);
   };
 
-  const previewMotion = () => {
+  const previewMotion = (options?: { startMs?: number; withAudio?: boolean }) => {
     const chapterId = get(selectedChapterId);
     const chapter = get(storyStore).chapters.find(
       (item) => item.id === chapterId,
     );
     if (!chapter) return;
-    startMotionTrackPlayback(chapter);
+    startMotionTrackPlayback(chapter, {
+      startMs: options?.startMs,
+      withAudio: options?.withAudio ?? true,
+    });
   };
 
-  const startMotionTrackPlayback = (chapter: Chapter) => {
+  const startMotionTrackPlayback = (
+    chapter: Chapter,
+    options?: { startMs?: number; withAudio?: boolean },
+  ) => {
     if (
       !chapter.cameraTrack ||
       chapter.cameraTrack.keyframes.length < 2 ||
@@ -2775,6 +2967,10 @@ export const createStoryBuilderController = (
     }
     const track = chapter.cameraTrack;
     const playbackDurationMs = animatableCameraDurationMs(track);
+    const startMs = Math.max(
+      0,
+      Math.min(playbackDurationMs, Number.isFinite(options?.startMs) ? (options?.startMs ?? 0) : 0),
+    );
     const reduceMotion = globalThis.matchMedia?.(
       "(prefers-reduced-motion: reduce)",
     ).matches;
@@ -2792,9 +2988,25 @@ export const createStoryBuilderController = (
       applySample(playbackDurationMs);
       return;
     }
-    applySample(0);
+
+    if (options?.withAudio) {
+      const narration = getNarrationSegment(chapter);
+      if (narration) {
+        const audioStart = narration.start + startMs / 1000;
+        if (audioStart < narration.end) {
+          motionPreviewOwnsAudio = true;
+          void narrationPlayer.playSegment({
+            src: narration.src,
+            start: audioStart,
+            end: narration.end,
+          });
+        }
+      }
+    }
+
+    applySample(startMs);
     motionPreviewing.set(true);
-    const startedAt = performance.now();
+    const startedAt = performance.now() - startMs;
     const frame = (time: number) => {
       const elapsed = Math.min(playbackDurationMs, time - startedAt);
       applySample(elapsed);
@@ -2802,6 +3014,10 @@ export const createStoryBuilderController = (
         motionPreviewFrame = requestAnimationFrame(frame);
       else {
         motionPreviewFrame = null;
+        if (motionPreviewOwnsAudio) {
+          motionPreviewOwnsAudio = false;
+          narrationPlayer.stop();
+        }
         motionPreviewing.set(false);
       }
     };
@@ -3183,6 +3399,10 @@ export const createStoryBuilderController = (
     saveModalOpen,
     saveModalPayload,
     closeSaveModal,
+    sourcesModalOpen,
+    openSourcesModal,
+    closeSourcesModal,
+    selectSourceCanvas,
     mediaSources: mediaSourcesStore,
     layerOpacities: layerOpacitiesStore,
     updateLayerOpacity,
@@ -3210,9 +3430,14 @@ export const createStoryBuilderController = (
     setNarrationTrack,
     updateStoryTitle,
     updateStoryIdentifiers,
+    updateStoryAspect,
     addMotionPoint,
     setMotionPointViewBox,
     setMotionPointFocus,
+    moveMotionPointTime,
+    reorderMotionPoint,
+    evenSpaceMotionPoints,
+    scrubMotionTo,
     selectMotionPoint,
     updateMotionPointFromViewport,
     selectedMotionPointId,

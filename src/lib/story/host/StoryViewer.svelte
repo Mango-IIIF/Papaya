@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onDestroy, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { writable } from 'svelte/store';
+  import { Globe } from '@lucide/svelte';
   import {
     ViewerCore,
     fetchManifest,
@@ -14,6 +15,7 @@
   } from '@mango-iiif/iiif-viewer/core';
   import { t, translate } from '../../core/i18n';
   import type { StoryConfig, StoryEventMap } from '../../core/types/story';
+  import { extractManifestAttribution } from '../manifestAttribution';
   import StoryShell from './StoryShell.svelte';
   import { createStoryViewerBridge } from './storyViewerBridge';
   import MangoFooterBrand from '../ui/MangoFooterBrand.svelte';
@@ -96,7 +98,38 @@
     }
     return STORY_DEFAULT_LANGUAGE;
   };
-  let storyLanguage = $derived(resolvePreferredStoryLanguage());
+  let selectedLanguage = $state<string | null>(null);
+  let availableLanguages = $derived.by(() => {
+    const found = new Set<string>();
+    const addKeys = (map: Record<string, unknown> | undefined) => {
+      if (!map) return;
+      for (const key of Object.keys(map)) {
+        const cleaned = key.trim().toLowerCase();
+        if (cleaned) found.add(cleaned);
+      }
+    };
+    addKeys(storyData?.title);
+    addKeys(storyData?.narration?.tracks);
+    for (const chapter of storyData?.chapters ?? []) {
+      addKeys(chapter.title);
+      addKeys(chapter.description);
+      addKeys(chapter.narrationSegment);
+      for (const drawing of chapter.drawingAnnotations ?? []) {
+        addKeys(drawing.label);
+      }
+    }
+    return Array.from(found);
+  });
+  let storyLanguage = $derived.by(() => {
+    if (selectedLanguage && availableLanguages.includes(selectedLanguage)) {
+      return selectedLanguage;
+    }
+    const preferred = resolvePreferredStoryLanguage();
+    if (availableLanguages.length === 0 || availableLanguages.includes(preferred)) {
+      return preferred;
+    }
+    return availableLanguages.includes('en') ? 'en' : availableLanguages[0];
+  });
 
   const resolveLanguageValue = (
     value: Record<string, string> | undefined,
@@ -139,22 +172,54 @@
   });
   onDestroy(offViewBox);
 
+  let activeChapter = $derived(storyData?.chapters?.[storyPlayback.currentChapterIndex] ?? null);
   let chapterTitle = $derived.by(() => {
-    const activeChapter = storyData?.chapters?.[storyPlayback.currentChapterIndex];
     const resolvedTitle = resolveLanguageValue(activeChapter?.title, storyLanguage);
     return (
       resolvedTitle || (storyChapters > 0 ? `Chapter ${storyPlayback.currentChapterIndex + 1}` : '')
     );
   });
   let chapterDescription = $derived(
-    resolveLanguageValue(
-      storyData?.chapters?.[storyPlayback.currentChapterIndex]?.description,
-      storyLanguage,
+    resolveLanguageValue(activeChapter?.description, storyLanguage),
+  );
+  let storyCurrentChapterId = $derived(activeChapter?.id ?? null);
+  let activeAttribution = $derived.by(() => {
+    const manifestId = activeChapter?.manifest;
+    if (!manifestId) return null;
+    const entry = $manifestsStore[manifestId];
+    if (!entry?.json) return null;
+    return extractManifestAttribution(entry.json, manifestId, storyLanguage);
+  });
+  let hasNarration = $derived(
+    Boolean(
+      storyData?.narration?.tracks &&
+        Object.values(storyData.narration.tracks).some((track) => Boolean(track?.src?.trim())),
     ),
   );
-  let storyCurrentChapterId = $derived(
-    storyData?.chapters[storyPlayback.currentChapterIndex]?.id ?? null,
+  let framingMode = $derived<'exact' | 'fill'>(
+    normalisedConfig.story?.framingMode === 'fill' ? 'fill' : 'exact',
   );
+
+  $effect(() => {
+    storyPlayback.setLanguage(storyLanguage);
+  });
+
+  let stageEl: HTMLElement | null = $state(null);
+  onMount(() => {
+    if (!stageEl || typeof ResizeObserver === 'undefined') return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const observer = new ResizeObserver(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        storyPlayback.refitCurrentChapter();
+      }, 90);
+    });
+    observer.observe(stageEl);
+    return () => {
+      if (timer) clearTimeout(timer);
+      observer.disconnect();
+    };
+  });
 
   const setStoryError = (message: string) => {
     storyError = message;
@@ -306,8 +371,27 @@
     {/if}
   {/snippet}
 
+  {#snippet actions()}
+    {#if availableLanguages.length > 1}
+      <label class="story-viewer__language" data-testid="story-viewer-language">
+        <Globe aria-hidden="true" />
+        <select
+          aria-label={$t('storyViewer.language')}
+          value={storyLanguage}
+          onchange={(event) => {
+            selectedLanguage = (event.currentTarget as HTMLSelectElement).value;
+          }}
+        >
+          {#each availableLanguages as lang}
+            <option value={lang}>{lang.toUpperCase()}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
+  {/snippet}
+
   <div class="viewer__grid">
-    <main class="stage stage--story" aria-label={$t('viewer.stage.label')}>
+    <main class="stage stage--story" aria-label={$t('viewer.stage.label')} bind:this={stageEl}>
       <StoryControlsStage
         currentChapterIndex={storyPlayback.currentChapterIndex}
         totalChapters={storyChapters}
@@ -315,6 +399,10 @@
         chapterDurationSec={storyPlayback.chapterDurationSec}
         chapterElapsedSec={storyPlayback.chapterElapsedSec}
         presentationAspect={storyData?.presentationAspect}
+        {framingMode}
+        {hasNarration}
+        isMuted={storyPlayback.isMuted}
+        attribution={activeAttribution}
         stageOpacity={storyPlayback.stageOpacity}
         stageFadeMs={storyPlayback.stageFadeMs}
         {chapterTitle}
@@ -327,6 +415,7 @@
         onplay={storyPlayback.play}
         onpause={storyPlayback.pause}
         onstop={storyPlayback.stop}
+        ontoggleMute={storyPlayback.toggleMute}
         onzoomIn={() => core?.zoomIn()}
         onzoomOut={() => core?.zoomOut()}
         onfit={() => core?.goHome()}
@@ -474,5 +563,34 @@
     .viewer__grid {
       transition: none;
     }
+  }
+
+  .story-viewer__language {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    height: 34px;
+    border: 1px solid var(--viewer-panel-border);
+    border-radius: 8px;
+    background: var(--viewer-panel);
+    color: var(--viewer-text);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .story-viewer__language :global(svg) {
+    width: 14px;
+    height: 14px;
+    color: var(--viewer-muted);
+  }
+
+  .story-viewer__language select {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    outline: none;
   }
 </style>

@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { Check, Link2, Volume2 } from '@lucide/svelte';
+  import { Check, Frame, Link2, Volume2 } from '@lucide/svelte';
   import { onMount } from 'svelte';
   import type { Readable } from 'svelte/store';
   import type { StoryState } from '../../core/types/story';
+  import { resolvePresentationAspect } from '../framing';
   import { deriveChapterAnnotationBase, isGeneratedDraftId, validatePublicIdentifier } from '../publicIdentifiers';
   import { t } from '../../core/i18n';
 
@@ -16,7 +17,20 @@
   export let onUpdateStoryTitle: ((lang: string, value: string) => void) | undefined;
   export let onUpdateStoryIdentifiers:
     ((id: string, annotationBase: string) => void) | undefined;
+  export let onUpdateStoryAspect: ((aspect: number) => void) | undefined = undefined;
   export let showSourceSetup = false;
+
+  const ASPECT_PRESETS: Array<{ label: string; value: number }> = [
+    { label: '16:9', value: 16 / 9 },
+    { label: '3:2', value: 3 / 2 },
+    { label: '4:3', value: 4 / 3 },
+    { label: '1:1', value: 1 },
+    { label: '9:16', value: 9 / 16 },
+  ];
+
+  $: currentAspect = resolvePresentationAspect($story);
+  const isAspectSelected = (candidate: number, current: number): boolean =>
+    Math.abs(candidate - current) / candidate < 0.01;
   export let currentManifest: string | null = null;
   export let onLoadSource: ((manifest: string) => void) | undefined;
 
@@ -304,6 +318,37 @@
         >
           <Check aria-hidden="true" /> {$t('storyBuilder.settings.saveIdentifiers')}
         </button>
+      </section>
+
+      <section
+        class="narration-overlay__section narration-overlay__section--card"
+        data-testid="story-aspect-settings"
+      >
+        <div class="narration-overlay__source-heading">
+          <span class="narration-overlay__source-icon"><Frame aria-hidden="true" /></span>
+          <span>
+            <strong>{$t('storyBuilder.settings.presentationAspect')}</strong>
+            <small>{$t('storyBuilder.settings.presentationAspectHint')}</small>
+          </span>
+        </div>
+        <div
+          class="narration-overlay__aspect-options"
+          role="group"
+          aria-label={$t('storyBuilder.settings.presentationAspect')}
+        >
+          {#each ASPECT_PRESETS as preset (preset.label)}
+            <button
+              type="button"
+              class="narration-overlay__aspect-btn"
+              class:narration-overlay__aspect-btn--active={isAspectSelected(preset.value, currentAspect)}
+              aria-pressed={isAspectSelected(preset.value, currentAspect)}
+              data-testid={`story-aspect-${preset.label.replace(':', '-')}`}
+              on:click={() => onUpdateStoryAspect?.(preset.value)}
+            >
+              {preset.label}
+            </button>
+          {/each}
+        </div>
       </section>
 
       <div class="narration-overlay__divider" aria-hidden="true"></div>
@@ -893,6 +938,36 @@
   .narration-overlay__button :global(svg) {
     width: 16px;
     height: 16px;
+  }
+
+  .narration-overlay__aspect-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .narration-overlay__aspect-btn {
+    min-width: 58px;
+    padding: 8px 12px;
+    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
+    border-radius: 9px;
+    background: var(--viewer-panel, #121922);
+    color: var(--viewer-muted, #9aa6b2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .narration-overlay__aspect-btn:hover {
+    color: var(--viewer-text, #e8edf4);
+    border-color: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 55%, transparent);
+  }
+
+  .narration-overlay__aspect-btn--active {
+    border-color: var(--story-builder-accent, #2ac7ff);
+    background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 16%, transparent);
+    color: var(--viewer-text, #e8edf4);
   }
 
   @media (max-width: 860px) {

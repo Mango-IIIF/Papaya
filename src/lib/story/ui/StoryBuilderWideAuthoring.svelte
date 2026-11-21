@@ -39,11 +39,19 @@
   export let onStopPreviewMediaSegment: () => void;
   /** Sets the chapter frame to the story-shaped box inside the current view. */
   export let onSetFrameFromView: () => void = () => {};
-  export let onAddPoint: () => void;
+  export let onAddPoint: (atTimeMs?: number) => void;
   export let onDeletePoint: (keyframeId: string) => void = () => {};
   export let onGoToPoint: (keyframeId: string) => void;
   export let onSelectPoint: (keyframeId: string | null) => void = () => {};
   export let onUpdatePointFromView: (keyframeId: string) => void = () => {};
+  export let onMovePointTime:
+    | ((keyframeId: string, timeMs: number) => void)
+    | undefined = undefined;
+  export let onReorderPoint:
+    | ((keyframeId: string, direction: -1 | 1) => void)
+    | undefined = undefined;
+  export let onEvenSpace: (() => void) | undefined = undefined;
+  export let onScrubTo: ((timeMs: number) => void) | undefined = undefined;
   export let motionPreviewing: Readable<boolean> = readable(false);
   export let onUpdateMotionDuration: (durationMs: number) => void = () => {};
   export let onUpdateMotionPathType: (pathType: "linear" | "spline") => void = () => {};
@@ -54,7 +62,10 @@
   export let onApplyMotionPreset: (
     preset: NonNullable<ChapterCameraTrack["preset"]>,
   ) => void = () => {};
-  export let onPreviewMotion: () => void = () => {};
+  export let onPreviewMotion: (options?: {
+    startMs?: number;
+    withAudio?: boolean;
+  }) => void = () => {};
   export let onStopMotionPreview: () => void = () => {};
   export let annotationTool: Readable<ChapterAnnotationTool> = readable("select");
   export let selectedAnnotationId: Readable<string | null> = readable(null);
@@ -238,6 +249,10 @@
     {onGoToPoint}
     {onSelectPoint}
     {onUpdatePointFromView}
+    {onMovePointTime}
+    {onReorderPoint}
+    {onEvenSpace}
+    {onScrubTo}
     {onDeletePoint}
     {onPreviewMotion}
     {onStopMotionPreview}

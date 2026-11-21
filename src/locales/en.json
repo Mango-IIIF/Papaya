@@ -208,7 +208,16 @@
       "language": "Content language",
       "title": "Content ({language})",
       "titleLabel": "Title",
-      "descriptionLabel": "Description"
+      "descriptionLabel": "Description",
+      "plainView": "Plain",
+      "formattedView": "Formatted",
+      "formatBold": "Bold",
+      "formatItalic": "Italic",
+      "formatLink": "Link",
+      "formatList": "Bullet list",
+      "formatQuote": "Quote",
+      "previewLabel": "Formatted preview",
+      "previewEmpty": "Formatted description preview appears here."
     },
     "position": {
       "hint": "The frame drawn on the image is what readers see. Drag it there, set it from the view in the bar under the image, or type a region here.",
@@ -311,7 +320,15 @@
       "captureHint": "Add the current view as a keyframe",
       "updateFromViewHint": "Replace this keyframe with the current view",
       "deleteNumber": "Delete keyframe {number}",
-      "needSecond": "Move the view and capture a second keyframe to create motion."
+      "needSecond": "Move the view and capture a second keyframe to create motion.",
+      "scrub": "Scrub camera timeline",
+      "moveEarlier": "Move keyframe earlier",
+      "moveLater": "Move keyframe later",
+      "muteAudio": "Mute narration preview",
+      "unmuteAudio": "Unmute narration preview",
+      "evenSpace": "Evenly space",
+      "evenSpaceHint": "Distribute all keyframes evenly across the duration",
+      "customTimingHint": "Custom timing — drag markers on the track to align with narration."
     },
     "settings": {
       "title": "Story settings",
@@ -336,7 +353,9 @@
       "audioPreview": "Audio preview",
       "audioPreviewHint": "Enter a URL to preview the narration track.",
       "saveAudio": "Save audio source",
-      "draftIdentifiers": "Without an AnnotationPage ID, Mango generates one under mangoviewer.dev. Exports stay valid IIIF, but set your own domain before publishing."
+      "draftIdentifiers": "Without an AnnotationPage ID, Mango generates one under mangoviewer.dev. Exports stay valid IIIF, but set your own domain before publishing.",
+      "presentationAspect": "Story frame shape",
+      "presentationAspectHint": "Locks every chapter frame and keyframe to one aspect ratio across all screens."
     },
     "overlay": {
       "closeMetadata": "Close chapter metadata",
@@ -398,6 +417,22 @@
       "mediaWhole": "Plays the whole source.",
       "more": "More",
       "moreHint": "Frame region, transition, source, layers"
+    },
+    "sources": {
+      "button": "Sources",
+      "title": "Story sources",
+      "subtitle": "Browse IIIF manifests, collections, and canvases for your story",
+      "usedInStory": "In this story",
+      "urlLabel": "IIIF Manifest or Collection URL",
+      "load": "Browse",
+      "loading": "Loading IIIF resource…",
+      "loadError": "Could not load that IIIF Manifest or Collection.",
+      "collectionItems": "Collection items ({count})",
+      "canvases": "Canvases ({count})",
+      "addAsChapter": "Add chapter",
+      "useForChapter": "Use for current chapter",
+      "changeSource": "Change source",
+      "canvasNumber": "Canvas {number}"
     }
   },
   "viewer": {
@@ -444,7 +479,17 @@
       "missingVersion": "Missing Mango story version",
       "unsupportedVersion": "Unsupported Mango story version: {version}",
       "chapterState": "Invalid Mango story chapter state"
-    }
+    },
+    "language": "Story language",
+    "mute": "Mute narration",
+    "unmute": "Unmute narration",
+    "attribution": "Attribution & rights",
+    "attributionClose": "Close attribution details",
+    "attributionSource": "Source manifest",
+    "attributionRights": "Rights",
+    "attributionProvider": "Provider",
+    "attributionHomepage": "View source item",
+    "attributionNone": "No attribution metadata provided by this manifest."
   },
   "about": {
     "description": "Mango is an open-source, W3C Annotation and IIIF-compliant deep zoom viewer and interactive story creation suite designed for high-resolution manuscript, artwork, and spatial media exploration."

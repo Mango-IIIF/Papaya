@@ -151,9 +151,11 @@ export type StoryFrame = {
 };
 
 export type ChapterCameraTrack = {
-  /** Movement time only. Keyframe dwell is added before its following leg. */
+  /** Movement time only (or total span when `timingMode === 'custom'`). Keyframe dwell is added before its following leg. */
   durationMs: number;
   keyframes: ChapterCameraKeyframe[];
+  /** Whether keyframes are auto-spaced evenly or placed at explicit `timeMs` positions. */
+  timingMode?: "even" | "custom";
   preset?:
     | "static"
     | "zoom-in"
@@ -235,6 +237,13 @@ export type StoryConfig = ViewerConfig & {
     annotationBase?: string;
     /** Prevent authors from changing host-supplied canonical identifiers. */
     identifiersLocked?: boolean;
+    /**
+     * How the Story Viewer presents the authored frame across screen shapes:
+     * - `'exact'` (default): locks the stage surface to `presentationAspect` so
+     *   every screen preserves the exact authored crop and zoom.
+     * - `'fill'`: fills the embed edge-to-edge and centres the authored region.
+     */
+    framingMode?: "exact" | "fill";
     save?: SaveConfig;
   };
 };

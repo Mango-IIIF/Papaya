@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { ChevronDown, Play, Square } from "@lucide/svelte";
+  import { ChevronDown, FolderOpen, Play, Square } from "@lucide/svelte";
   import { readable, writable, type Readable } from "svelte/store";
+  import { manifestsStore } from "@mango-iiif/iiif-viewer/core";
   import {
     type ChapterAdvance,
     type ChapterDrawingAnnotation,
@@ -8,6 +9,7 @@
   } from "../../core/types/story";
   import type { ViewBox } from "@mango-iiif/iiif-viewer/core";
   import type { MediaType, MediaSource } from "@mango-iiif/iiif-viewer/core";
+  import { resolveIiifText } from "../manifestAttribution";
   import ChapterTextForm from "./ChapterTextForm.svelte";
   import ChapterPositionSection from "./ChapterPositionSection.svelte";
   import ChapterCameraConfig from "./ChapterCameraConfig.svelte";
@@ -49,6 +51,7 @@
   export let languages: string[] = ["en"];
   export let currentManifest: string | null = null;
   export let onClose: (() => void) | undefined;
+  export let onOpenSources: (() => void) | undefined = undefined;
   export let onSetAnnotationLanguage: ((lang: string) => void) | undefined;
   export let onUpdateManifest:
     ((chapterId: string, manifest: string) => void) | undefined;
@@ -554,6 +557,19 @@
     });
   })();
   $: annotationCount = chapter?.drawingAnnotations?.length ?? 0;
+  $: chapterSourceTitle = (() => {
+    if (!chapter?.manifest) return '';
+    const json = $manifestsStore[chapter.manifest]?.json as Record<string, unknown> | undefined;
+    const resolved = json ? resolveIiifText(json.label, activeLanguage) : '';
+    if (resolved) return resolved;
+    try {
+      const parsed = new URL(chapter.manifest);
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      return parts.slice(-2).join('/') || parsed.hostname;
+    } catch {
+      return chapter.manifest;
+    }
+  })();
   $: mediaSummary = chapter?.media
     ? $t('storyBuilder.inspector.mediaSummary', {
         start: formatHms(chapter.media.start),
@@ -632,6 +648,24 @@
             ? chapterTitleDraft.trim() || $t('storyBuilder.tasks.title')
             : $t('storyBuilder.overlay.loadSource')}
         </div>
+        {#if chapter && chapterSourceTitle && $activeChapterTask !== "focus"}
+          <div class="chapter-overlay__source-context" data-testid="chapter-source-context">
+            <span title={chapter.manifest}>
+              {chapterSourceTitle} · {$t('storyBuilder.sources.canvasNumber', { number: chapter.canvasIndex + 1 })}
+            </span>
+            {#if onOpenSources}
+              <button
+                type="button"
+                class="chapter-overlay__source-change"
+                data-testid="chapter-change-source"
+                on:click={() => onOpenSources?.()}
+              >
+                <FolderOpen aria-hidden="true" />
+                <span>{$t('storyBuilder.sources.changeSource')}</span>
+              </button>
+            {/if}
+          </div>
+        {/if}
       </div>
       {#if chapter && $activeChapterTask !== "focus"}
         <button
@@ -1089,6 +1123,48 @@
       font-weight: 600;
       color: var(--viewer-text, #e8edf4);
       letter-spacing: 0.01em;
+    }
+
+    .chapter-overlay__source-context {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--viewer-muted, #9aa6b2);
+    }
+
+    .chapter-overlay__source-context > span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chapter-overlay__source-change {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 7px;
+      border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
+      border-radius: 7px;
+      background: transparent;
+      color: var(--story-builder-accent, #2ac7ff);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .chapter-overlay__source-change:hover {
+      background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 12%, transparent);
+    }
+
+    .chapter-overlay__source-change :global(svg) {
+      width: 12px;
+      height: 12px;
     }
 
     .chapter-overlay__preview-chapter {

@@ -1,5 +1,6 @@
 import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
 import type { ModelPoseOptions } from '@mango-iiif/iiif-viewer/core';
+import { normaliseStoryFraming } from '../../story/framing';
 import type {
   AnnotationPlacement,
   Chapter,
@@ -565,6 +566,17 @@ export const setLayerOpacities = (story: StoryState, payload: ChapterLayersPaylo
   };
 };
 
+export const setStoryPresentationAspect = (
+  story: StoryState,
+  aspect: number,
+): StoryState => {
+  if (!Number.isFinite(aspect) || aspect <= 0) return story;
+  return normaliseStoryFraming({
+    ...story,
+    presentationAspect: aspect,
+  });
+};
+
 export const reorderChapter = (story: StoryState, payload: ReorderChapterPayload): StoryState => {
   if (payload.chapterId === payload.targetChapterId) return story;
 
@@ -671,6 +683,10 @@ export function createStoryStore(initial?: StoryState) {
 
     setStoryIdentifiers(payload: StoryIdentifiersPayload): void {
       story = setStoryIdentifiers(story, payload);
+    },
+
+    setStoryPresentationAspect(aspect: number): void {
+      story = setStoryPresentationAspect(story, aspect);
     },
 
     setChapterCameraTrack(payload: ChapterCameraTrackPayload): void {

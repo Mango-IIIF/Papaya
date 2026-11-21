@@ -208,7 +208,16 @@
       "language": "Iaith y cynnwys",
       "title": "Cynnwys ({language})",
       "titleLabel": "Teitl",
-      "descriptionLabel": "Disgrifiad"
+      "descriptionLabel": "Disgrifiad",
+      "plainView": "Plaen",
+      "formattedView": "Wedi fformatio",
+      "formatBold": "Trwm",
+      "formatItalic": "Italig",
+      "formatLink": "Dolen",
+      "formatList": "Rhestr fwled",
+      "formatQuote": "Dyfyniad",
+      "previewLabel": "Rhagolwg wedi fformatio",
+      "previewEmpty": "Mae rhagolwg o'r disgrifiad wedi'i fformatio yn ymddangos yma."
     },
     "position": {
       "hint": "Y ffrâm a dynnir ar y ddelwedd yw’r hyn y mae darllenwyr yn ei weld. Llusgwch hi yno, gosodwch hi o’r olygfa yn y bar o dan y ddelwedd, neu teipiwch ranbarth yma.",
@@ -311,7 +320,15 @@
       "captureHint": "Ychwanegu’r olygfa gyfredol fel ffrâm allweddol",
       "updateFromViewHint": "Disodli’r ffrâm allweddol hon â’r olygfa gyfredol",
       "deleteNumber": "Dileu ffrâm allweddol {number}",
-      "needSecond": "Symudwch yr olygfa a daliwch ail ffrâm allweddol i greu symudiad."
+      "needSecond": "Symudwch yr olygfa a daliwch ail ffrâm allweddol i greu symudiad.",
+      "scrub": "Sgrwbio llinell amser y camera",
+      "moveEarlier": "Symud ffrâm allweddol yn gynharach",
+      "moveLater": "Symud ffrâm allweddol yn ddiweddarach",
+      "muteAudio": "Tewi rhagolwg adroddiad",
+      "unmuteAudio": "Dad-dewi rhagolwg adroddiad",
+      "evenSpace": "Gofod cyfartal",
+      "evenSpaceHint": "Dosbarthu pob ffrâm allweddol yn gyfartal ar draws y hyd",
+      "customTimingHint": "Amseru personol — llusgwch farcwyr ar y trac i'w halinio â'r adroddiad."
     },
     "settings": {
       "title": "Gosodiadau'r stori",
@@ -336,7 +353,9 @@
       "audioPreview": "Rhagolwg sain",
       "audioPreviewHint": "Rhowch URL i gael rhagolwg o'r trac adrodd.",
       "saveAudio": "Cadw'r ffynhonnell sain",
-      "draftIdentifiers": "Heb ID AnnotationPage, mae Mango'n cynhyrchu un o dan mangoviewer.dev. Mae allforion yn aros yn IIIF dilys, ond gosodwch eich parth eich hun cyn cyhoeddi."
+      "draftIdentifiers": "Heb ID AnnotationPage, mae Mango'n cynhyrchu un o dan mangoviewer.dev. Mae allforion yn aros yn IIIF dilys, ond gosodwch eich parth eich hun cyn cyhoeddi.",
+      "presentationAspect": "Siâp ffrâm y stori",
+      "presentationAspectHint": "Mae hyn yn cloi pob ffrâm pennod a ffrâm allweddol i un gymhareb agwedd ar draws pob sgrin."
     },
     "overlay": {
       "closeMetadata": "Cau metadata'r bennod",
@@ -398,6 +417,22 @@
       "mediaWhole": "Yn chwarae'r ffynhonnell gyfan.",
       "more": "Rhagor",
       "moreHint": "Rhanbarth y ffrâm, trawsnewid, ffynhonnell, haenau"
+    },
+    "sources": {
+      "button": "Ffynonellau",
+      "title": "Ffynonellau'r stori",
+      "subtitle": "Pori maniffestau, casgliadau a chanfasau IIIF ar gyfer eich stori",
+      "usedInStory": "Yn y stori hon",
+      "urlLabel": "URL Maniffest neu Gasgliad IIIF",
+      "load": "Pori",
+      "loading": "Wrthi'n llwytho adnodd IIIF…",
+      "loadError": "Methwyd llwytho'r Maniffest neu'r Casgliad IIIF hwnnw.",
+      "collectionItems": "Eitemau casgliad ({count})",
+      "canvases": "Canfasau ({count})",
+      "addAsChapter": "Ychwanegu pennod",
+      "useForChapter": "Defnyddio ar gyfer y bennod hon",
+      "changeSource": "Newid ffynhonnell",
+      "canvasNumber": "Canfas {number}"
     }
   },
   "viewer": {
@@ -444,7 +479,17 @@
       "missingVersion": "Fersiwn stori Mango ar goll",
       "unsupportedVersion": "Fersiwn stori Mango heb ei chefnogi: {version}",
       "chapterState": "Cyflwr pennod stori Mango annilys"
-    }
+    },
+    "language": "Iaith y stori",
+    "mute": "Tewi adroddiad",
+    "unmute": "Dad-dewi adroddiad",
+    "attribution": "Priodoliad a hawliau",
+    "attributionClose": "Cau manylion priodoliad",
+    "attributionSource": "Maniffest ffynhonnell",
+    "attributionRights": "Hawliau",
+    "attributionProvider": "Darparwr",
+    "attributionHomepage": "Gweld eitem ffynhonnell",
+    "attributionNone": "Dim metadata priodoliad yn y maniffest hwn."
   },
   "about": {
     "description": "Mae Mango yn wyliwr chwyddo dwfn cod agored sy'n cydymffurfio â W3C Annotation a IIIF, ynghyd â chyfres creu storïau rhyngweithiol, wedi'i gynllunio i archwilio llawysgrifau, gwaith celf a chyfryngau gofodol cydraniad uchel."

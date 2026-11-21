@@ -208,7 +208,16 @@
       "language": "Idioma del contenido",
       "title": "Contenido ({language})",
       "titleLabel": "Título",
-      "descriptionLabel": "Descripción"
+      "descriptionLabel": "Descripción",
+      "plainView": "Simple",
+      "formattedView": "Con formato",
+      "formatBold": "Negrita",
+      "formatItalic": "Cursiva",
+      "formatLink": "Enlace",
+      "formatList": "Lista",
+      "formatQuote": "Cita",
+      "previewLabel": "Vista previa con formato",
+      "previewEmpty": "La vista previa con formato aparecerá aquí."
     },
     "position": {
       "hint": "El encuadre dibujado sobre la imagen es lo que ven los lectores. Arrástrelo allí, ajústelo desde la vista en la barra bajo la imagen, o escriba aquí una región.",
@@ -311,7 +320,15 @@
       "captureHint": "Añadir la vista actual como fotograma clave",
       "updateFromViewHint": "Sustituir este fotograma clave por la vista actual",
       "deleteNumber": "Eliminar fotograma clave {number}",
-      "needSecond": "Mueva la vista y capture un segundo fotograma clave para crear movimiento."
+      "needSecond": "Mueva la vista y capture un segundo fotograma clave para crear movimiento.",
+      "scrub": "Desplazar línea de tiempo de cámara",
+      "moveEarlier": "Mover fotograma antes",
+      "moveLater": "Mover fotograma después",
+      "muteAudio": "Silenciar vista previa de narración",
+      "unmuteAudio": "Activar sonido de narración",
+      "evenSpace": "Espaciar por igual",
+      "evenSpaceHint": "Distribuir todos los fotogramas clave por igual en la duración",
+      "customTimingHint": "Tiempo personalizado — arrastra los marcadores en la pista para alinearlos con la narración."
     },
     "settings": {
       "title": "Ajustes de la historia",
@@ -336,7 +353,9 @@
       "audioPreview": "Previsualización del audio",
       "audioPreviewHint": "Introduzca una URL para previsualizar la pista de narración.",
       "saveAudio": "Guardar la fuente de audio",
-      "draftIdentifiers": "Sin un ID de AnnotationPage, Mango genera uno en mangoviewer.dev. Las exportaciones siguen siendo IIIF válido, pero defina su propio dominio antes de publicar."
+      "draftIdentifiers": "Sin un ID de AnnotationPage, Mango genera uno en mangoviewer.dev. Las exportaciones siguen siendo IIIF válido, pero defina su propio dominio antes de publicar.",
+      "presentationAspect": "Formato de encuadre",
+      "presentationAspectHint": "Bloquea cada encuadre y fotograma clave a una misma proporción en todas las pantallas."
     },
     "overlay": {
       "closeMetadata": "Cerrar los metadatos del capítulo",
@@ -398,6 +417,22 @@
       "mediaWhole": "Reproduce la fuente completa.",
       "more": "Más",
       "moreHint": "Región del encuadre, transición, fuente, capas"
+    },
+    "sources": {
+      "button": "Fuentes",
+      "title": "Fuentes de la historia",
+      "subtitle": "Explora manifiestos, colecciones y lienzos IIIF para tu historia",
+      "usedInStory": "En esta historia",
+      "urlLabel": "URL de manifiesto o colección IIIF",
+      "load": "Explorar",
+      "loading": "Cargando recurso IIIF…",
+      "loadError": "No se pudo cargar ese manifiesto o colección IIIF.",
+      "collectionItems": "Elementos de la colección ({count})",
+      "canvases": "Lienzos ({count})",
+      "addAsChapter": "Añadir capítulo",
+      "useForChapter": "Usar en el capítulo actual",
+      "changeSource": "Cambiar fuente",
+      "canvasNumber": "Lienzo {number}"
     }
   },
   "viewer": {
@@ -444,7 +479,17 @@
       "missingVersion": "Falta la versión de la historia Mango",
       "unsupportedVersion": "Versión de historia Mango no compatible: {version}",
       "chapterState": "Estado de capítulo de historia Mango no válido"
-    }
+    },
+    "language": "Idioma de la historia",
+    "mute": "Silenciar narración",
+    "unmute": "Activar narración",
+    "attribution": "Atribución y derechos",
+    "attributionClose": "Cerrar detalles de atribución",
+    "attributionSource": "Manifiesto fuente",
+    "attributionRights": "Derechos",
+    "attributionProvider": "Proveedor",
+    "attributionHomepage": "Ver elemento fuente",
+    "attributionNone": "Este manifiesto no incluye metadatos de atribución."
   },
   "about": {
     "description": "Mango es un visor de zoom profundo de código abierto, compatible con IIIF y con W3C Annotation, y un conjunto de herramientas de creación de historias interactivas, diseñado para explorar manuscritos, obras de arte y medios espaciales de alta resolución."

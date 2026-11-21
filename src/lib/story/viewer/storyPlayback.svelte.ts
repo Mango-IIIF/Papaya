@@ -47,6 +47,7 @@ export function createStoryPlayback({
 }: StoryPlaybackDeps) {
   let currentChapterIndex = $state(0);
   let isLoading = $state(false);
+  let isMuted = $state(false);
   let playState: 'idle' | 'playing' | 'paused' = $state('idle');
   let chapterDurationSec = $state(0);
   let chapterElapsedSec = $state(0);
@@ -66,6 +67,13 @@ export function createStoryPlayback({
         chapterDurationSec = 0;
       }
     }),
+    ...(runtime.isMuted
+      ? [
+          runtime.isMuted.subscribe((value) => {
+            isMuted = Boolean(value);
+          }),
+        ]
+      : []),
     runtime.playState.subscribe((value) => {
       playState = value;
     }),
@@ -107,6 +115,9 @@ export function createStoryPlayback({
     get isLoading() {
       return isLoading;
     },
+    get isMuted() {
+      return isMuted;
+    },
     get playState() {
       return playState;
     },
@@ -131,6 +142,21 @@ export function createStoryPlayback({
     },
     stop: () => {
       if (guards.canControl()) runtime.stop();
+    },
+    setLanguage: (language: string) => {
+      runtime.setLanguage?.(language);
+    },
+    setMuted: (muted: boolean) => {
+      isMuted = Boolean(muted);
+      runtime.setMuted?.(isMuted);
+    },
+    toggleMute: () => {
+      const next = !isMuted;
+      isMuted = next;
+      runtime.setMuted?.(next);
+    },
+    refitCurrentChapter: () => {
+      runtime.refitCurrentChapter?.();
     },
     selectChapter,
     previousChapter: () => selectChapter(currentChapterIndex - 1, true),

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Clock3, GripVertical, MoreVertical, Plus } from '@lucide/svelte';
+  import { Clock3, FolderOpen, GripVertical, MoreVertical, Plus } from '@lucide/svelte';
   import { readable, type Readable } from 'svelte/store';
   import type { Chapter, StoryState } from '../../core/types/story';
   import { resolveChapterTiming } from '../timing';
@@ -19,6 +19,7 @@
   export let sidebarWidth: number | null = null;
   export let disabled = false;
   export let onAddChapter: (() => void) | undefined;
+  export let onOpenSources: (() => void) | undefined = undefined;
   export let onSelectChapter: ((chapterId: string) => void) | undefined;
   export let onDeleteChapter: ((chapterId: string) => void) | undefined;
   export let onDuplicateChapter: ((chapterId: string) => void) | undefined;
@@ -229,16 +230,28 @@
   <section class="story-sidebar__chapters" data-testid="chapter-list">
     <div class="story-sidebar__header">
       <span>{$t('storyBuilder.chapters.title')}</span>
-      {#if $story.chapters.length > 0}
-        <button
-          class="story-sidebar__header-add"
-          type="button"
-          data-testid="add-chapter"
-          on:click={() => onAddChapter?.()}
-        >
-          <Plus aria-hidden="true" /> {$t('storyBuilder.chapters.add')}
-        </button>
-      {/if}
+      <div class="story-sidebar__header-actions">
+        {#if onOpenSources}
+          <button
+            class="story-sidebar__header-sources"
+            type="button"
+            data-testid="open-sources"
+            on:click={() => onOpenSources?.()}
+          >
+            <FolderOpen aria-hidden="true" /> {$t('storyBuilder.sources.button')}
+          </button>
+        {/if}
+        {#if $story.chapters.length > 0}
+          <button
+            class="story-sidebar__header-add"
+            type="button"
+            data-testid="add-chapter"
+            on:click={() => onAddChapter?.()}
+          >
+            <Plus aria-hidden="true" /> {$t('storyBuilder.chapters.add')}
+          </button>
+        {/if}
+      </div>
     </div>
 
     {#if $story.chapters.length === 0}
@@ -518,6 +531,33 @@
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--story-sidebar-muted, var(--viewer-muted, rgba(255, 255, 255, 0.65)));
+  }
+
+  .story-sidebar__header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .story-sidebar__header-sources {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
+    border-radius: 7px;
+    padding: 4px 7px;
+    background: transparent;
+    color: var(--story-sidebar-text, var(--viewer-text, #e8edf4));
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .story-sidebar__header-sources:hover {
+    border-color: var(--viewer-accent-2, #2ac7ff);
+  }
+  .story-sidebar__header-sources :global(svg) {
+    width: 13px;
+    height: 13px;
   }
 
   .story-sidebar__header-add {

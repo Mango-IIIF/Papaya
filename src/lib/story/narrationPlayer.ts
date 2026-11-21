@@ -11,6 +11,8 @@ export type NarrationPlayer = {
   resume: () => boolean;
   isPlaying: () => boolean;
   getCurrentTime?: () => number | null;
+  setMuted?: (muted: boolean) => void;
+  isMuted?: () => boolean;
 };
 
 type NarrationPlayerOptions = {
@@ -31,6 +33,7 @@ export const createNarrationPlayer = (
   let activeToken = 0;
   let playing = false;
   let paused = false;
+  let muted = false;
   let pausedTime = 0;
   let activeFinish: ((ok: boolean) => void) | null = null;
   let activeCleanup: (() => void) | null = null;
@@ -41,6 +44,7 @@ export const createNarrationPlayer = (
     audio = new Audio();
     audio.preload = 'auto';
     audio.crossOrigin = 'anonymous';
+    audio.muted = muted;
     return audio;
   };
 
@@ -217,5 +221,12 @@ export const createNarrationPlayer = (
     return audio.currentTime;
   };
 
-  return { playSegment, stop, pause, resume, isPlaying, getCurrentTime };
+  const setMuted = (nextMuted: boolean) => {
+    muted = Boolean(nextMuted);
+    if (audio) audio.muted = muted;
+  };
+
+  const isMuted = () => muted;
+
+  return { playSegment, stop, pause, resume, isPlaying, getCurrentTime, setMuted, isMuted };
 };

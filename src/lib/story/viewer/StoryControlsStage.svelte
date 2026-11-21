@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { Info, Volume2, VolumeX } from '@lucide/svelte';
   import { t } from '../../core/i18n';
+  import type { ManifestAttribution } from '../manifestAttribution';
+  import { renderChapterRichText } from '../richText';
   import StoryStage from '../ui/StoryStage.svelte';
 
   interface Props {
@@ -15,9 +18,14 @@
     loading?: boolean;
     error?: string | null;
     playState?: 'idle' | 'playing' | 'paused';
+    hasNarration?: boolean;
+    isMuted?: boolean;
+    attribution?: ManifestAttribution | null;
+    framingMode?: 'exact' | 'fill';
     onplay?: () => void;
     onpause?: () => void;
     onstop?: () => void;
+    ontoggleMute?: () => void;
     onselectChapter?: (payload: { index: number }) => void;
     onzoomIn?: () => void;
     onzoomOut?: () => void;
@@ -44,9 +52,14 @@
     loading = false,
     error = null,
     playState = 'idle',
+    hasNarration = false,
+    isMuted = false,
+    attribution = null,
+    framingMode = 'exact',
     onplay = undefined,
     onpause = undefined,
     onstop: _onstop = undefined,
+    ontoggleMute = undefined,
     onselectChapter = undefined,
     onzoomIn: _onzoomIn = undefined,
     onzoomOut: _onzoomOut = undefined,
@@ -128,7 +141,19 @@
 
   let footerRef = $state<HTMLElement | null>(null);
   let metadataExpanded = $state(false);
+  let attributionOpen = $state(false);
   let expandedChapterIndex = $state(-1);
+  let richDescription = $derived(renderChapterRichText(chapterDescription));
+  let hasAttributionDetails = $derived(
+    Boolean(
+      attribution &&
+        (attribution.attribution ||
+          attribution.rights ||
+          attribution.providers.length > 0 ||
+          attribution.homepage ||
+          attribution.manifestId),
+    ),
+  );
   // Keep the full text reachable on narrow phones as well as tablets. Around
   // 96 characters is where the two-line phone summary commonly starts to
   // clamp, while the control remains unobtrusive for genuinely short copy.
@@ -138,6 +163,7 @@
     if (expandedChapterIndex !== currentChapterIndex) {
       expandedChapterIndex = currentChapterIndex;
       metadataExpanded = false;
+      attributionOpen = false;
     }
   });
 
@@ -201,10 +227,11 @@
         class="story-shell__stage-frame"
         style={`opacity: ${stageOpacity}; transition: opacity ${stageFadeMs}ms ease-in-out;`}
       >
-        <!-- The reader belongs to its embed, so its stage must fill the space the
-             host provides. The presentation aspect still normalises authored
-             camera frames; it must not create a second, letterboxed viewport. -->
-        <StoryStage aspect={presentationAspect} fluid={true}>
+        <!-- Exact framing (default) locks the stage to `presentationAspect` so
+             desktop, tablet, and phone all preserve the authored IIIF region and
+             zoom level. Embedders can opt into `framingMode: "fill"` to fill the
+             host box edge-to-edge instead. -->
+        <StoryStage aspect={presentationAspect} fluid={framingMode === 'fill'}>
           {#if stage}
             {@render stage()}
           {/if}
@@ -226,13 +253,15 @@
         </p>
         <h2 class="story-shell__title">{chapterTitle}</h2>
         <div class="story-shell__accent" aria-hidden="true"></div>
-        {#if chapterDescription}
-          <p
-            class="story-shell__description"
+        {#if richDescription}
+          <div
+            class="story-shell__description story-shell__description--rich"
             class:story-shell__description--expanded={metadataExpanded}
+            data-testid="story-shell-description"
           >
-            {chapterDescription}
-          </p>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html richDescription}
+          </div>
           {#if hasExpandableMetadata()}
             <button
               type="button"
@@ -243,6 +272,76 @@
               {metadataExpanded ? $t('storyViewer.showLess') : $t('storyViewer.showMore')}
             </button>
           {/if}
+        {/if}
+
+        {#if hasAttributionDetails && attribution}
+          <div class="story-shell__attribution" data-testid="story-attribution">
+            <button
+              type="button"
+              class="story-shell__attribution-toggle"
+              data-testid="story-attribution-toggle"
+              aria-expanded={attributionOpen}
+              onclick={() => (attributionOpen = !attributionOpen)}
+            >
+              <Info aria-hidden="true" />
+              <span>
+                {attribution.attribution ||
+                  attribution.providers[0]?.name ||
+                  $t('storyViewer.attribution')}
+              </span>
+            </button>
+            {#if attributionOpen}
+              <div class="story-shell__attribution-panel" data-testid="story-attribution-panel">
+                <div class="story-shell__attribution-title">{attribution.title}</div>
+                {#if attribution.attribution}
+                  <div class="story-shell__attribution-row">
+                    <strong>{attribution.attributionLabel || $t('storyViewer.attribution')}</strong>
+                    <span>{attribution.attribution}</span>
+                  </div>
+                {/if}
+                {#if attribution.providers.length > 0}
+                  <div class="story-shell__attribution-row">
+                    <strong>{$t('storyViewer.attributionProvider')}</strong>
+                    <span>
+                      {#each attribution.providers as provider, idx}
+                        {#if idx > 0}, {/if}
+                        {#if provider.homepage}
+                          <a href={provider.homepage} target="_blank" rel="noopener noreferrer">{provider.name}</a>
+                        {:else}
+                          {provider.name}
+                        {/if}
+                      {/each}
+                    </span>
+                  </div>
+                {/if}
+                {#if attribution.rights}
+                  <div class="story-shell__attribution-row">
+                    <strong>{$t('storyViewer.attributionRights')}</strong>
+                    {#if /^https?:\/\//i.test(attribution.rights)}
+                      <a href={attribution.rights} target="_blank" rel="noopener noreferrer">{attribution.rights}</a>
+                    {:else}
+                      <span>{attribution.rights}</span>
+                    {/if}
+                  </div>
+                {/if}
+                {#if attribution.homepage}
+                  <div class="story-shell__attribution-row">
+                    <a href={attribution.homepage.href} target="_blank" rel="noopener noreferrer">
+                      {$t('storyViewer.attributionHomepage')}
+                    </a>
+                  </div>
+                {/if}
+                {#if attribution.manifestId && /^https?:\/\//i.test(attribution.manifestId)}
+                  <div class="story-shell__attribution-row">
+                    <strong>{$t('storyViewer.attributionSource')}</strong>
+                    <a href={attribution.manifestId} target="_blank" rel="noopener noreferrer">
+                      {attribution.manifestId}
+                    </a>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          </div>
         {/if}
       </div>
 
@@ -281,6 +380,24 @@
           >
             &#9654;
           </button>
+          {#if hasNarration}
+            <button
+              type="button"
+              class="story-shell__transport-btn story-shell__mute-btn"
+              data-testid="story-controls-mute"
+              disabled={disabled || loading}
+              aria-pressed={isMuted}
+              aria-label={isMuted ? $t('storyViewer.unmute') : $t('storyViewer.mute')}
+              title={isMuted ? $t('storyViewer.unmute') : $t('storyViewer.mute')}
+              onclick={() => ontoggleMute?.()}
+            >
+              {#if isMuted}
+                <VolumeX aria-hidden="true" />
+              {:else}
+                <Volume2 aria-hidden="true" />
+              {/if}
+            </button>
+          {/if}
         </div>
 
         <div class="story-shell__timeline">
@@ -1203,5 +1320,127 @@
       margin-top: 2px;
       font-size: 11px;
     }
+  }
+
+  .story-shell__description--rich :global(p) {
+    margin: 0 0 8px;
+  }
+
+  .story-shell__description--rich :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .story-shell__description--rich :global(a) {
+    color: var(--story-accent-text, #be8dff);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .story-shell__description--rich :global(a:hover) {
+    color: var(--story-accent-text-hover, #d8bcff);
+  }
+
+  .story-shell__description--rich :global(ul),
+  .story-shell__description--rich :global(ol) {
+    margin: 0 0 8px;
+    padding-left: 18px;
+  }
+
+  .story-shell__description--rich :global(blockquote) {
+    margin: 0 0 8px;
+    padding: 4px 10px;
+    border-left: 2px solid var(--story-accent, #9a57ff);
+    opacity: 0.9;
+  }
+
+  .story-shell__description--rich :global(code) {
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--story-text, #edf5ff) 12%, transparent);
+    font-size: 0.9em;
+  }
+
+  .story-shell__attribution {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .story-shell__attribution-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    padding: 4px 8px;
+    border: 1px solid var(--story-line, rgba(255, 255, 255, 0.14));
+    border-radius: 8px;
+    background: transparent;
+    color: var(--story-muted, #d8dee9);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    justify-self: start;
+  }
+
+  .story-shell__attribution-toggle:hover {
+    background: var(--story-control-hover-bg, rgba(255, 255, 255, 0.12));
+    color: var(--story-text, #edf5ff);
+  }
+
+  .story-shell__attribution-toggle :global(svg) {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+  }
+
+  .story-shell__attribution-toggle span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .story-shell__attribution-panel {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--story-line, rgba(255, 255, 255, 0.14));
+    border-radius: 10px;
+    background: var(--story-control-bg, rgba(8, 17, 32, 0.6));
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .story-shell__attribution-title {
+    font-weight: 650;
+    color: var(--story-text, #edf5ff);
+  }
+
+  .story-shell__attribution-row {
+    display: grid;
+    gap: 2px;
+    color: var(--story-muted, #d8dee9);
+    word-break: break-word;
+  }
+
+  .story-shell__attribution-row strong {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+
+  .story-shell__attribution-row a {
+    color: var(--story-accent-text, #be8dff);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .story-shell__mute-btn :global(svg) {
+    width: 16px;
+    height: 16px;
   }
 </style>

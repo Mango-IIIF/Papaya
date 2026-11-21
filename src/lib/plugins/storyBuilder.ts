@@ -62,6 +62,7 @@ export const createStoryBuilderPlugins = (
           language: controller.language,
           showDebug: Boolean(ctx.config?.story?.showDebug),
           onAddChapter: controller.addChapter,
+          onOpenSources: controller.openSourcesModal,
           onSelectChapter: (chapterId: string) => {
             controller.activeChapterTask.set(null);
             if (get(controller.selectedChapterId) !== chapterId) {
@@ -147,6 +148,10 @@ export const createStoryBuilderPlugins = (
         saveModalOpen: controller.saveModalOpen,
         saveModalPayload: controller.saveModalPayload,
         onCloseSaveModal: controller.closeSaveModal,
+        sourcesModalOpen: controller.sourcesModalOpen,
+        onOpenSources: controller.openSourcesModal,
+        onCloseSources: controller.closeSourcesModal,
+        onSelectSourceCanvas: controller.selectSourceCanvas,
         onSetAnnotationLanguage: controller.setAnnotationLanguage,
         language: controller.language,
         languages: controller.languages,
@@ -155,6 +160,7 @@ export const createStoryBuilderPlugins = (
         onSetNarrationTrack: controller.setNarrationTrack,
         onUpdateStoryTitle: controller.updateStoryTitle,
         onUpdateStoryIdentifiers: controller.updateStoryIdentifiers,
+        onUpdateStoryAspect: controller.updateStoryAspect,
         onUpdateManifest: controller.updateManifest,
         onReloadManifest: controller.reloadManifest,
         onLoadManifest: controller.loadManifest,
@@ -238,6 +244,10 @@ export const createStoryBuilderPlugins = (
           onGoToPoint: controller.goToMotionPoint,
           onSelectPoint: controller.selectMotionPoint,
           onUpdatePointFromView: controller.updateMotionPointFromViewport,
+          onMovePointTime: controller.moveMotionPointTime,
+          onReorderPoint: controller.reorderMotionPoint,
+          onEvenSpace: controller.evenSpaceMotionPoints,
+          onScrubTo: controller.scrubMotionTo,
           motionPreviewing: controller.motionPreviewing,
           onUpdateMotionDuration: controller.updateMotionDuration,
           onUpdateMotionPathType: controller.updateMotionPathType,

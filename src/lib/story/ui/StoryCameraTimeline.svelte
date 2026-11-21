@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import {
+    ChevronLeft,
+    ChevronRight,
     CirclePlay,
     Crosshair,
     Plus,
@@ -8,6 +10,8 @@
     SlidersHorizontal,
     Square,
     Trash2,
+    Volume2,
+    VolumeX,
   } from "@lucide/svelte";
   import { readable, type Readable } from "svelte/store";
   import type { ChapterCameraTrack, StoryState } from "../../core/types/story";
@@ -15,22 +19,19 @@
     animatableCameraDurationMs,
     balanceCameraTrackKeyframes,
   } from "../cameraTrack";
+  import { loadAudioSlicePeaks } from "../audioWaveform";
   import ChapterMotionPanel from "./ChapterMotionPanel.svelte";
   import { t } from "../../core/i18n";
 
   /*
-   * The bar under the image: everything that takes the current view.
+   * The bar under the image: everything that takes the current view, plus
+   * synced audio-guide camera timing.
    *
-   * The author pans and zooms, then says what the view is for — the chapter's
-   * frame, or a keyframe of its camera motion. Both are one click here, side
-   * by side, because they are the same gesture.
-   *
-   * A keyframe is a view: the author pans and zooms the image and captures
-   * it. Its outline is drawn on the image by the frame layer, where it can be
-   * dragged; this strip orders the keyframes in time, plays them back, and
-   * carries the actions for the selected one. Everything shown here is read
-   * from the chapter's camera track — there is no decoration standing in for
-   * data that is not there.
+   * When the active chapter carries a narration segment, its decoded audio
+   * waveform renders behind the keyframe track, playback runs narration and
+   * camera motion together, scrubbing previews interpolated camera positions,
+   * dragging keyframe markers aligns shots to spoken cues, and capturing drops
+   * new keyframes at the current playhead timestamp.
    */
 
   export let story: Readable<StoryState>;
@@ -41,12 +42,23 @@
   /** Whether this chapter has a frame to set (not audio, video or 3D). */
   export let canSetFrame = true;
   export let onSetFrameFromView: () => void = () => {};
-  export let onAddPoint: () => void;
+  export let onAddPoint: (atTimeMs?: number) => void;
+  export let onDeletePoint: (keyframeId: string) => void = () => {};
   export let onGoToPoint: (keyframeId: string) => void;
   export let onSelectPoint: (keyframeId: string | null) => void = () => {};
   export let onUpdatePointFromView: (keyframeId: string) => void = () => {};
-  export let onDeletePoint: (keyframeId: string) => void = () => {};
-  export let onPreviewMotion: () => void = () => {};
+  export let onMovePointTime:
+    | ((keyframeId: string, timeMs: number) => void)
+    | undefined = undefined;
+  export let onReorderPoint:
+    | ((keyframeId: string, direction: -1 | 1) => void)
+    | undefined = undefined;
+  export let onEvenSpace: (() => void) | undefined = undefined;
+  export let onScrubTo: ((timeMs: number) => void) | undefined = undefined;
+  export let onPreviewMotion: (options?: {
+    startMs?: number;
+    withAudio?: boolean;
+  }) => void = () => {};
   export let onStopMotionPreview: () => void = () => {};
   export let onUpdateDuration: (durationMs: number) => void = () => {};
   export let onUpdatePathType: (pathType: "linear" | "spline") => void = () => {};
@@ -59,6 +71,11 @@
   ) => void = () => {};
 
   let optionsOpen = false;
+  let audioMuted = false;
+  let trackEl: HTMLDivElement | null = null;
+  let waveformPeaks: number[] = [];
+  let lastWaveformKey = "";
+  let waveformRequest = 0;
 
   $: chapter =
     $story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null;
@@ -69,30 +86,67 @@
   $: selectedIndex = points.findIndex((point) => point.id === $selectedPointId);
   $: selectedPoint = selectedIndex >= 0 ? points[selectedIndex] : null;
 
-  /* Narration for this chapter, so the two lengths can be seen side by side
-     and brought into line with one click instead of by arithmetic. */
-  $: narrationSegment =
-    chapter?.narrationSegment?.[language] ??
-    Object.values(chapter?.narrationSegment ?? {})[0] ??
-    null;
+  /* Narration for this chapter, so the waveform, length, and audio playback
+     stay in step with camera keyframes. */
+  $: narrationEntry = (() => {
+    const map = chapter?.narrationSegment ?? {};
+    const preferred = map[language];
+    if (preferred && preferred.end > preferred.start) {
+      return { lang: language, segment: preferred };
+    }
+    const fallback = Object.entries(map).find(([, seg]) => seg && seg.end > seg.start);
+    return fallback ? { lang: fallback[0], segment: fallback[1] } : null;
+  })();
+  $: narrationSegment = narrationEntry?.segment ?? null;
+  $: narrationSrc = narrationEntry
+    ? ($story.narration?.tracks?.[narrationEntry.lang]?.src ?? "")
+    : "";
   $: narrationMs =
     narrationSegment && narrationSegment.end > narrationSegment.start
       ? Math.round((narrationSegment.end - narrationSegment.start) * 1000)
       : 0;
-  $: holdMs = track && hasMotion ? Math.max(0, durationMs - track.durationMs) : 0;
+  $: holdMs =
+    track && hasMotion && track.timingMode !== "custom"
+      ? Math.max(0, durationMs - track.durationMs)
+      : 0;
   $: canMatchNarration =
     hasMotion &&
     narrationMs > holdMs &&
     Math.abs(narrationMs - durationMs) > 100;
+  $: timelineSpanMs = durationMs || narrationMs || (track?.durationMs ?? 5000);
 
   /* A preset is shaped from the chapter frame alone, so the options open as
      soon as there is a frame; keyframes are not a precondition. */
   $: canOpenOptions = Boolean(chapter?.viewBox) || points.length > 0;
   $: if (!chapter || !canOpenOptions) optionsOpen = false;
 
+  /* Decode the chapter's real narration waveform slice when audio is configured. */
+  $: {
+    const key =
+      narrationSrc && narrationSegment
+        ? `${narrationSrc}:${narrationSegment.start}:${narrationSegment.end}`
+        : "";
+    if (key !== lastWaveformKey) {
+      lastWaveformKey = key;
+      const req = ++waveformRequest;
+      if (!key || !narrationSegment) {
+        waveformPeaks = [];
+      } else {
+        void loadAudioSlicePeaks(
+          narrationSrc,
+          narrationSegment.start,
+          narrationSegment.end,
+          84,
+        ).then((peaks) => {
+          if (req === waveformRequest) waveformPeaks = peaks ?? [];
+        });
+      }
+    }
+  }
+
   const position = (timeMs: number): string =>
-    durationMs > 0
-      ? `${Math.max(0, Math.min(100, (timeMs / durationMs) * 100))}%`
+    timelineSpanMs > 0
+      ? `${Math.max(0, Math.min(100, (timeMs / timelineSpanMs) * 100))}%`
       : "0%";
 
   const clock = (timeMs: number): string => {
@@ -105,44 +159,147 @@
   };
 
   /*
-   * The playhead. Playback is driven by the controller from the moment the
-   * preview starts, at wall-clock speed, so the same clock read here stays in
-   * step with it without the controller publishing a store sixty times a
-   * second.
+   * Playhead state: drives both scrubbed preview and live playback.
    */
   let elapsedMs = 0;
+  let scrubbed = false;
   let playheadFrame: number | null = null;
   let playheadStartedAt = 0;
+  let playheadOriginMs = 0;
+  let lastChapterId: string | null = null;
 
-  const stopPlayhead = () => {
+  $: if ($selectedChapterId !== lastChapterId) {
+    lastChapterId = $selectedChapterId;
+    elapsedMs = 0;
+    scrubbed = false;
+  }
+
+  const stopPlayhead = (resetToZero = true) => {
     if (playheadFrame !== null && typeof cancelAnimationFrame === "function") {
       cancelAnimationFrame(playheadFrame);
     }
     playheadFrame = null;
-    elapsedMs = 0;
+    if (resetToZero) {
+      elapsedMs = 0;
+      scrubbed = false;
+    }
   };
 
   const tickPlayhead = (now: number) => {
-    elapsedMs = Math.min(durationMs, now - playheadStartedAt);
+    elapsedMs = Math.min(durationMs, playheadOriginMs + (now - playheadStartedAt));
     playheadFrame = requestAnimationFrame(tickPlayhead);
   };
 
   $: if ($motionPreviewing) {
     if (playheadFrame === null && typeof requestAnimationFrame === "function") {
       playheadStartedAt = performance.now();
+      playheadOriginMs = elapsedMs >= durationMs ? 0 : elapsedMs;
       playheadFrame = requestAnimationFrame(tickPlayhead);
     }
-  } else if (playheadFrame !== null || elapsedMs !== 0) {
-    stopPlayhead();
+  } else if (playheadFrame !== null) {
+    stopPlayhead(elapsedMs >= durationMs);
   }
 
-  onDestroy(stopPlayhead);
+  onDestroy(() => stopPlayhead(true));
+
+  const timeMsFromClientX = (clientX: number): number => {
+    if (!trackEl || timelineSpanMs <= 0) return 0;
+    const rect = trackEl.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.round(ratio * timelineSpanMs);
+  };
+
+  /* Dragging a keyframe marker horizontally updates its timestamp directly. */
+  let draggingMarkerId: string | null = null;
+  let markerMoved = false;
+
+  const startMarkerDrag = (event: PointerEvent, pointId: string) => {
+    if (!onMovePointTime) return;
+    event.stopPropagation();
+    draggingMarkerId = pointId;
+    markerMoved = false;
+    onSelectPoint(pointId);
+    const startX = event.clientX;
+    const target = event.currentTarget as HTMLElement;
+    target.setPointerCapture?.(event.pointerId);
+
+    const onMove = (moveEvent: PointerEvent) => {
+      if (draggingMarkerId !== pointId) return;
+      if (Math.abs(moveEvent.clientX - startX) > 3) markerMoved = true;
+      if (!markerMoved) return;
+      const nextTime = timeMsFromClientX(moveEvent.clientX);
+      elapsedMs = nextTime;
+      scrubbed = true;
+      onMovePointTime?.(pointId, nextTime);
+    };
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      draggingMarkerId = null;
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
+
+  /* Clicking or dragging on the track scrubs the playhead and camera preview. */
+  const handleTrackPointerDown = (event: PointerEvent) => {
+    if (!timelineSpanMs) return;
+    if ((event.target as HTMLElement)?.closest(".camera-timeline__marker")) return;
+    const applyScrub = (clientX: number) => {
+      const nextTime = timeMsFromClientX(clientX);
+      elapsedMs = nextTime;
+      scrubbed = true;
+      if (hasMotion) onScrubTo?.(nextTime);
+    };
+    applyScrub(event.clientX);
+
+    const onMove = (moveEvent: PointerEvent) => applyScrub(moveEvent.clientX);
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
+
+  const handlePlayToggle = () => {
+    if ($motionPreviewing) {
+      onStopMotionPreview();
+      return;
+    }
+    const startMs = elapsedMs >= durationMs ? 0 : elapsedMs;
+    if (startMs === 0) elapsedMs = 0;
+    onPreviewMotion({ startMs, withAudio: !audioMuted });
+  };
+
+  const handleCapture = () => {
+    if (scrubbed || $motionPreviewing) {
+      onAddPoint(elapsedMs);
+    } else {
+      onAddPoint();
+    }
+  };
 
   const choosePoint = (keyframeId: string) => {
     // A second click on the selected keyframe lets go of it, which hands the
     // handles on the image back to the chapter frame.
-    if ($selectedPointId === keyframeId) onSelectPoint(null);
-    else onGoToPoint(keyframeId);
+    if ($selectedPointId === keyframeId) {
+      onSelectPoint(null);
+    } else {
+      const point = points.find((entry) => entry.id === keyframeId);
+      if (point) {
+        elapsedMs = point.timeMs;
+        scrubbed = false;
+      }
+      onGoToPoint(keyframeId);
+    }
   };
 
   const matchNarration = () => {
@@ -167,42 +324,71 @@
       title={$motionPreviewing
         ? $t("storyBuilder.motion.stopPreview")
         : $t("storyBuilder.motion.preview")}
-      on:click={() =>
-        $motionPreviewing ? onStopMotionPreview() : onPreviewMotion()}
+      on:click={handlePlayToggle}
     >
       {#if $motionPreviewing}<Square aria-hidden="true" />{:else}<CirclePlay
           aria-hidden="true"
         />{/if}
     </button>
 
-    {#if hasMotion}
+    {#if hasMotion || scrubbed}
       <span class="camera-timeline__time" data-testid="camera-timeline-time"
-        >{clock(elapsedMs)} / {clock(durationMs)}</span
+        >{clock(elapsedMs)} / {clock(durationMs || timelineSpanMs)}</span
       >
     {/if}
 
-    <div class="camera-timeline__track" class:camera-timeline__track--idle={!hasMotion}>
+    <div
+      bind:this={trackEl}
+      class="camera-timeline__track"
+      class:camera-timeline__track--idle={!hasMotion && waveformPeaks.length === 0}
+      role="slider"
+      tabindex="0"
+      aria-label={$t("storyBuilder.cameraTimeline.scrub")}
+      aria-valuemin={0}
+      aria-valuemax={timelineSpanMs}
+      aria-valuenow={elapsedMs}
+      data-testid="camera-timeline-track"
+      on:pointerdown={handleTrackPointerDown}
+    >
+      {#if waveformPeaks.length > 0}
+        <div
+          class="camera-timeline__waveform"
+          aria-hidden="true"
+          data-testid="camera-timeline-waveform"
+        >
+          {#each waveformPeaks as peak}
+            <span style={`height:${Math.round(peak * 100)}%`}></span>
+          {/each}
+        </div>
+      {/if}
       <div class="camera-timeline__line" aria-hidden="true"></div>
+      {#if $motionPreviewing || scrubbed}
+        <div
+          class="camera-timeline__playhead"
+          aria-hidden="true"
+          data-testid="camera-timeline-playhead"
+          style={`--point-position:${position(elapsedMs)}`}
+        ></div>
+      {/if}
       {#if hasMotion}
-        {#if $motionPreviewing}
-          <div
-            class="camera-timeline__playhead"
-            aria-hidden="true"
-            style={`--point-position:${position(elapsedMs)}`}
-          ></div>
-        {/if}
         {#each points as point, index (point.id)}
           <button
             class="camera-timeline__marker"
             class:camera-timeline__marker--selected={$selectedPointId === point.id}
+            class:camera-timeline__marker--dragging={draggingMarkerId === point.id}
             type="button"
+            data-testid={`camera-timeline-marker-${index + 1}`}
             style={`--point-position:${position(point.timeMs)}`}
             aria-label={$t("storyBuilder.cameraTimeline.goTo", {
               number: index + 1,
               time: clock(point.timeMs),
             })}
             aria-pressed={$selectedPointId === point.id}
-            on:click={() => onGoToPoint(point.id)}
+            on:pointerdown={(event) => startMarkerDrag(event, point.id)}
+            on:click={() => {
+              if (!markerMoved) onGoToPoint(point.id);
+              markerMoved = false;
+            }}
           >
             <span></span>
           </button>
@@ -211,6 +397,23 @@
     </div>
 
     {#if narrationMs > 0}
+      {#if narrationSrc}
+        <button
+          class="camera-timeline__button camera-timeline__button--icon"
+          type="button"
+          data-testid="camera-timeline-audio-toggle"
+          aria-pressed={audioMuted}
+          aria-label={audioMuted
+            ? $t("storyBuilder.cameraTimeline.unmuteAudio")
+            : $t("storyBuilder.cameraTimeline.muteAudio")}
+          title={audioMuted
+            ? $t("storyBuilder.cameraTimeline.unmuteAudio")
+            : $t("storyBuilder.cameraTimeline.muteAudio")}
+          on:click={() => (audioMuted = !audioMuted)}
+        >
+          {#if audioMuted}<VolumeX aria-hidden="true" />{:else}<Volume2 aria-hidden="true" />{/if}
+        </button>
+      {/if}
       <span
         class="camera-timeline__narration"
         data-testid="camera-timeline-narration"
@@ -262,6 +465,7 @@
             {onUpdateDwell}
             {onUpdateEasing}
             {onApplyPreset}
+            {onEvenSpace}
           />
         </div>
       {/if}
@@ -285,7 +489,7 @@
       class="camera-timeline__button camera-timeline__button--primary"
       data-testid="camera-timeline-capture"
       title={$t("storyBuilder.cameraTimeline.captureHint")}
-      on:click={onAddPoint}
+      on:click={handleCapture}
     >
       <Plus aria-hidden="true" />
       <span>{$t("storyBuilder.cameraTimeline.capture")}</span>
@@ -326,6 +530,30 @@
       </div>
       {#if selectedPoint}
         <div class="camera-timeline__selected">
+          {#if onReorderPoint && points.length >= 2}
+            <button
+              class="camera-timeline__button camera-timeline__button--icon"
+              type="button"
+              data-testid="camera-timeline-move-earlier"
+              disabled={selectedIndex <= 0}
+              aria-label={$t("storyBuilder.cameraTimeline.moveEarlier")}
+              title={$t("storyBuilder.cameraTimeline.moveEarlier")}
+              on:click={() => onReorderPoint?.(selectedPoint.id, -1)}
+            >
+              <ChevronLeft aria-hidden="true" />
+            </button>
+            <button
+              class="camera-timeline__button camera-timeline__button--icon"
+              type="button"
+              data-testid="camera-timeline-move-later"
+              disabled={selectedIndex >= points.length - 1}
+              aria-label={$t("storyBuilder.cameraTimeline.moveLater")}
+              title={$t("storyBuilder.cameraTimeline.moveLater")}
+              on:click={() => onReorderPoint?.(selectedPoint.id, 1)}
+            >
+              <ChevronRight aria-hidden="true" />
+            </button>
+          {/if}
           <button
             class="camera-timeline__button"
             type="button"
@@ -355,23 +583,18 @@
         <p class="camera-timeline__hint">
           {$t("storyBuilder.cameraTimeline.needSecond")}
         </p>
+      {:else if track?.timingMode === "custom"}
+        <p class="camera-timeline__hint">
+          {$t("storyBuilder.cameraTimeline.customTimingHint")}
+        </p>
       {/if}
     {/if}
   </div>
 </section>
 
 <style>
-  /*
-   * Drawn with the same parts as the rest of the Mango family: chrome takes
-   * the viewer's chrome radius, controls are 8px with a 1px panel border, the
-   * one accent is the builder's, a selected thing is an accent border over a
-   * light tint of it, and the single primary action is a solid accent fill
-   * carrying the theme's on-accent label.
-   */
   .camera-timeline {
     --timeline-accent: var(--story-builder-accent, #2ac7ff);
-    /* Sized by the stage column, which is far narrower than the viewer once
-       the panels are docked — so the strip answers to its own width. */
     container: camera-timeline / inline-size;
     position: relative;
     display: grid;
@@ -485,10 +708,26 @@
     position: relative;
     flex: 1 1 auto;
     min-width: 60px;
-    height: 24px;
+    height: 28px;
+    cursor: pointer;
+    touch-action: none;
   }
   .camera-timeline__track--idle {
     opacity: 0.4;
+  }
+  .camera-timeline__waveform {
+    position: absolute;
+    inset: 2px 0;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    pointer-events: none;
+  }
+  .camera-timeline__waveform span {
+    flex: 1 1 0;
+    min-height: 2px;
+    border-radius: 1px;
+    background: color-mix(in srgb, var(--timeline-accent) 32%, transparent);
   }
   .camera-timeline__line {
     position: absolute;
@@ -507,19 +746,25 @@
     width: 2px;
     margin-left: -1px;
     background: var(--timeline-accent);
+    pointer-events: none;
+    z-index: 3;
   }
   .camera-timeline__marker {
     position: absolute;
     left: var(--point-position);
     top: 50%;
-    z-index: 2;
+    z-index: 4;
     width: 20px;
     height: 20px;
     padding: 0;
     border: 0;
     background: transparent;
     transform: translate(-50%, -50%);
-    cursor: pointer;
+    cursor: grab;
+    touch-action: none;
+  }
+  .camera-timeline__marker--dragging {
+    cursor: grabbing;
   }
   .camera-timeline__marker span {
     display: block;
@@ -536,8 +781,6 @@
     background: var(--timeline-accent);
   }
 
-  /* Options open upward, over the image, so the strip never changes height
-     and the picture never moves. */
   .camera-timeline__options-anchor {
     flex: 0 0 auto;
   }

@@ -54,10 +54,14 @@ export type StoryViewerRuntime = {
   play: () => void;
   pause: () => void;
   stop: () => void;
+  setLanguage?: (language: string) => void;
+  setMuted?: (muted: boolean) => void;
+  refitCurrentChapter?: () => void;
   destroy: () => void;
   getState: () => StoryViewerRuntimeState;
   currentChapterIndex: Writable<number>;
   isLoading: Writable<boolean>;
+  isMuted?: Writable<boolean>;
   playState: Writable<'idle' | 'playing' | 'paused'>;
   playbackState: Writable<StoryPlaybackState>;
   stageFade: Writable<StageFade>;
@@ -145,6 +149,7 @@ export const createStoryViewerRuntime = (
   let state: StoryViewerRuntimeState = 'IDLE';
   const currentChapterIndex = writable(0);
   const isLoading = writable(false);
+  const isMuted = writable(false);
   const playState = writable<'idle' | 'playing' | 'paused'>('idle');
   const playbackState = writable<StoryPlaybackState>({
     currentTime: 0,
@@ -843,16 +848,72 @@ export const createStoryViewerRuntime = (
     }
   };
 
+  const setLanguage = (nextLanguage: string) => {
+    const cleaned = nextLanguage.trim().toLowerCase();
+    if (!cleaned || cleaned === activeLanguage) return;
+    activeLanguage = cleaned;
+    if (!story?.chapters?.[chapterIndexValue]) return;
+    const wasPlaying =
+      state === 'PLAYING_NARRATION' ||
+      state === 'PLAYING_MEDIA' ||
+      state === 'PRESENTING_SILENT' ||
+      state === 'TRANSITION_DELAY';
+    if (state === 'PLAYING_NARRATION' || pausedKind === 'narration') {
+      narrationPlayer.stop();
+      playbackClock.stop();
+      pausedKind = null;
+      activeTimerKind = null;
+      resetPlaybackForChapter(chapterIndexValue);
+      setState('IDLE');
+      if (wasPlaying) play();
+      return;
+    }
+    if (state === 'IDLE' || state === 'PAUSED' || state === 'ENDED') {
+      resetPlaybackForChapter(chapterIndexValue);
+    }
+  };
+
+  const setMuted = (muted: boolean) => {
+    const next = Boolean(muted);
+    narrationPlayer.setMuted?.(next);
+    isMuted.set(next);
+  };
+
+  const refitCurrentChapter = () => {
+    if (!story || state === 'LOADING_CHAPTER') return;
+    const chapter = story.chapters?.[chapterIndexValue];
+    if (!chapter) return;
+    if (chapter.cameraTrack && chapter.cameraTrack.keyframes.length >= 2) {
+      if (cameraFrameHandle !== null) return;
+      const elapsedSec = playbackClock.getState().currentTime;
+      const sample = sampleCameraTrack(
+        chapter.cameraTrack,
+        prefersReducedMotion ? animatableCameraDurationMs(chapter.cameraTrack) : elapsedSec * 1000,
+      );
+      if (sample?.viewBox) {
+        viewer.setViewBox?.(sample.viewBox);
+        return;
+      }
+    }
+    if (chapter.viewBox) {
+      viewer.setViewBox?.(chapter.viewBox);
+    }
+  };
+
   return {
     loadStory,
     loadChapter,
     play,
     pause,
     stop,
+    setLanguage,
+    setMuted,
+    refitCurrentChapter,
     destroy,
     getState,
     currentChapterIndex,
     isLoading,
+    isMuted,
     playState,
     playbackState,
     stageFade,

@@ -208,7 +208,16 @@
       "language": "Content language",
       "title": "タイトル ({language})",
       "titleLabel": "Title",
-      "descriptionLabel": "Description"
+      "descriptionLabel": "Description",
+      "plainView": "プレーン",
+      "formattedView": "書式付き",
+      "formatBold": "太字",
+      "formatItalic": "斜体",
+      "formatLink": "リンク",
+      "formatList": "箇条書き",
+      "formatQuote": "引用",
+      "previewLabel": "書式プレビュー",
+      "previewEmpty": "書式付きの説明プレビューがここに表示されます。"
     },
     "position": {
       "hint": "画像上に描かれたフレームが読者に表示される範囲です。画像上でドラッグするか、画像下のバーで現在のビューから設定するか、ここに領域を入力します。",
@@ -311,7 +320,15 @@
       "captureHint": "現在のビューをキーフレームとして追加",
       "updateFromViewHint": "このキーフレームを現在のビューに置き換える",
       "deleteNumber": "キーフレーム {number} を削除",
-      "needSecond": "ビューを動かして 2 つ目のキーフレームを追加すると、モーションが作成されます。"
+      "needSecond": "ビューを動かして 2 つ目のキーフレームを追加すると、モーションが作成されます。",
+      "scrub": "カメラタイムラインをスクラブ",
+      "moveEarlier": "キーフレームを前に移動",
+      "moveLater": "キーフレームを後に移動",
+      "muteAudio": "ナレーションプレビューをミュート",
+      "unmuteAudio": "ナレーションプレビューのミュート解除",
+      "evenSpace": "均等に配置",
+      "evenSpaceHint": "すべてのキーフレームを再生時間に均等配置します",
+      "customTimingHint": "カスタムタイミング — トラック上のマーカーをドラッグしてナレーションに合わせます。"
     },
     "settings": {
       "title": "タイトル",
@@ -336,7 +353,9 @@
       "audioPreview": "音声をプレビュー",
       "audioPreviewHint": "ストーリー音声を再生して動作を確認します。",
       "saveAudio": "音声設定を保存",
-      "draftIdentifiers": "AnnotationPage ID を設定しない場合、Mango が mangoviewer.dev 配下の ID を生成します。エクスポートは有効な IIIF のままですが、公開前に自分のドメインを設定してください。"
+      "draftIdentifiers": "AnnotationPage ID を設定しない場合、Mango が mangoviewer.dev 配下の ID を生成します。エクスポートは有効な IIIF のままですが、公開前に自分のドメインを設定してください。",
+      "presentationAspect": "ストーリーフレーム比率",
+      "presentationAspectHint": "すべてのチャプターフレームとキーフレームを全画面サイズで同じアスペクト比に固定します。"
     },
     "overlay": {
       "closeMetadata": "メタデータを閉じる",
@@ -398,6 +417,22 @@
       "mediaWhole": "ソース全体を再生します。",
       "more": "その他",
       "moreHint": "フレーム領域、トランジション、ソース、レイヤー"
+    },
+    "sources": {
+      "button": "ソース",
+      "title": "ストーリーのソース",
+      "subtitle": "ストーリーに使うIIIFマニフェスト、コレクション、キャンバスを参照",
+      "usedInStory": "このストーリーで使用中",
+      "urlLabel": "IIIF マニフェストまたはコレクション URL",
+      "load": "参照",
+      "loading": "IIIF リソースを読み込み中…",
+      "loadError": "IIIF マニフェストまたはコレクションを読み込めませんでした。",
+      "collectionItems": "コレクション項目 ({count})",
+      "canvases": "キャンバス ({count})",
+      "addAsChapter": "チャプターを追加",
+      "useForChapter": "現在のチャプターに使用",
+      "changeSource": "ソースを変更",
+      "canvasNumber": "キャンバス {number}"
     }
   },
   "viewer": {
@@ -444,7 +479,17 @@
       "missingVersion": "Mangoストーリーのバージョンが見つかりません",
       "unsupportedVersion": "サポートされていないMangoストーリーのバージョン: {version}",
       "chapterState": "無効なMangoストーリーチャプター状態"
-    }
+    },
+    "language": "ストーリー言語",
+    "mute": "ナレーションをミュート",
+    "unmute": "ナレーションのミュート解除",
+    "attribution": "帰属と権利",
+    "attributionClose": "帰属の詳細を閉じる",
+    "attributionSource": "ソースマニフェスト",
+    "attributionRights": "権利",
+    "attributionProvider": "提供元",
+    "attributionHomepage": "ソース項目を見る",
+    "attributionNone": "このマニフェストには帰属メタデータがありません。"
   },
   "about": {
     "description": "Mango is an open-source, W3C Annotation and IIIF-compliant deep zoom viewer and interactive story creation suite designed for high-resolution manuscript, artwork, and spatial media exploration."

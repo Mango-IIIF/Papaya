@@ -12,6 +12,7 @@
     easing: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out',
   ) => void = () => {};
   export let onApplyPreset: (preset: NonNullable<ChapterCameraTrack['preset']>) => void;
+  export let onEvenSpace: (() => void) | undefined = undefined;
   export let wide = false;
 
   $: durationSeconds = (track?.durationMs ?? 5000) / 1000;
@@ -218,6 +219,17 @@
           on:change={commitDuration}
         />
       </label>
+      {#if track?.timingMode === 'custom' && points.length >= 2 && onEvenSpace}
+        <button
+          type="button"
+          class="motion-panel__even-space"
+          data-testid="motion-even-space"
+          title={$t('storyBuilder.cameraTimeline.evenSpaceHint')}
+          on:click={() => onEvenSpace?.()}
+        >
+          {$t('storyBuilder.cameraTimeline.evenSpace')}
+        </button>
+      {/if}
     </section>
   </div>
 </div>
@@ -377,6 +389,21 @@
     padding: 8px;
     background: var(--viewer-panel, #121922);
     color: inherit;
+  }
+  .motion-panel__even-space {
+    justify-self: start;
+    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
+    border-radius: 8px;
+    padding: 6px 10px;
+    background: transparent;
+    color: var(--viewer-text, #e8edf4);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .motion-panel__even-space:hover {
+    border-color: var(--story-builder-accent, #2ac7ff);
   }
   @media (max-width: 960px) {
     .motion-panel--wide .motion-panel__options {

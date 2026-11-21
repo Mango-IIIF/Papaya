@@ -33,6 +33,7 @@
   import { STORY_LABEL_SIZING } from '../annotations/rectangleLabelLayout';
   import StoryStage from '../ui/StoryStage.svelte';
   import StoryFrameLayer from '../ui/StoryFrameLayer.svelte';
+  import { renderChapterRichText } from '../richText';
   import StoryShell from './StoryShell.svelte';
   import StoryPluginPanel from './StoryPluginPanel.svelte';
   import { createStoryViewerBridge } from './storyViewerBridge';
@@ -269,6 +270,53 @@
   let builderController: StoryBuilderController | null = $state(null);
   let pluginRequest = 0;
 
+  /* Mirror preview state & active chapter so Builder Preview renders the exact
+     authored aspect ratio alongside a subtle reader caption card. */
+  let isPreviewing = $state(false);
+  let previewStory = $state<StoryState | null>(null);
+  let previewChapterId = $state<string | null>(null);
+  let previewLanguage = $state('en');
+
+  $effect(() => {
+    const ctrl = builderController;
+    if (!ctrl) {
+      isPreviewing = false;
+      previewStory = null;
+      previewChapterId = null;
+      return;
+    }
+    const unsubs = [
+      ctrl.isPreviewing.subscribe((value) => (isPreviewing = value)),
+      ctrl.story.subscribe((value) => (previewStory = value)),
+      ctrl.selectedChapterId.subscribe((value) => (previewChapterId = value)),
+      ctrl.annotationLanguage.subscribe((value) => (previewLanguage = value || ctrl.language)),
+    ];
+    return () => unsubs.forEach((off) => off());
+  });
+
+  let previewChapter = $derived.by(() => {
+    if (!isPreviewing || !previewStory) return null;
+    const index = previewStory.chapters.findIndex((entry) => entry.id === previewChapterId);
+    if (index < 0) return null;
+    const chapter = previewStory.chapters[index];
+    const title =
+      chapter.title?.[previewLanguage]?.trim() ||
+      chapter.title?.en?.trim() ||
+      Object.values(chapter.title ?? {}).find((v) => v.trim()) ||
+      translate('storyBuilder.chapters.number', { number: index + 1 });
+    const rawDescription =
+      chapter.description?.[previewLanguage]?.trim() ||
+      chapter.description?.en?.trim() ||
+      Object.values(chapter.description ?? {}).find((v) => v.trim()) ||
+      '';
+    return {
+      index,
+      total: previewStory.chapters.length,
+      title,
+      descriptionHtml: renderChapterRichText(rawDescription),
+    };
+  });
+
   const loadStoryForBuilder = async (
     input: typeof story,
     url: string | undefined,
@@ -492,7 +540,10 @@
         class="stage__primary"
         style={`opacity: ${stageOpacity}; transition: opacity ${stageFadeMs}ms ease-in-out;`}
       >
-        <StoryStage aspect={presentationAspect} fluid={true}>
+        <StoryStage
+          aspect={presentationAspect}
+          fluid={!isPreviewing || normalisedConfig.story?.framingMode === 'fill'}
+        >
           <div class="story-builder__media">
             <ViewerCore
               bind:this={core}
@@ -552,6 +603,23 @@
                   {/each}
                 </div>
               </div>
+            {/if}
+            {#if previewChapter}
+              <aside class="story-builder__preview-caption" data-testid="builder-preview-caption">
+                <div class="story-builder__preview-eyebrow">
+                  {$t('storyViewer.chapterPosition', {
+                    current: previewChapter.index + 1,
+                    total: previewChapter.total,
+                  })}
+                </div>
+                <h3>{previewChapter.title}</h3>
+                {#if previewChapter.descriptionHtml}
+                  <div class="story-builder__preview-body">
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                    {@html previewChapter.descriptionHtml}
+                  </div>
+                {/if}
+              </aside>
             {/if}
           </div>
         </StoryStage>
@@ -1243,5 +1311,57 @@
     .viewer__grid {
       transition: none;
     }
+  }
+
+  .story-builder__preview-caption {
+    position: absolute;
+    inset-inline-start: 18px;
+    inset-block-end: 18px;
+    z-index: 6;
+    max-width: min(440px, calc(100% - 36px));
+    max-height: 45%;
+    overflow: auto;
+    padding: 12px 15px;
+    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--viewer-panel, #121922) 90%, transparent);
+    backdrop-filter: blur(10px);
+    color: var(--viewer-text, #e8edf4);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.36);
+    pointer-events: auto;
+  }
+
+  .story-builder__preview-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--viewer-muted, #9aa6b2);
+  }
+
+  .story-builder__preview-caption h3 {
+    margin: 4px 0 6px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  .story-builder__preview-body {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--viewer-muted, #d8dee9);
+  }
+
+  .story-builder__preview-body :global(p) {
+    margin: 0 0 6px;
+  }
+
+  .story-builder__preview-body :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .story-builder__preview-body :global(a) {
+    color: var(--story-builder-accent, #2ac7ff);
+    text-decoration: underline;
   }
 </style>

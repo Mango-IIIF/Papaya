@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   animatableCameraDurationMs,
+  balanceCameraTrackKeyframes,
   configureCameraTrackPreset,
+  evenSpaceCameraTrack,
   generateCameraPreset,
+  insertCameraKeyframeAtTime,
+  moveCameraKeyframeTime,
+  reorderCameraKeyframes,
   retimeCameraKeyframes,
   sampleCameraTrack,
 } from '../cameraTrack';
@@ -364,5 +369,52 @@ describe('in-chapter camera track sampling', () => {
     expect(sampleCameraTrack(dwellingTrack, 4000)?.viewBox).toEqual(
       dwellingTrack.keyframes[1].viewBox,
     );
+  });
+
+  it('preserves custom keyframe timestamps, reorders shots, and resets to even spacing', () => {
+    const moved = moveCameraKeyframeTime(
+      {
+        durationMs: 10_000,
+        keyframes: [
+          { id: 'k1', timeMs: 0, viewBox: { x: 0, y: 0, w: 100, h: 100 } },
+          { id: 'k2', timeMs: 5000, viewBox: { x: 20, y: 20, w: 80, h: 80 } },
+          { id: 'k3', timeMs: 10_000, viewBox: { x: 40, y: 40, w: 60, h: 60 } },
+        ],
+      },
+      'k2',
+      2000,
+    );
+
+    expect(moved.timingMode).toBe('custom');
+    expect(balanceCameraTrackKeyframes(moved).map((k) => [k.id, k.timeMs])).toEqual([
+      ['k1', 0],
+      ['k2', 2000],
+      ['k3', 10_000],
+    ]);
+    expect(sampleCameraTrack(moved, 2000)?.viewBox).toEqual(moved.keyframes[1].viewBox);
+
+    const inserted = insertCameraKeyframeAtTime(
+      moved,
+      { id: 'k4', timeMs: 0, viewBox: { x: 30, y: 30, w: 70, h: 70 } },
+      6500,
+    );
+    expect(inserted.keyframes.map((k) => [k.id, k.timeMs])).toEqual([
+      ['k1', 0],
+      ['k2', 2000],
+      ['k4', 6500],
+      ['k3', 10_000],
+    ]);
+
+    const reordered = reorderCameraKeyframes(inserted, 'k2', 1);
+    expect(reordered.keyframes.map((k) => [k.id, k.timeMs])).toEqual([
+      ['k1', 0],
+      ['k4', 2000],
+      ['k2', 6500],
+      ['k3', 10_000],
+    ]);
+
+    const even = evenSpaceCameraTrack(reordered);
+    expect(even.timingMode).toBe('even');
+    expect(even.keyframes.map((k) => k.timeMs)).toEqual([0, 3333, 6667, 10_000]);
   });
 });

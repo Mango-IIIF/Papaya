@@ -11,6 +11,7 @@
   export let showDebug = false;
   export let language = 'en';
   export let onAddChapter: () => void;
+  export let onOpenSources: (() => void) | undefined = undefined;
   export let onSelectChapter: (chapterId: string) => void;
   export let onDeleteChapter: (chapterId: string) => void;
   export let onDuplicateChapter: (chapterId: string) => void;
@@ -35,6 +36,7 @@
   {validationErrors}
   disabled={isDisabled}
   {onAddChapter}
+  {onOpenSources}
   {onSelectChapter}
   {onDeleteChapter}
   {onDuplicateChapter}

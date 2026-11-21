@@ -6,6 +6,7 @@
   import StoryChapterOverlay from './ChapterOverlay.svelte';
   import StoryAnnotationOverlay from './StoryAnnotationOverlay.svelte';
   import SaveExportModal from './SaveExportModal.svelte';
+  import StorySourcesModal from './StorySourcesModal.svelte';
   import RectanglePlacementEditor from '../annotations/RectanglePlacementEditor.svelte';
   import type {
     AnnotationPlacement,
@@ -36,6 +37,15 @@
   export let saveModalOpen: Readable<boolean>;
   export let saveModalPayload: Readable<ExportEnvelope | null>;
   export let onCloseSaveModal: () => void;
+  export let sourcesModalOpen: Readable<boolean> = readable(false);
+  export let onOpenSources: (() => void) | undefined = undefined;
+  export let onCloseSources: () => void = () => {};
+  export let onSelectSourceCanvas: (
+    manifest: string,
+    canvasIndex: number,
+    mode: 'add' | 'replace',
+  ) => void = () => {};
+  export let onUpdateStoryAspect: ((aspect: number) => void) | undefined = undefined;
   export let onSetAnnotationLanguage: (lang: string) => void;
   export let annotationLanguage: Readable<string>;
   export let language = 'en';
@@ -309,6 +319,7 @@
         language={overlayAnnotationLanguage}
         {languages}
         onClose={onCloseChapter}
+        {onOpenSources}
         onUpdateManifest={(chapterId, manifest) => onUpdateManifest(manifest)}
         {onLoadManifest}
         onCreateChapter={onAddChapter}
@@ -377,7 +388,20 @@
         {onSetNarrationTrack}
         {onUpdateStoryTitle}
         {onUpdateStoryIdentifiers}
+        {onUpdateStoryAspect}
         {onLoadSource}
+      />
+    {/if}
+
+    {#if $sourcesModalOpen}
+      <StorySourcesModal
+        {story}
+        open={true}
+        currentManifest={manifestValue}
+        hasSelectedChapter={Boolean(chapterId)}
+        language={overlayAnnotationLanguage}
+        onClose={onCloseSources}
+        {onSelectSourceCanvas}
       />
     {/if}
 
