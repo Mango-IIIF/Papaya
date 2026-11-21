@@ -314,8 +314,8 @@
     display: grid;
     place-items: center;
     border-radius: 9px;
-    color: var(--accent, var(--story-builder-accent, #e07a3f));
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 14%, transparent);
+    color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 14%, transparent);
   }
   .story-wide-narration :global(svg) {
     width: 14px;
@@ -343,7 +343,7 @@
     cursor: pointer;
   }
   .story-wide-narration__languages .story-wide-narration__language--active {
-    border-color: var(--accent, var(--story-builder-accent, #e07a3f));
+    border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
     color: var(--viewer-text, #e8edf4);
   }
   .story-wide-narration__mode {
@@ -364,8 +364,8 @@
     cursor: pointer;
   }
   .story-wide-narration__mode .story-wide-narration__mode--active {
-    border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 12%, transparent);
+    border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 12%, transparent);
     color: var(--viewer-text, #e8edf4);
   }
   .story-wide-narration__editor {
@@ -417,10 +417,10 @@
     align-items: center;
     gap: 6px;
     border: 1px solid
-      color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 55%, transparent);
+      color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 55%, transparent);
     border-radius: 8px;
     padding: 7px 10px;
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 12%, transparent);
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 12%, transparent);
     color: inherit;
     font-size: 10px;
     cursor: pointer;

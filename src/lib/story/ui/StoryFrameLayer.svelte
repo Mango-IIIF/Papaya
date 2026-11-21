@@ -219,16 +219,26 @@
      * any frame that reaches it. Drawn in canvas units scaled by the
      * projection so it keeps one size on screen.
      */
-    const tag = document.createElementNS(SVG_NS, 'text');
-    tag.textContent = frameTag(frame);
-    tag.setAttribute('x', String(x + w / 2));
-    tag.setAttribute('y', String(y + (TAG_INSET_PX + TAG_FONT_PX) / scale));
-    tag.setAttribute('text-anchor', 'middle');
-    tag.setAttribute('font-size', String(TAG_FONT_PX / scale));
-    tag.setAttribute('stroke-width', String(3 / scale));
-    tag.setAttribute('class', 'story-frame__tag');
-    tag.style.pointerEvents = 'none';
-    group.append(tag);
+    /*
+     * Only the frame in hand is named in full. The others are guides: a
+     * keyframe keeps just its number, tucked into its corner, and the chapter
+     * frame says nothing — so frames that coincide, as a chapter frame and its
+     * first keyframe usually do, never print one label over another.
+     */
+    const named = Boolean(frame?.editable);
+    const numbered = !named && frame?.kind === 'keyframe' && Boolean(frame.label);
+    if (named || numbered) {
+      const tag = document.createElementNS(SVG_NS, 'text');
+      tag.textContent = named ? frameTag(frame) : (frame?.label ?? '');
+      tag.setAttribute('x', String(named ? x + w / 2 : x + TAG_INSET_PX / scale));
+      tag.setAttribute('y', String(y + (TAG_INSET_PX + TAG_FONT_PX) / scale));
+      tag.setAttribute('text-anchor', named ? 'middle' : 'start');
+      tag.setAttribute('font-size', String(TAG_FONT_PX / scale));
+      tag.setAttribute('stroke-width', String(3 / scale));
+      tag.setAttribute('class', 'story-frame__tag');
+      tag.style.pointerEvents = 'none';
+      group.append(tag);
+    }
     group.setAttribute(
       'class',
       [
@@ -380,7 +390,7 @@
   }
 
   :global(.story-frame__mask) {
-    fill: rgba(6, 9, 14, 0.42);
+    fill: rgba(6, 9, 14, 0.3);
   }
 
   :global(.story-frame__halo) {
@@ -389,7 +399,7 @@
   }
 
   :global(.story-frame__line) {
-    stroke: var(--story-builder-accent, #e07a3f);
+    stroke: var(--story-builder-accent, #2ac7ff);
     stroke-width: 1.5;
   }
 
@@ -401,8 +411,14 @@
     stroke: rgba(255, 255, 255, 0.92);
   }
 
+  /* The chapter frame while a keyframe is in hand: still there, but stepped
+     back so the two outlines are never mistaken for one another. */
+  :global(.story-frame--chapter.story-frame--passive .story-frame__line) {
+    stroke-dasharray: 6 5;
+  }
+
   :global(.story-frame--keyframe.story-frame--selected .story-frame__line) {
-    stroke: var(--story-builder-accent, #e07a3f);
+    stroke: var(--story-builder-accent, #2ac7ff);
   }
 
   :global(.story-frame__tag) {

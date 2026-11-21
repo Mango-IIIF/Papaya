@@ -587,8 +587,8 @@
   }
 
   .narration-overlay__input-shell:focus-within {
-    border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 18%, transparent);
+    border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 18%, transparent);
   }
 
   .narration-overlay__input-shell :global(svg) {
@@ -618,8 +618,8 @@
   }
 
   .narration-overlay__input--standalone:focus {
-    border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 18%, transparent);
+    border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 18%, transparent);
   }
 
   .narration-overlay__source-row {
@@ -651,9 +651,9 @@
   .narration-overlay__warning {
     margin: 0;
     padding: 10px 12px;
-    border: 1px solid color-mix(in srgb, var(--story-builder-accent, #e07a3f) 45%, transparent);
+    border: 1px solid color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 45%, transparent);
     border-radius: 9px;
-    background: color-mix(in srgb, var(--story-builder-accent, #e07a3f) 10%, transparent);
+    background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 10%, transparent);
     color: var(--story-builder-accent-hover, #ffd2b2);
     font-size: 12px;
     line-height: 1.4;
@@ -673,7 +673,7 @@
     width: 100%;
     min-height: 48px;
     color: var(--viewer-text, #e8edf4);
-    accent-color: var(--accent, var(--story-builder-accent, #e07a3f));
+    accent-color: var(--accent, var(--story-builder-accent, #2ac7ff));
   }
 
   .narration-overlay__player::-webkit-media-controls-enclosure,
@@ -731,9 +731,9 @@
 
   .narration-overlay__button--accent {
     width: 100%;
-    background: var(--accent, var(--story-builder-accent, #e07a3f));
+    background: var(--accent, var(--story-builder-accent, #2ac7ff));
     border-color: transparent;
-    color: #fff;
+    color: var(--story-builder-on-accent, #06141d);
   }
 
   .narration-overlay__button:not(:disabled):hover {
@@ -746,7 +746,7 @@
      * mixing toward white pushed the label under 4.5:1 exactly when the
      * pointer was on it; mixing toward black raises it instead.
      */
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 86%, black);
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 86%, black);
   }
 
   .narration-overlay__form {
@@ -819,8 +819,8 @@
   }
 
   .narration-overlay__language-tab--active {
-    border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 16%, transparent);
+    border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 16%, transparent);
     color: var(--viewer-text, #e8edf4);
   }
 
@@ -856,7 +856,7 @@
     height: 38px;
     border-radius: 10px;
     background: var(--viewer-panel-strong, #1b242e);
-    color: var(--accent, var(--story-builder-accent, #e07a3f));
+    color: var(--accent, var(--story-builder-accent, #2ac7ff));
   }
 
   .narration-overlay__source-icon :global(svg) {

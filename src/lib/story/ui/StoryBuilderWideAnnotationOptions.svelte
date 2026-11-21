@@ -6,6 +6,7 @@
     type ChapterDrawingAnnotation,
     type StoryState,
   } from "../../core/types/story";
+  import { DEFAULT_DRAWING_COLOR } from "../storyDrawingAnnotations";
   import { t } from "../../core/i18n";
 
   export let story: Readable<StoryState>;
@@ -13,6 +14,8 @@
   export let selectedAnnotationId: Readable<string | null> = readable(null);
   export let language = "en";
   export let languages: string[] = ["en"];
+  /** `inspector` stacks the fields for a narrow column. */
+  export let layout: "wide" | "inspector" = "wide";
   export let onSetLabel: (
     annotationId: string,
     language: string,
@@ -28,8 +31,10 @@
     },
   ) => void = () => {};
 
+  /* The first swatch is the colour an annotation has before one is chosen,
+     so the swatch that reads as selected is the colour on the image. */
   const palette = [
-    "#e07a3f",
+    DEFAULT_DRAWING_COLOR,
     "#f6c343",
     "#39b57e",
     "#3aa0e0",
@@ -49,7 +54,11 @@
     ) ?? null;
 </script>
 
-<section class="annotation-options" aria-label={$t("storyBuilder.annotations.edit")}>
+<section
+  class="annotation-options"
+  class:annotation-options--inspector={layout === "inspector"}
+  aria-label={$t("storyBuilder.annotations.edit")}
+>
   {#if selected}
     <div class="annotation-options__grid">
       <section class="annotation-options__field annotation-options__field--translation">
@@ -86,15 +95,15 @@
             <button
               type="button"
               style={`--annotation-color:${color}`}
-              class:annotation-options__swatch--active={(selected.color ?? "#e07a3f") === color}
+              class:annotation-options__swatch--active={(selected.color ?? DEFAULT_DRAWING_COLOR) === color}
               aria-label={$t("storyBuilder.annotations.setColour", { colour: color })}
-              aria-pressed={(selected.color ?? "#e07a3f") === color}
+              aria-pressed={(selected.color ?? DEFAULT_DRAWING_COLOR) === color}
               on:click={() => onSetStyle(selected!.id, { color })}
             ></button>
           {/each}
           <input
             type="color"
-            value={selected.color ?? "#e07a3f"}
+            value={selected.color ?? DEFAULT_DRAWING_COLOR}
             aria-label={$t("storyBuilder.annotations.customColour")}
             on:input={(event) =>
               onSetStyle(selected!.id, {
@@ -295,13 +304,22 @@
     cursor: pointer;
   }
   .annotation-options__segments .annotation-options__segment--active {
-    border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 12%, transparent);
+    border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 12%, transparent);
     color: var(--viewer-text, #e8edf4);
   }
   .annotation-options__empty {
     margin: 12px 0;
     text-align: center;
+  }
+  .annotation-options--inspector .annotation-options__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .annotation-options--inspector .annotation-options__field,
+  .annotation-options--inspector .annotation-options__appearance {
+    padding: 0;
+    border-left: 0;
   }
   @media (max-width: 960px) {
     .annotation-options__grid {

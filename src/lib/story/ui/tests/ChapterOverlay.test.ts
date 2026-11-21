@@ -14,7 +14,7 @@ const createTarget = (): HTMLDivElement => {
 };
 
 describe("ChapterOverlay", () => {
-  it("keeps annotation tools and inventory out of the inspector workspace", async () => {
+  it("lists the chapter's annotations in the inspector while the tool is open", async () => {
     const store = createStoryStoreForTest({
       chapters: [
         {
@@ -34,6 +34,11 @@ describe("ChapterOverlay", () => {
       ],
     });
     const target = createTarget();
+    const activeChapterTask = writable<ChapterTaskId | null>(null);
+    const selectedAnnotationId = writable<string | null>(null);
+    const onEditAnnotation = vi.fn((id: string) => selectedAnnotationId.set(id));
+    const onFinishAnnotationEdit = vi.fn(() => selectedAnnotationId.set(null));
+    const onDeleteAnnotation = vi.fn();
     const instance = mount(ChapterOverlay, {
       target,
       props: {
@@ -41,15 +46,44 @@ describe("ChapterOverlay", () => {
         open: true,
         docked: true,
         chapterId: "chapter-image",
-        activeChapterTask: writable<ChapterTaskId | null>("focus"),
+        activeChapterTask,
+        selectedAnnotationId,
+        onEditAnnotation,
+        onFinishAnnotationEdit,
+        onDeleteAnnotation,
       },
     });
     await tick();
 
-    expect(target.querySelector(".chapter-overlay__annotation-tools")).toBeNull();
+    // Closed: one line saying what the chapter has.
     expect(target.querySelector(".story-wide-annotations")).toBeNull();
-    expect(target.querySelector('[data-testid="inspector-summary-focus"]')).toBeTruthy();
-    expect(target.textContent).toContain("1 annotation");
+    expect(
+      target.querySelector('[data-testid="inspector-summary-focus"]')?.textContent,
+    ).toContain("1 annotation");
+
+    // Open: the list is here, beside the rest of the chapter. The drawing
+    // tools are not — they act on the image and live in the bar under it.
+    activeChapterTask.set("focus");
+    await tick();
+    expect(target.querySelector(".chapter-overlay__annotation-tools")).toBeNull();
+    expect(target.querySelector('[data-testid^="annotation-tool-"]')).toBeNull();
+    const items = target.querySelectorAll(".story-wide-annotations__item");
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain("First detail");
+    // Nothing selected yet, so no properties.
+    expect(target.querySelector('[data-testid="annotation-options"]')).toBeNull();
+
+    const select = items[0].querySelector(".story-wide-annotations__select") as HTMLButtonElement;
+    select.click();
+    expect(onEditAnnotation).toHaveBeenCalledWith("drawing-1");
+    await tick();
+    expect(target.querySelector('[data-testid="annotation-options"]')).toBeTruthy();
+    // A second click on the selected annotation lets go of it.
+    select.click();
+    expect(onFinishAnnotationEdit).toHaveBeenCalledOnce();
+
+    (items[0].querySelector(".story-wide-annotations__delete") as HTMLButtonElement).click();
+    expect(onDeleteAnnotation).toHaveBeenCalledWith("drawing-1");
 
     unmount(instance);
     target.remove();
@@ -167,19 +201,17 @@ describe("ChapterOverlay", () => {
 
     await tick();
 
-    // The frame sits in About alongside the details, no drill-down needed.
+    // The frame's numbers sit behind More; there is nothing to open or fold.
     const section = target.querySelector(
       '[data-testid="inspector-section-position"]',
     ) as HTMLElement;
     expect(section.textContent).toContain("Frame");
     expect(section.textContent).not.toContain("Content (EN)");
-    const frameToggle = target.querySelector(
-      '[data-testid="inspector-toggle-position"]',
-    ) as HTMLButtonElement;
-    expect(frameToggle.getAttribute("aria-expanded")).toBe("false");
-    frameToggle.click();
-    await tick();
-    expect(frameToggle.getAttribute("aria-expanded")).toBe("true");
+    expect(target.querySelector("#chapter-inspector-more")?.contains(section)).toBe(true);
+    expect(target.querySelector('[data-testid="inspector-toggle-position"]')).toBeNull();
+    expect(target.querySelector('[data-testid="inspector-activate-position"]')).toBeNull();
+    // Setting it from the view is in the bar under the image.
+    expect(target.querySelector('[data-testid="chapter-position-from-view"]')).toBeNull();
 
     const xInput = target.querySelector(
       '[data-testid="chapter-position-x"]',
@@ -241,72 +273,6 @@ describe("ChapterOverlay", () => {
     await tick();
     expect(onSetChapterPosition).not.toHaveBeenCalled();
     expect(hInput.value).toBe("400");
-
-    unmount(instance);
-    target.remove();
-  });
-
-  it("closes Frame again whenever its tool is no longer active", async () => {
-    const store = createStoryStoreForTest({
-      chapters: [
-        {
-          id: "chapter-1",
-          manifest: "https://example.org/manifest.json",
-          canvasIndex: 0,
-          viewBox: { x: 0, y: 0, w: 100, h: 100 },
-        },
-      ],
-    });
-    const target = createTarget();
-    const activeChapterTask = writable<ChapterTaskId | null>(null);
-    const onChapterTaskChange = vi.fn((task: ChapterTaskId | null) =>
-      activeChapterTask.set(task),
-    );
-    const instance = mount(ChapterOverlay, {
-      target,
-      props: {
-        story: store.story,
-        open: true,
-        chapterId: "chapter-1",
-        activeChapterTask,
-        onChapterTaskChange,
-      },
-    });
-    await tick();
-
-    const frameToggle = target.querySelector(
-      '[data-testid="inspector-toggle-position"]',
-    ) as HTMLButtonElement;
-    expect(frameToggle.getAttribute("aria-expanded")).toBe("false");
-
-    (
-      target.querySelector(
-        '[data-testid="inspector-activate-position"]',
-      ) as HTMLButtonElement
-    ).click();
-    await tick();
-    expect(onChapterTaskChange).toHaveBeenLastCalledWith("position");
-    expect(frameToggle.getAttribute("aria-expanded")).toBe("true");
-
-    activeChapterTask.set(null);
-    await tick();
-    expect(frameToggle.getAttribute("aria-expanded")).toBe("false");
-
-    frameToggle.click();
-    await tick();
-    expect(frameToggle.getAttribute("aria-expanded")).toBe("true");
-    activeChapterTask.set("focus");
-    await tick();
-    expect(
-      target.querySelector('[data-testid="inspector-toggle-position"]'),
-    ).toBeNull();
-    activeChapterTask.set(null);
-    await tick();
-    expect(
-      target
-        .querySelector('[data-testid="inspector-toggle-position"]')
-        ?.getAttribute("aria-expanded"),
-    ).toBe("false");
 
     unmount(instance);
     target.remove();
@@ -382,7 +348,7 @@ describe("ChapterOverlay", () => {
     target.remove();
   });
 
-  it("exposes the frame as its own chapter tool, disabled for audio chapters", async () => {
+  it("offers the frame's numbers for image chapters and says why not for audio", async () => {
     const store = createStoryStoreForTest({
       chapters: [
         {
@@ -408,7 +374,7 @@ describe("ChapterOverlay", () => {
       '[data-task-id="position"]',
     ) as HTMLElement;
     expect(card.textContent).toContain("Frame");
-    expect(card.textContent).toContain("Configured");
+    expect(card.textContent).not.toContain("Configured");
     expect(
       (card.querySelector("button") as HTMLButtonElement).disabled,
     ).toBe(false);
@@ -431,17 +397,7 @@ describe("ChapterOverlay", () => {
     const audioCard = audioTarget.querySelector(
       '[data-task-id="position"]',
     ) as HTMLElement;
-    expect(
-      audioCard
-        .querySelector('[data-testid="inspector-toggle-position"]')
-        ?.getAttribute("aria-expanded"),
-    ).toBe("false");
-    (
-      audioCard.querySelector(
-        '[data-testid="inspector-toggle-position"]',
-      ) as HTMLButtonElement
-    ).click();
-    await tick();
+    expect(audioCard.querySelector('input[type="number"]')).toBeNull();
     expect(audioCard.textContent).toContain(
       "available for image and PDF chapters only.",
     );
@@ -526,10 +482,12 @@ describe("ChapterOverlay", () => {
       },
     });
     await tick();
-    // The inspector follows the open tool into its group.
+    // The open tool is shown as open in its own section.
     expect(
-      target.querySelector('[data-testid="inspector-group-timing"]')?.getAttribute("aria-selected"),
-    ).toBe("true");
+      target
+        .querySelector('[data-testid="inspector-section-media-timing"]')
+        ?.classList.contains("inspector-section--active"),
+    ).toBe(true);
 
     const instructions = target.textContent?.replace(/\s+/g, " ") ?? "";
     expect(instructions).toContain("Manifest audio timing");
@@ -678,7 +636,7 @@ describe("ChapterOverlay", () => {
     });
 
     (
-      target.querySelector('[data-testid="inspector-group-source"]') as HTMLButtonElement
+      target.querySelector('[data-testid="inspector-more"]') as HTMLButtonElement
     ).click();
     await tick();
 
@@ -715,7 +673,7 @@ describe("ChapterOverlay", () => {
     target.remove();
   });
 
-  it("does not duplicate selected annotation options in the sidebar", async () => {
+  it("edits the selected annotation's text and appearance in the inspector", async () => {
     const store = createStoryStoreForTest({
       chapters: [
         {
@@ -735,6 +693,8 @@ describe("ChapterOverlay", () => {
       ],
     });
     const target = createTarget();
+    const onSetAnnotationLabel = vi.fn();
+    const onSetAnnotationStyle = vi.fn();
     const instance = mount(ChapterOverlay, {
       target,
       props: {
@@ -744,13 +704,35 @@ describe("ChapterOverlay", () => {
         language: "en",
         languages: ["en", "cy"],
         activeChapterTask: writable<ChapterTaskId | null>("focus"),
+        selectedAnnotationId: writable<string | null>("rectangle-1"),
+        onSetAnnotationLabel,
+        onSetAnnotationStyle,
       },
     });
     await tick();
 
-    expect(target.querySelector('[data-testid="drawing-language-cy"]')).toBeNull();
-    expect(target.querySelector(".chapter-overlay__annotation-editor")).toBeNull();
-    expect(target.querySelector('[data-testid="inspector-summary-focus"]')).toBeTruthy();
+    // One copy of the properties, and it is here.
+    const options = target.querySelectorAll('[data-testid="annotation-options"]');
+    expect(options).toHaveLength(1);
+    expect(options[0].querySelector(".annotation-options--inspector")).toBeTruthy();
+    expect(target.querySelector('[data-testid="drawing-language-cy"]')).toBeTruthy();
+
+    const text = options[0].querySelector("textarea") as HTMLTextAreaElement;
+    expect(text.value).toBe("Note");
+    text.value = "A longer note";
+    text.dispatchEvent(new Event("input"));
+    expect(onSetAnnotationLabel).toHaveBeenCalledWith("rectangle-1", "en", "A longer note");
+
+    // The swatch that reads as selected is the colour on the image.
+    const swatches = options[0].querySelectorAll<HTMLButtonElement>(
+      ".annotation-options__palette button",
+    );
+    expect(swatches[0].getAttribute("aria-pressed")).toBe("true");
+    swatches[2].click();
+    expect(onSetAnnotationStyle).toHaveBeenCalledWith(
+      "rectangle-1",
+      expect.objectContaining({ color: expect.any(String) }),
+    );
 
     unmount(instance);
     target.remove();
@@ -786,7 +768,7 @@ describe("ChapterOverlay", () => {
     });
 
     (
-      target.querySelector('[data-testid="inspector-group-timing"]') as HTMLButtonElement
+      target.querySelector('[data-testid="inspector-more"]') as HTMLButtonElement
     ).click();
     await tick();
 
@@ -795,16 +777,10 @@ describe("ChapterOverlay", () => {
     ) as HTMLElement;
     expect(visibleTask.textContent).toContain("Chapter transition time");
     expect(visibleTask.textContent).not.toContain("Advance timing");
-    const transitionToggle = visibleTask.querySelector(
-      '[data-testid="inspector-toggle-transition-timing"]',
-    ) as HTMLButtonElement;
-    expect(transitionToggle.getAttribute("aria-expanded")).toBe("false");
+    // Already behind More; opening More is the only click it costs.
     expect(
       visibleTask.querySelector('#inspector-section-transition-timing')?.hasAttribute('hidden'),
-    ).toBe(true);
-    transitionToggle.click();
-    await tick();
-    expect(transitionToggle.getAttribute("aria-expanded")).toBe("true");
+    ).toBe(false);
 
     const delayInput = visibleTask.querySelector(
       '[data-testid="chapter-transition-delay"]',
@@ -882,7 +858,7 @@ describe("ChapterOverlay", () => {
     target.remove();
   });
 
-  it("collapses and expands the details section", async () => {
+  it("keeps the details open under a plain heading", async () => {
     const store = createStoryStoreForTest({
       chapters: [
         {
@@ -914,18 +890,11 @@ describe("ChapterOverlay", () => {
     ) as HTMLElement;
     expect(sectionContent.hidden).toBe(false);
 
-    const toggle = target.querySelector(
-      '[data-testid="inspector-toggle-details"]',
-    ) as HTMLButtonElement;
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    toggle.click();
-    await tick();
-    expect(sectionContent.hidden).toBe(true);
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-
-    toggle.click();
-    await tick();
-    expect(sectionContent.hidden).toBe(false);
+    // A section is a heading over its fields; there is nothing to collapse.
+    expect(target.querySelector('[data-testid="inspector-toggle-details"]')).toBeNull();
+    expect(
+      target.querySelector('[data-testid="inspector-section-details"] h3')?.textContent,
+    ).toBe("Details");
 
     unmount(instance);
     target.remove();

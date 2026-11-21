@@ -94,8 +94,9 @@
   let storyAnnotations = $state<ResolvedAnnotation[]>([]);
   let storyAnnotationEditing = $state(false);
   let activeStoryAnnotationId = $state<string | null>(null);
-  /* Motion keyframes remain selectable canvas objects. The chapter frame is
-     the fixed StoryStage itself and is never drawn as a second rectangle. */
+  /* The chapter frame and its camera keyframes, drawn on the image. The stage
+     fills whatever room the window leaves, so these outlines are what show
+     the part of the picture a reader gets. */
   let storyFrames = $state<StoryFrame[]>([]);
   let storyFrameSelection = $state<string | null>(null);
   let presentationAspect = $state(16 / 9);
@@ -217,23 +218,27 @@
     return () => observer.disconnect();
   });
 
-  /* Frame mode gives the fixed stage full attention. The selection sentinel
-     contains no SVG object; it only moves chrome aside until Done/Escape. */
-  let builderPanelsBeforeFrameTool: { left: boolean; right: boolean } | null = null;
+  /*
+   * Drawing needs the image. Where the panels are drawers over it (narrow
+   * layouts) they close when annotation mode starts and come back when it
+   * ends; their handles stay, because an annotation's text and colour are
+   * edited in the inspector.
+   */
+  let panelsBeforeAnnotating: { left: boolean; right: boolean } | null = null;
   $effect(() => {
-    const frameTool = storyFrameSelection === 'chapter';
+    const editing = storyAnnotationEditing;
     untrack(() => {
-      if (frameTool && !builderPanelsBeforeFrameTool) {
-        builderPanelsBeforeFrameTool = {
+      if (editing && isMobileLayout && !panelsBeforeAnnotating) {
+        panelsBeforeAnnotating = {
           left: builderLeftCollapsed,
           right: builderRightCollapsed,
         };
         builderLeftCollapsed = true;
         builderRightCollapsed = true;
-      } else if (!frameTool && builderPanelsBeforeFrameTool) {
-        builderLeftCollapsed = builderPanelsBeforeFrameTool.left;
-        builderRightCollapsed = builderPanelsBeforeFrameTool.right;
-        builderPanelsBeforeFrameTool = null;
+      } else if (!editing && panelsBeforeAnnotating) {
+        builderLeftCollapsed = panelsBeforeAnnotating.left;
+        builderRightCollapsed = panelsBeforeAnnotating.right;
+        panelsBeforeAnnotating = null;
       }
     });
   });
@@ -368,36 +373,22 @@
   };
 
   /*
-   * Motion opens a contextual bottom rail. Measure it so floating panels stop
-   * above it. Narration and media timing share the slot but are full-stage
-   * modals, so `apply` deliberately excludes them from this inset. The height
-   * is written directly to the grid because an element binding inside the
-   * custom element's shadow tree can report the initial zero rather than its
-   * later content size.
+   * The bottom bar is a row of the builder grid. On narrow layouts the
+   * chapter list and inspector are drawers floating over the stage; measure
+   * the bar so they stop above it. Narration and media timing render in the
+   * same slot but are modals over the whole editor, so the grid is marked and
+   * the drawers step aside. The height is written directly to the grid
+   * because an element binding inside the custom element's shadow tree can
+   * report the initial zero rather than its later content size.
    */
   const trackBottomInset = (node: HTMLElement) => {
     const grid = node.closest('.viewer__grid') as HTMLElement | null;
-    const stage = node.closest('.stage') as HTMLElement | null;
-    let toolbar: HTMLElement | null = null;
     const observer = new ResizeObserver(() => apply());
     const apply = () => {
-      /* The toolbar only exists once a source is loaded, which is later than
-         this footer mounts, so it is looked up until it is found. */
-      if (!toolbar) {
-        toolbar = stage?.querySelector('.stage__toolbar--below') ?? null;
-        if (toolbar) observer.observe(toolbar);
-      }
-      const toolbarHeight = toolbar?.offsetHeight ?? 0;
-      stage?.style.setProperty('--builder-toolbar-inset', `${toolbarHeight}px`);
-      /* Audio and source-media timing use the whole stage as a modal
-         workspace; the grid is marked so the sidebars step aside. */
       const modal = Boolean(node.querySelector('.story-wide-modal'));
       grid?.classList.toggle('viewer__grid--tool-modal', modal);
-      const height = modal ? 0 : node.offsetHeight;
-      grid?.style.setProperty(
-        '--builder-bottom-inset',
-        `${height > 0 ? height + toolbarHeight + 14 : 0}px`,
-      );
+      const height = node.offsetHeight;
+      grid?.style.setProperty('--builder-bottom-inset', `${height > 0 ? height + 10 : 0}px`);
     };
     apply();
     /* A resize observer on the empty bar alone kept reporting the initial 0
@@ -405,14 +396,12 @@
     observer.observe(node);
     const mutations = new MutationObserver(apply);
     mutations.observe(node, { childList: true, subtree: true });
-    if (stage) mutations.observe(stage, { childList: true, subtree: true });
     return {
       destroy() {
         observer.disconnect();
         mutations.disconnect();
         grid?.classList.remove('viewer__grid--tool-modal');
         grid?.style.removeProperty('--builder-bottom-inset');
-        stage?.style.removeProperty('--builder-toolbar-inset');
       },
     };
   };
@@ -545,16 +534,17 @@
         </StoryStage>
       </div>
 
-      {#if bottomPlugins.length > 0}
-        <div class="stage__bottom" use:trackBottomInset>
-          <div class="plugin-slot plugin-slot--bottom">
-            {#each bottomPlugins as plugin (plugin.id)}
-              <StoryPluginPanel {plugin} context={pluginContext} />
-            {/each}
-          </div>
-        </div>
-      {/if}
     </main>
+
+    {#if bottomPlugins.length > 0}
+      <div class="stage__bottom" use:trackBottomInset>
+        <div class="plugin-slot plugin-slot--bottom">
+          {#each bottomPlugins as plugin (plugin.id)}
+            <StoryPluginPanel {plugin} context={pluginContext} />
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <button
       class="builder-panel-toggle builder-panel-toggle--left"
@@ -608,15 +598,6 @@
       }}
     >
       <PanelRight class="builder-panel-toggle__icon" aria-hidden="true" strokeWidth={1.8} />
-      {#if storyAnnotationEditing}
-        <span class="builder-panel-toggle__label">
-          {$t(
-            builderRightCollapsed
-              ? 'storyBuilder.panels.showAnnotationInspector'
-              : 'storyBuilder.panels.hideAnnotationInspector',
-          )}
-        </span>
-      {/if}
     </button>
 
     {#if rightPlugins.length > 0}
@@ -743,19 +724,6 @@
     --builder-panel-inline: clamp(420px, 38%, 520px);
   }
 
-  /* Annotation creation is canvas-first. Temporarily move both floating
-       sidebars and their toggles away without changing the user's collapse
-       preferences; they return when the annotation task is finished. */
-  :global(.viewer--story-builder)
-    .viewer__grid--builder-annotation-editing
-    :global(.panel-stack--left),
-  :global(.viewer--story-builder) .viewer__grid--builder-annotation-editing .panel-stack--right,
-  :global(.viewer--story-builder) .viewer__grid--builder-annotation-editing .builder-panel-toggle {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-  }
-
   /*
      * Scoped through `.viewer--story-builder` for specificity, not decoration:
      * the sidebar sets `.panel-stack--left:has(.story-sidebar) { height: 100% }`,
@@ -874,30 +842,6 @@
     pointer-events: none;
   }
 
-  /*
-     * The focused annotation inspector already has Done plus sticky Save/Cancel
-     * actions. Hiding the duplicate stage footer while the inspector is visible
-     * returns its bottom clearance to the properties form. If the inspector is
-     * collapsed, the stage Done control returns so the author is never trapped in
-     * drawing mode.
-     */
-  .viewer__grid--builder-annotation-editing:not(.viewer__grid--builder-right-collapsed)
-    .stage__bottom:has(:global(.story-wide-authoring--bare)) {
-    display: none;
-  }
-
-  /* Once a shape tool is chosen, the artwork owns the workspace until the
-       geometry is placed. The hidden marker comes from the annotation footer;
-       using it here removes the footer shell as well as its contents. */
-  .stage--story-builder .stage__bottom:has(:global(.story-wide-authoring--annotation-placing)) {
-    display: none;
-  }
-
-  .viewer__grid--builder-annotation-editing:not(.viewer__grid--builder-right-collapsed)
-    .panel-stack--right {
-    inset-block-end: 14px;
-  }
-
   .builder-panel-toggle {
     position: absolute;
     z-index: 8;
@@ -925,18 +869,6 @@
   .builder-panel-toggle :global(.builder-panel-toggle__icon) {
     inline-size: 17px;
     block-size: 17px;
-  }
-
-  .builder-panel-toggle__label {
-    font-size: 11px;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  .viewer__grid--builder-annotation-editing .builder-panel-toggle--right {
-    inline-size: auto;
-    padding-inline: 10px;
-    gap: 7px;
   }
 
   /* Sits just outside the panel it controls, and slides in when it collapses. */
@@ -1002,6 +934,7 @@
 
   :global(.viewer--story-preview) .viewer__grid {
     grid-template-columns: minmax(0, 1fr) !important;
+    row-gap: 0 !important;
   }
 
   :global(.viewer--story-preview) .viewer__grid :global(.panel-stack--left),
@@ -1020,21 +953,6 @@
   :global(.viewer--story-preview) .stage__bottom,
   :global(.viewer--story-preview) :global(.stage__toolbar--below) {
     display: none !important;
-  }
-
-  /* Motion preview keeps only its compact Stop / pin visibility / Done
-       controls. The authoring footer itself remains removed. */
-  :global(.viewer--story-preview) .stage__bottom:has(:global(.story-wide-preview-controls)) {
-    display: block !important;
-    width: auto;
-    height: 48px;
-    min-height: 48px;
-    padding: 6px;
-    overflow: visible;
-    border: 1px solid var(--viewer-panel-border);
-    border-radius: 12px;
-    background: var(--viewer-stage-bottom-bg, rgba(12, 16, 22, 0.86));
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
   }
 
   :global(.viewer--story-preview) .viewer__grid > .stage {
@@ -1077,56 +995,50 @@
   }
 
   /*
-     * The authoring stage is one row the picture owns outright. Contextual tools
-     * float over it — a compact rail for motion and full-stage modals for audio
-     * and media timing — rather than taking a row of their own. Opening or
-     * closing any of them therefore leaves the artwork, and the viewer's idea of
-     * the current view, exactly the same size. The chapters rail and inspector
-     * already float for the same reason.
+     * The image owns its row outright. Under it, across the whole editor, is
+     * one bar of fixed height: the camera timeline, or the annotation tools
+     * while drawing. Nothing floats over the picture, so opening or closing
+     * a tool leaves the artwork, and the viewer's idea of the current view,
+     * exactly the same size. Narration and media timing are modals over the
+     * whole editor.
      */
   .stage--story-builder {
     position: relative;
     z-index: 0;
     isolation: isolate;
-    grid-template-rows: minmax(0, 1fr) clamp(160px, 23%, 210px);
-    gap: 12px;
+    grid-template-rows: minmax(0, 1fr);
     align-content: stretch;
     overflow: hidden;
   }
 
-  .stage--story-builder .stage__bottom {
-    position: absolute;
-    z-index: 7;
-    inset-inline: 14px;
-    /* Just above the stage toolbar, which keeps the zoom controls in reach. */
-    inset-block-end: calc(var(--builder-toolbar-inset, 0px) + 14px);
-    width: auto;
-    /* Grows upward with its content, never past the stage. */
-    max-block-size: calc(100% - var(--builder-toolbar-inset, 0px) - 28px);
-    overflow: auto;
-    overscroll-behavior: contain;
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+  .viewer__grid--builder-overlay {
+    grid-template-rows: minmax(0, 1fr) auto;
+    row-gap: 10px;
   }
 
-  /* The persistent camera timeline is part of the editor's layout, not a
-     floating card over the artwork. Contextual tools and modals keep the
-     overlay treatment above. */
-  .stage--story-builder .stage__bottom:has(:global(.camera-timeline)) {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    max-block-size: 100%;
-    overflow: auto;
-    box-shadow: none;
+  .viewer__grid--builder-overlay > .stage {
+    grid-row: 1;
   }
 
-  .stage--story-builder .stage__bottom:has(:global(.story-wide-modal)) {
-    z-index: 10;
+  /* One fixed height whether a chapter has motion or not, so adding the
+     first keyframe never resizes the picture. */
+  .viewer__grid--builder-overlay > .stage__bottom {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    block-size: var(--builder-timeline-block, 104px);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    /* Motion options open upward out of the bar, over the image; a modal
+       tool positions against the grid. */
+    overflow: visible;
   }
 
   /* Video timing has its own player inside the modal. Do not leave a second,
        blurred copy painting behind it in the ordinary canvas workspace. */
-  .stage--story-builder:has(:global(.story-wide-modal--video)) > .stage__primary {
+  .viewer__grid--builder-overlay:has(:global(.story-wide-modal--video)) .stage__primary {
     visibility: hidden;
   }
 
@@ -1144,11 +1056,13 @@
 
   @container mango-viewer (min-width: 1025px) {
     :global(.viewer--story-builder) .viewer__grid--builder-overlay {
+      /* The image is what is being edited; the panels take what they need
+         and no more, so it keeps a workable width in an ordinary window. */
       grid-template-columns:
-        clamp(250px, 30vw, 340px)
+        clamp(220px, 21vw, 300px)
         minmax(0, 1fr)
-        clamp(270px, 30vw, 340px);
-      grid-template-rows: minmax(0, 1fr);
+        clamp(280px, 26vw, 340px);
+      grid-template-rows: minmax(0, 1fr) auto;
       column-gap: 12px;
     }
 
@@ -1204,8 +1118,9 @@
     :global(.viewer--story-builder) .viewer__grid {
       --builder-panel-inline: min(360px, calc(100cqw - 28px));
       grid-template-columns: minmax(0, 1fr) !important;
-      grid-template-rows: minmax(0, 1fr);
-      gap: 0;
+      grid-template-rows: minmax(0, 1fr) auto;
+      column-gap: 0;
+      row-gap: 8px;
       height: 100%;
       max-height: 100%;
       overflow: hidden;
@@ -1229,7 +1144,7 @@
       display: grid;
     }
     .stage--story-builder {
-      grid-template-rows: minmax(0, 1fr) clamp(160px, 23%, 210px);
+      grid-template-rows: minmax(0, 1fr);
       overflow: hidden;
     }
     .viewer__grid {
@@ -1260,16 +1175,9 @@
   }
 
   @container mango-viewer (max-width: 700px) {
-    .viewer__grid--builder-annotation-editing .builder-panel-toggle--right {
-      inline-size: 34px;
-      padding-inline: 0;
-    }
-    .viewer__grid--builder-annotation-editing .builder-panel-toggle__label {
-      display: none;
-    }
     :global(.viewer--story-builder) .viewer__grid {
       grid-template-columns: 1fr !important;
-      grid-template-rows: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto;
       height: 100%;
       max-height: 100%;
       overflow: hidden;

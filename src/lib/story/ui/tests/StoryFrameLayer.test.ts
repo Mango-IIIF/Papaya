@@ -170,7 +170,7 @@ describe('StoryFrameLayer', () => {
     cleanup();
   });
 
-  it('leaves a passive frame out of reach and a keyframe labelled by number', async () => {
+  it('leaves a passive frame out of reach and names only the frame in hand', async () => {
     const { viewer, handle, cleanup } = mountLayer(
       [
         chapterFrame({ editable: false }),
@@ -196,7 +196,8 @@ describe('StoryFrameLayer', () => {
     const tags = [...viewer.container.querySelectorAll('.story-frame__tag')].map(
       (tag) => tag.textContent,
     );
-    expect(tags).toContain('Point 1');
+    // The passive chapter frame under it carries no label to print over.
+    expect(tags).toEqual(['Keyframe 1']);
     expect(handle('nw')).toBeTruthy();
     cleanup();
   });

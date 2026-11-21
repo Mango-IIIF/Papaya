@@ -182,7 +182,7 @@
       container,
       height: 64,
       waveColor: "rgba(160, 175, 188, 0.55)",
-      progressColor: "#e07a3f",
+      progressColor: "#2ac7ff",
       cursorColor: "#ffb184",
       cursorWidth: 1,
       barWidth: 2,
@@ -310,7 +310,7 @@
   }
   .audio-region__zoom input {
     width: 100%;
-    accent-color: var(--accent, var(--story-builder-accent, #e07a3f));
+    accent-color: var(--accent, var(--story-builder-accent, #2ac7ff));
   }
   .audio-region__zoom button {
     border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.12));
@@ -327,7 +327,7 @@
   .audio-region__wave :global(::part(region)) {
     border-right: 2px solid var(--story-builder-accent-hover, #ffb184);
     border-left: 2px solid var(--story-builder-accent-hover, #ffb184);
-    background: color-mix(in srgb, var(--story-builder-accent, #e07a3f) 32%, transparent) !important;
+    background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 32%, transparent) !important;
     z-index: 4 !important;
   }
   .audio-region__wave :global(::part(region-content)) {

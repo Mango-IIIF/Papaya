@@ -94,11 +94,7 @@
     "tasks": {
       "title": "チャプターツール",
       "description": "このチャプターに関するすべてを 3 つのグループで表示します。ステージ上で操作するセクションはここから開きます。",
-      "languages": "{translated}/{total} 言語",
       "status": {
-        "empty": "未設定",
-        "partial": "一部設定済み",
-        "complete": "設定完了",
         "attention": "要確認"
       },
       "items": {
@@ -216,25 +212,21 @@
       "descriptionLabel": "Description"
     },
     "position": {
-      "title": "フレーム",
-      "hint": "固定されたストーリーフレームの下で作品をパン・ズームします。正確な IIIF 編集では、キャンバス領域をここに直接入力することもできます。",
-      "empty": "フレームはまだありません。キャンバスのピクセル単位で領域を入力して作成してください。",
+      "hint": "画像上に描かれたフレームが読者に表示される範囲です。画像上でドラッグするか、画像下のバーで現在のビューから設定するか、ここに領域を入力します。",
+      "empty": "フレームはまだありません。パン・ズームしてからフレームを設定してください。",
       "x": "X",
       "y": "Y",
       "width": "幅",
       "height": "高さ",
       "goTo": "フレームへ移動",
       "aspectLocked": "ストーリーフレームは {aspect} です。プレビューと閲覧画面はこの形を正確に保ち、幅と高さは連動して変わります。",
-      "stageLabel": "ストーリーフレーム · {aspect}"
+      "setFromView": "フレームを設定",
+      "setFromViewHint": "現在のビューをこのチャプターのフレームにする"
     },
     "annotations": {
       "chapter": "Chapter annotations",
-      "annotationsTab": "アノテーション",
-      "optionsTab": "オプション",
       "drawing": "描画モード",
-      "add": "アノテーションを追加",
       "tools": "Annotation drawing tools",
-      "drawingHint": "既存のアノテーションを編集するには「選択 / 移動」を、新しく追加するには図形を選びます。",
       "edit": "Edit annotation",
       "editDrawing": "Edit {type} annotation {index}",
       "deleteDrawing": "Delete {type} annotation {index}",
@@ -264,21 +256,20 @@
         "identifying": "同定",
         "classifying": "分類",
         "questioning": "質問"
-      }
+      },
+      "hintSelect": "描く図形を選ぶか、画像上の注釈をクリックして編集します。",
+      "hintDraw": "画像上に{shape}を描きます。完了すると注釈パネルで開きます。",
+      "hintEditing": "注釈をドラッグして移動またはサイズ変更します。テキストと色は注釈パネルにあります。"
     },
     "motion": {
       "title": "カメラモーション",
       "requireTwo": "モーションには少なくとも2つのカメラポイントが必要です。",
       "requireOneMore": "スムーズなトランジションを作成するには、もう1つのカメラポイントを追加してください。",
       "durationError": "移動時間は正の値である必要があります。",
-      "durationDwellError": "移動時間は{seconds}秒の開始保持後の移動時間を残す必要があります。",
-      "dwellError": "静止時間は負の値にできません。",
       "customHint": "カスタムでは各ポイントのフレームを描いたとおりに保持します。プレビューはポイント 1 から始まります。",
       "presetHint": "ポイントは注視点を決め、動きのスタイルがズームを制御します。ポイントのサイズを変えるとカスタムに切り替わります。プレビューはポイント 1 から始まります。",
       "preview": "モーションをプレビュー",
       "stopPreview": "プレビューを停止",
-      "showPreviewPins": "ピンを表示",
-      "hidePreviewPins": "ピンを非表示",
       "style": "モーションスタイル",
       "presets": "モーションプリセット",
       "preset": {
@@ -305,53 +296,23 @@
       "duration": "移動時間",
       "durationHint": "各位置はこの移動時間内で均等に配置され、開始時の静止時間はその前に追加されます。",
       "durationSeconds": "移動時間（秒）",
-      "zoomValue": "ズーム値 ({zoom})",
-      "timeline": "モーションタイムライン",
-      "pinsTab": "ピン",
-      "optionsTab": "オプション",
-      "fineTuning": "詳細調整",
-      "goToPoint": "カメラポイント {number} へ移動",
-      "movePointTitle": "ポイント {number}（{seconds} 秒）。クリックで選択、ドラッグで位置変更。",
-      "point": "カメラポイント {number}",
-      "deletePoint": "ポイントを削除",
-      "deletePointNumber": "カメラポイント {number} を削除",
-      "emptyPoints": "カメラポイントはまだありません。追加すると、現在の位置とズームが保存されます。",
-      "addPoint": "カメラポイントを追加",
-      "updatePoint": "現在のビューからピンを更新",
-      "captureGuideTitle": "位置とズームを個別に設定",
-      "captureGuideHint": "ピンをドラッグして位置を決めます。次に画像をズームし、その倍率を選択中のポイントへ保存します。ピンの位置は変わりません。",
-      "saveZoom": "現在のズームを保存",
-      "saveZoomForPoint": "現在のズームをポイント {number} に保存",
-      "selectPointToUpdate": "ズームを保存する前にピンを選択してください。"
+      "fineTuning": "詳細調整"
     },
     "cameraTimeline": {
       "title": "カメラタイムライン",
-      "info": "キーフレームはキャンバス座標のビューと焦点を保持します。",
-      "showNarration": "ナレーションを表示",
       "capture": "キーフレームを追加",
       "keyframes": "キーフレーム（{count}）",
-      "empty": "現在のビューを追加してカメラトラックを開始",
+      "empty": "カメラの動きはありません。パン・ズームしてからキーフレームを追加してください。",
       "goTo": "{time} のキーフレーム {number} へ移動",
       "select": "キーフレーム {number} を選択",
-      "inspectorMode": "インスペクターモード",
-      "keyframe": "キーフレーム",
-      "chapter": "チャプター",
-      "keyframeNumber": "キーフレーム {number}",
-      "navigation": "キーフレームナビゲーション",
-      "previous": "前のキーフレーム",
-      "next": "次のキーフレーム",
-      "savedPreview": "保存済みキーフレームビューのプレビュー",
-      "savedView": "保存済みビュー",
-      "details": "詳細",
-      "time": "時間",
-      "durationNext": "次までの時間",
-      "cameraView": "カメラビュー",
-      "cameraViewMode": "カメラビューモード",
-      "frame": "フレーム",
-      "panZoom": "パンとズーム",
-      "updateFromView": "現在のビューから更新",
-      "narrationFallback": "チャプターのタイミングツールからナレーションを追加してください。",
-      "delete": "キーフレームを削除"
+      "updateFromView": "ビューから更新",
+      "narrationLength": "ナレーション {time}",
+      "matchNarration": "ナレーションに合わせる",
+      "options": "モーションのオプション",
+      "captureHint": "現在のビューをキーフレームとして追加",
+      "updateFromViewHint": "このキーフレームを現在のビューに置き換える",
+      "deleteNumber": "キーフレーム {number} を削除",
+      "needSecond": "ビューを動かして 2 つ目のキーフレームを追加すると、モーションが作成されます。"
     },
     "settings": {
       "title": "タイトル",
@@ -423,29 +384,20 @@
     "frame": {
       "label": "チャプターのフレーム",
       "chapterAria": "チャプターのフレーム",
-      "keyframeAria": "カメラポイント {number} のフレーム",
-      "keyframeTag": "ポイント {number}"
+      "keyframeAria": "キーフレーム {number} のフレーム",
+      "keyframeTag": "キーフレーム {number}"
     },
     "inspector": {
-      "groupsLabel": "チャプターインスペクター",
-      "groups": {
-        "about": "概要",
-        "timing": "タイミング",
-        "source": "ソース"
-      },
       "edit": "編集",
-      "draw": "描画",
       "open": "開く",
       "done": "完了",
-      "onStage": "ステージ上",
       "annotationsSummary": "アノテーション {count} 件。ステージのワークスペースで追加、選択、編集できます。",
-      "motionNone": "カメラの動きはありません。編集してステージ上にカメラポイントを追加してください。",
-      "motionSummary": "カメラポイント {count} 件 · {style} · {seconds}秒",
       "narrationNone": "{language} のナレーション区間はありません。",
       "narrationSummary": "{language}: {start}–{end}",
       "mediaSummary": "ソースの {start}–{end} を再生します。",
       "mediaWhole": "ソース全体を再生します。",
-      "adjust": "調整"
+      "more": "その他",
+      "moreHint": "フレーム領域、トランジション、ソース、レイヤー"
     }
   },
   "viewer": {

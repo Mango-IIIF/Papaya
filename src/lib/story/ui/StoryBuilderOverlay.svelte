@@ -6,11 +6,11 @@
   import StoryChapterOverlay from './ChapterOverlay.svelte';
   import StoryAnnotationOverlay from './StoryAnnotationOverlay.svelte';
   import SaveExportModal from './SaveExportModal.svelte';
-  import StoryKeyframeInspector from './StoryKeyframeInspector.svelte';
   import RectanglePlacementEditor from '../annotations/RectanglePlacementEditor.svelte';
   import type {
     AnnotationPlacement,
     ChapterAdvance,
+    ChapterDrawingAnnotation,
   } from '../../core/types/story';
   import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
   import type { UIMode } from '../storyBuilderController';
@@ -29,15 +29,6 @@
   export let viewBox: Readable<ViewBox | null>;
   export let selectedChapterId: Writable<string | null>;
   export let activeChapterTask: Readable<ChapterTaskId | null>;
-  export let selectedMotionPointId: Readable<string | null> = readable(null);
-  export let onSelectMotionPoint: (keyframeId: string) => void = () => {};
-  export let onMoveMotionPoint: (
-    keyframeId: string,
-    focus: { x: number; y: number },
-  ) => void = () => {};
-  export let onGoToMotionPoint: (keyframeId: string) => void = () => {};
-  export let onUpdateMotionPointFromViewport: (keyframeId: string) => void = () => {};
-  export let onDeleteMotionPoint: (keyframeId: string) => void = () => {};
   export let onChapterTaskChange: ((task: ChapterTaskId | null) => void) | undefined = undefined;
   export let validationErrors: Readable<string[]>;
   export let uiMode: Readable<UIMode>;
@@ -78,23 +69,35 @@
   export let onUpdateAdvanceMode: (mode: ChapterAdvance['mode']) => void;
   export let onUpdateDelay: (delayMs?: number) => void;
   export let onSetChapterPosition: (viewBox: ViewBox) => void;
+  export let selectedAnnotationId: Readable<string | null> = readable(null);
+  export let onEditAnnotation: (annotationId: string) => void = () => {};
+  export let onFinishAnnotationEdit: () => void = () => {};
+  export let onDeleteAnnotation: (annotationId: string) => void = () => {};
+  export let onSetAnnotationLabel: (
+    annotationId: string,
+    language: string,
+    value: string,
+  ) => void = () => {};
+  export let onSetAnnotationStyle: (
+    annotationId: string,
+    style: {
+      color?: string | null;
+      strokeWidth?: 'thin' | 'medium' | 'thick';
+      fillMode?: ChapterDrawingAnnotation['fillMode'];
+      motivation?: ChapterDrawingAnnotation['motivation'] | null;
+    },
+  ) => void = () => {};
   export let storyPreviewing: Readable<boolean> = readable(false);
   export let onPreviewChapter: (chapterId?: string) => void = () => {};
   export let onStopChapterPreview: () => void = () => {};
   export let onRevertChapterPosition: () => void;
   export let onSaveChapterSettings: () => void;
   export let onCancelChapterSettings: () => void = () => {};
-  export let motionPreviewing: Readable<boolean>;
-  export let motionPreviewPinsVisible: Readable<boolean> = readable(false);
   let chapterId: string | null = null;
   let manifestValue: string | null = null;
   let currentMode: UIMode = 'idle';
   let narrationOpen = false;
   let chapterOpen = false;
-  let inspectorMode: 'keyframe' | 'chapter' = 'chapter';
-  let motionPointCount = 0;
-  let inspectorChapterId: string | null = null;
-  let lastInspectorPointId: string | null = null;
   $: chapterId = $selectedChapterId;
   $: manifestValue = $currentManifest;
   $: currentMode = $uiMode;
@@ -103,19 +106,6 @@
     currentMode === 'chapterEdit' ||
     (Boolean(chapterId) && currentMode !== 'narrationPanel') ||
     ((!manifestValue || $story.chapters.length === 0) && currentMode !== 'narrationPanel');
-  $: motionPointCount =
-    $story.chapters.find((entry) => entry.id === chapterId)?.cameraTrack?.keyframes.length ?? 0;
-  $: if (chapterId !== inspectorChapterId) {
-    inspectorChapterId = chapterId;
-    const firstPoint = $story.chapters.find((entry) => entry.id === chapterId)?.cameraTrack
-      ?.keyframes[0];
-    inspectorMode = firstPoint ? 'keyframe' : 'chapter';
-    if (firstPoint && !$selectedMotionPointId) onSelectMotionPoint(firstPoint.id);
-  }
-  $: if ($selectedMotionPointId !== lastInspectorPointId) {
-    lastInspectorPointId = $selectedMotionPointId;
-    if ($selectedMotionPointId && motionPointCount > 0) inspectorMode = 'keyframe';
-  }
   let overlayAnnotationLanguage = language;
   $: overlayAnnotationLanguage = $annotationLanguage ?? language;
   let exportPayload: ExportEnvelope | null = null;
@@ -141,148 +131,6 @@
 
   let currentViewBox: ViewBox | null = null;
   $: currentViewBox = $viewBox;
-  let motionMarkers: Array<{
-    id: string;
-    index: number;
-    x: number;
-    y: number;
-    timeMs: number;
-  }> = [];
-  $: {
-    const activeChapter = $story.chapters.find((entry) => entry.id === chapterId);
-    const cameraPoints = activeChapter?.cameraTrack?.keyframes ?? [];
-    const projected = currentViewBox
-      ? cameraPoints.flatMap((point, index) => {
-          if ((!point.focus && !point.viewBox) || !currentViewBox) return [];
-          const centerX = point.focus?.x ?? point.viewBox!.x + point.viewBox!.w / 2;
-          const centerY = point.focus?.y ?? point.viewBox!.y + point.viewBox!.h / 2;
-          const x = (centerX - currentViewBox.x) / currentViewBox.w;
-          const y = (centerY - currentViewBox.y) / currentViewBox.h;
-          return x >= 0 && x <= 1 && y >= 0 && y <= 1
-            ? [{ id: point.id, index, x, y, timeMs: point.timeMs }]
-            : [];
-        })
-      : [];
-    /*
-     * Never spread nearby markers in screen space. The old rounded grouping
-     * changed as the viewport moved and made pins jump out from under a mouse.
-     * Exactly overlapping points remain selectable from the timeline.
-     */
-    motionMarkers = projected;
-  }
-
-  let motionDrag: {
-    id: string;
-    pointerId: number;
-    startClientX: number;
-    startClientY: number;
-    startX: number;
-    startY: number;
-    boundsWidth: number;
-    boundsHeight: number;
-    viewBox: ViewBox;
-    x: number;
-    y: number;
-    moved: boolean;
-  } | null = null;
-  let suppressMotionClickFor: string | null = null;
-
-  const handleMotionPointerDown = (event: PointerEvent, marker: (typeof motionMarkers)[number]) => {
-    if (event.button !== 0 && (event.buttons & 1) === 0) return;
-    const bounds = overlayRoot?.getBoundingClientRect();
-    if (!bounds || bounds.width <= 0 || bounds.height <= 0 || !currentViewBox) return;
-    event.preventDefault();
-    event.stopPropagation();
-    onSelectMotionPoint(marker.id);
-    motionDrag = {
-      id: marker.id,
-      pointerId: event.pointerId,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      startX: marker.x,
-      startY: marker.y,
-      boundsWidth: bounds.width,
-      boundsHeight: bounds.height,
-      viewBox: { ...currentViewBox },
-      x: marker.x,
-      y: marker.y,
-      moved: false,
-    };
-  };
-
-  const handleMotionPointerMove = (event: PointerEvent) => {
-    if (!motionDrag || motionDrag.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const distance = Math.hypot(
-      event.clientX - motionDrag.startClientX,
-      event.clientY - motionDrag.startClientY,
-    );
-    const moved = motionDrag.moved || distance >= 6;
-    if (!moved) return;
-    motionDrag = {
-      ...motionDrag,
-      x: Math.min(
-        1,
-        Math.max(
-          0,
-          motionDrag.startX + (event.clientX - motionDrag.startClientX) / motionDrag.boundsWidth,
-        ),
-      ),
-      y: Math.min(
-        1,
-        Math.max(
-          0,
-          motionDrag.startY + (event.clientY - motionDrag.startClientY) / motionDrag.boundsHeight,
-        ),
-      ),
-      moved,
-    };
-  };
-
-  const finishMotionDrag = (event: PointerEvent, commit: boolean) => {
-    if (!motionDrag || motionDrag.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const drag = motionDrag;
-    const moved =
-      drag.moved ||
-      Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY) >= 6;
-    const position = moved
-      ? {
-          x: Math.min(
-            1,
-            Math.max(0, drag.startX + (event.clientX - drag.startClientX) / drag.boundsWidth),
-          ),
-          y: Math.min(
-            1,
-            Math.max(0, drag.startY + (event.clientY - drag.startClientY) / drag.boundsHeight),
-          ),
-        }
-      : { x: drag.x, y: drag.y };
-    motionDrag = null;
-    if (!commit || !moved) return;
-    suppressMotionClickFor = drag.id;
-    /* A drag ending away from the pin may not produce a click. Do not leave
-       that missing click suppressing the author's next keyboard activation. */
-    setTimeout(() => {
-      if (suppressMotionClickFor === drag.id) suppressMotionClickFor = null;
-    }, 0);
-    onMoveMotionPoint(drag.id, {
-      x: drag.viewBox.x + position.x * drag.viewBox.w,
-      y: drag.viewBox.y + position.y * drag.viewBox.h,
-    });
-  };
-
-  const handleMotionClick = (event: MouseEvent, markerId: string) => {
-    event.stopPropagation();
-    if (suppressMotionClickFor === markerId) {
-      suppressMotionClickFor = null;
-      return;
-    }
-    onSelectMotionPoint(markerId);
-  };
-
   let placementRectValue: {
     x: number;
     y: number;
@@ -451,55 +299,12 @@
 
 </script>
 
-<!-- Track the active gesture at the window, not on the moving pin. Trackpads
-     and WebKit can route move/up away from an element after tap-and-drag or
-     pointer-capture loss; a window listener still completes that gesture. -->
-<svelte:window
-  on:pointermove|capture={handleMotionPointerMove}
-  on:pointerup|capture={(event) => finishMotionDrag(event, true)}
-  on:pointercancel|capture={(event) => finishMotionDrag(event, false)}
-/>
-
 {#if surface === 'inspector'}
   <div
     class="story-builder-inspector-root"
     data-testid="story-builder-inspector"
   >
     {#if chapterId}
-      <div
-        class="story-builder-inspector-tabs"
-        role="tablist"
-        aria-label={$t('storyBuilder.cameraTimeline.inspectorMode')}
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={inspectorMode === 'keyframe'}
-          disabled={motionPointCount === 0}
-          on:click={() => (inspectorMode = 'keyframe')}
-        >
-          {$t('storyBuilder.cameraTimeline.keyframe')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={inspectorMode === 'chapter'}
-          on:click={() => (inspectorMode = 'chapter')}
-        >
-          {$t('storyBuilder.cameraTimeline.chapter')}
-        </button>
-      </div>
-      {#if inspectorMode === 'keyframe' && motionPointCount > 0}
-        <StoryKeyframeInspector
-          {story}
-          {selectedChapterId}
-          selectedPointId={selectedMotionPointId}
-          {language}
-          onGoToPoint={onGoToMotionPoint}
-          onUpdatePointFromView={onUpdateMotionPointFromViewport}
-          onDeletePoint={onDeleteMotionPoint}
-        />
-      {:else}
         <StoryChapterOverlay
         {story}
         open={chapterOpen}
@@ -535,6 +340,12 @@
         onUpdateAdvanceMode={(chapterId, mode) => onUpdateAdvanceMode(mode)}
         onUpdateDelay={(chapterId, delayMs) => onUpdateDelay(delayMs)}
         onSetChapterPosition={(chapterId, viewBox) => onSetChapterPosition(viewBox)}
+        {selectedAnnotationId}
+        {onEditAnnotation}
+        {onFinishAnnotationEdit}
+        {onDeleteAnnotation}
+        {onSetAnnotationLabel}
+        {onSetAnnotationStyle}
         {storyPreviewing}
         onPreviewChapter={(chapterId) => onPreviewChapter(chapterId)}
         {onStopChapterPreview}
@@ -547,7 +358,6 @@
         {onUpdateLayerOpacity}
         {onChapterTaskChange}
       />
-      {/if}
     {:else}
       <div class="story-builder-inspector-empty">
         <strong>{$t('storyBuilder.overlay.noChapter')}</strong>
@@ -572,33 +382,6 @@
         editable={$activeChapterTask === 'focus'}
         onEditText={(lang) => onStartAnnotationPositioning(lang)}
       />
-    {/if}
-
-    {#if chapterId && $activeChapterTask === 'motion' && (!$motionPreviewing || $motionPreviewPinsVisible) && currentMode !== 'annotationPositioning' && currentMode !== 'narrationPanel' && motionMarkers.length > 0}
-      <div class="story-builder-motion-markers" aria-label={$t('storyBuilder.motion.cameraPoints')}>
-        {#each motionMarkers as marker (marker.id)}
-          <button
-            class="story-builder-motion-marker"
-            class:story-builder-motion-marker--selected={$selectedMotionPointId === marker.id}
-            class:story-builder-motion-marker--dragging={motionDrag?.id === marker.id &&
-              motionDrag.moved}
-            type="button"
-            disabled={$motionPreviewing}
-            style={`--motion-x:${(motionDrag?.id === marker.id && motionDrag.moved ? motionDrag.x : marker.x) * 100}%;--motion-y:${(motionDrag?.id === marker.id && motionDrag.moved ? motionDrag.y : marker.y) * 100}%;--motion-layer:${$selectedMotionPointId === marker.id ? 2 : 1}`}
-            aria-label={$t('storyBuilder.motion.movePointTitle', {
-              number: marker.index + 1,
-              seconds: (marker.timeMs / 1000).toFixed(1),
-            })}
-            aria-pressed={$selectedMotionPointId === marker.id}
-            on:pointerdown={(event) => handleMotionPointerDown(event, marker)}
-            on:click={(event) => handleMotionClick(event, marker.id)}
-          >
-            <span class="story-builder-motion-marker__pin" aria-hidden="true">
-              <span class="story-builder-motion-marker__number">{marker.index + 1}</span>
-            </span>
-          </button>
-        {/each}
-      </div>
     {/if}
 
     {#if narrationOpen}
@@ -671,116 +454,11 @@
   }
 
   .story-builder-inspector-root {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
     height: 100%;
     min-height: 0;
     overflow: hidden;
     background: var(--viewer-panel, #121922);
     color: var(--viewer-text, #e8edf4);
-  }
-
-  .story-builder-inspector-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    margin: 12px 12px 0;
-    padding: 3px;
-    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.12));
-    border-radius: 11px;
-    background: var(--viewer-well-bg, rgba(0, 0, 0, 0.2));
-  }
-
-  .story-builder-inspector-tabs button {
-    min-height: 36px;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--viewer-muted, #9aa6b2);
-    font: inherit;
-    font-size: 11px;
-    font-weight: 750;
-    cursor: pointer;
-  }
-
-  .story-builder-inspector-tabs button[aria-selected='true'] {
-    border-color: color-mix(in srgb, var(--story-builder-accent, #2ed9e8) 45%, transparent);
-    background: color-mix(in srgb, var(--story-builder-accent, #2ed9e8) 14%, transparent);
-    color: var(--story-builder-accent, #2ed9e8);
-  }
-
-  .story-builder-inspector-tabs button:disabled {
-    cursor: default;
-    opacity: 0.4;
-  }
-
-  .story-builder-motion-markers {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 45;
-  }
-
-  .story-builder-motion-marker {
-    position: absolute;
-    left: var(--motion-x);
-    top: var(--motion-y);
-    z-index: var(--motion-layer);
-    width: 56px;
-    height: 60px;
-    display: grid;
-    place-items: center;
-    transform: translate(-50%, -73.333%);
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    color: white;
-    filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.72));
-    font-size: 11px;
-    font-weight: 800;
-    cursor: grab;
-    pointer-events: auto;
-    touch-action: none;
-  }
-
-  .story-builder-motion-marker__pin {
-    position: absolute;
-    left: 9px;
-    top: 7px;
-    width: 38px;
-    height: 38px;
-    display: grid;
-    place-items: center;
-    border: 2px solid white;
-    border-radius: 50% 50% 50% 0;
-    background: var(--accent, var(--story-builder-accent, #e07a3f));
-    box-sizing: border-box;
-    transform: rotate(-45deg);
-  }
-
-  .story-builder-motion-marker__number {
-    width: 23px;
-    height: 23px;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    background: white;
-    color: var(--accent, var(--story-builder-accent, #e07a3f));
-    font-size: 13px;
-    font-weight: 900;
-    line-height: 1;
-    transform: rotate(45deg);
-  }
-
-  .story-builder-motion-marker:hover,
-  .story-builder-motion-marker:focus-visible,
-  .story-builder-motion-marker--selected {
-    outline: 2px solid color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 45%, white);
-    outline-offset: 2px;
-  }
-
-  .story-builder-motion-marker--dragging {
-    cursor: grabbing;
   }
 
   .story-builder-inspector-empty {
@@ -848,13 +526,13 @@
   }
 
   .story-builder-positioning-button--confirm {
-    background: var(--accent, var(--story-builder-accent, #e07a3f));
+    background: var(--accent, var(--story-builder-accent, #2ac7ff));
     color: var(--viewer-text, #fffaf6);
   }
 
   .story-builder-positioning-button--confirm:hover {
     background: var(--accent-hover, #ef8f56);
-    box-shadow: 0 0 12px color-mix(in srgb, var(--story-builder-accent, #e07a3f) 40%, transparent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 40%, transparent);
   }
 
 </style>

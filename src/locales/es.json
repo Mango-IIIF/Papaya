@@ -94,11 +94,7 @@
     "tasks": {
       "title": "Herramientas del capítulo",
       "description": "Todo sobre este capítulo, en tres grupos. Las secciones que trabajan en el escenario se abren desde aquí.",
-      "languages": "{translated}/{total} idiomas",
       "status": {
-        "empty": "Sin configurar",
-        "partial": "Parcialmente configurado",
-        "complete": "Configurado",
         "attention": "Requiere atención"
       },
       "items": {
@@ -216,25 +212,21 @@
       "descriptionLabel": "Descripción"
     },
     "position": {
-      "title": "Encuadre",
-      "hint": "Desplace y amplíe la obra bajo el marco fijo de la historia. Para una edición IIIF precisa, también puede escribir aquí la región del lienzo.",
-      "empty": "Aún no hay encuadre. Escriba una región en píxeles del lienzo para crearlo.",
+      "hint": "El encuadre dibujado sobre la imagen es lo que ven los lectores. Arrástrelo allí, ajústelo desde la vista en la barra bajo la imagen, o escriba aquí una región.",
+      "empty": "Aún no hay encuadre. Desplace y amplíe, y luego ajuste el encuadre.",
       "x": "X",
       "y": "Y",
       "width": "Ancho",
       "height": "Alto",
       "goTo": "Ir al encuadre",
       "aspectLocked": "Marco de historia {aspect}. La vista previa y los lectores conservan esta forma exacta; el ancho y el alto cambian juntos.",
-      "stageLabel": "Marco de historia · {aspect}"
+      "setFromView": "Ajustar encuadre",
+      "setFromViewHint": "Usar la vista actual como encuadre de este capítulo"
     },
     "annotations": {
       "chapter": "Anotaciones del capítulo",
-      "annotationsTab": "Anotaciones",
-      "optionsTab": "Opciones",
       "drawing": "Anotaciones de dibujo",
-      "add": "Añadir anotación",
       "tools": "Herramientas de dibujo de anotaciones",
-      "drawingHint": "Elija Seleccionar / Mover para editar una anotación existente, o elija una forma para añadir otra.",
       "edit": "Editar la anotación",
       "editDrawing": "Editar la anotación de {type} {index}",
       "deleteDrawing": "Eliminar la anotación de {type} {index}",
@@ -264,21 +256,20 @@
         "identifying": "Identificación",
         "classifying": "Clasificación",
         "questioning": "Pregunta"
-      }
+      },
+      "hintSelect": "Elija una forma para dibujar, o haga clic en una anotación de la imagen para editarla.",
+      "hintDraw": "Dibuje {shape} sobre la imagen. Se abrirá en el panel Anotaciones al terminar.",
+      "hintEditing": "Arrastre la anotación para moverla o cambiar su tamaño. Su texto y color están en el panel Anotaciones."
     },
     "motion": {
       "title": "Moverse por este capítulo",
       "requireTwo": "Elija un estilo de movimiento o añada dos puntos de cámara para habilitar los controles de movimiento.",
       "requireOneMore": "Añada un punto de cámara más para previsualizar y configurar este movimiento.",
       "durationError": "La duración del movimiento debe ser mayor que 0 segundos.",
-      "durationDwellError": "La duración debe dejar tiempo para el movimiento tras la pausa inicial de {seconds} s.",
-      "dwellError": "La pausa inicial debe ser más corta que el tiempo hasta el siguiente punto de cámara.",
       "customHint": "El modo personalizado conserva el encuadre de cada punto tal como lo dibujó. La previsualización empieza en el punto 1.",
       "presetHint": "Los puntos fijan el enfoque; el estilo de movimiento controla el zoom. Cambiar el tamaño de un punto pasa a Personalizado. La previsualización empieza en el punto 1.",
       "preview": "Previsualizar",
       "stopPreview": "Detener previsualización",
-      "showPreviewPins": "Mostrar pines",
-      "hidePreviewPins": "Ocultar pines",
       "style": "Estilo de movimiento",
       "presets": "Ajustes de movimiento",
       "preset": {
@@ -305,53 +296,23 @@
       "duration": "Duración del movimiento del capítulo",
       "durationHint": "Las posiciones se distribuyen durante este tiempo de movimiento. La pausa inicial se añade antes.",
       "durationSeconds": "Duración (segundos)",
-      "zoomValue": "Zoom {zoom}×",
-      "timeline": "Línea de tiempo del movimiento del capítulo",
-      "pinsTab": "Pines",
-      "optionsTab": "Opciones",
-      "fineTuning": "Ajustes avanzados",
-      "goToPoint": "Ir al punto de cámara {number}",
-      "movePointTitle": "Punto {number} a los {seconds} s. Haz clic para seleccionarlo; arrastra para cambiar su posición.",
-      "point": "Punto {number}",
-      "deletePoint": "Eliminar el punto de cámara",
-      "deletePointNumber": "Eliminar el punto de cámara {number}",
-      "emptyPoints": "Aún no hay puntos de cámara. Añada uno para guardar la posición y el zoom actuales.",
-      "addPoint": "Añadir punto de cámara",
-      "updatePoint": "Actualizar pin desde la vista actual",
-      "captureGuideTitle": "Configure la posición y el zoom por separado",
-      "captureGuideHint": "Arrastre un pin para fijar su posición. Después amplíe la imagen y guarde ese zoom en el punto seleccionado; el pin permanecerá en su lugar.",
-      "saveZoom": "Guardar zoom actual",
-      "saveZoomForPoint": "Guardar zoom actual en el punto {number}",
-      "selectPointToUpdate": "Seleccione un pin antes de guardar su zoom."
+      "fineTuning": "Ajustes avanzados"
     },
     "cameraTimeline": {
       "title": "Línea de tiempo de cámara",
-      "info": "Los fotogramas clave conservan una vista y un punto focal en coordenadas del lienzo.",
-      "showNarration": "Mostrar narración",
       "capture": "Capturar fotograma clave",
       "keyframes": "Fotogramas clave ({count})",
-      "empty": "Capture la vista actual para iniciar la pista de cámara",
+      "empty": "Sin movimiento de cámara. Desplace y amplíe, y luego capture fotogramas clave para añadirlo.",
       "goTo": "Ir al fotograma clave {number} en {time}",
       "select": "Seleccionar fotograma clave {number}",
-      "inspectorMode": "Modo del inspector",
-      "keyframe": "Fotograma clave",
-      "chapter": "Capítulo",
-      "keyframeNumber": "Fotograma clave {number}",
-      "navigation": "Navegación de fotogramas clave",
-      "previous": "Fotograma clave anterior",
-      "next": "Fotograma clave siguiente",
-      "savedPreview": "Vista previa guardada del fotograma clave",
-      "savedView": "Vista guardada",
-      "details": "Detalles",
-      "time": "Tiempo",
-      "durationNext": "Duración (hasta el siguiente)",
-      "cameraView": "Vista de cámara",
-      "cameraViewMode": "Modo de vista de cámara",
-      "frame": "Encuadre",
-      "panZoom": "Desplazar y ampliar",
-      "updateFromView": "Actualizar desde la vista actual",
-      "narrationFallback": "Añada narración desde las herramientas de tiempo del capítulo.",
-      "delete": "Eliminar fotograma clave"
+      "updateFromView": "Actualizar desde la vista",
+      "narrationLength": "Narración {time}",
+      "matchNarration": "Igualar a la narración",
+      "options": "Opciones de movimiento",
+      "captureHint": "Añadir la vista actual como fotograma clave",
+      "updateFromViewHint": "Sustituir este fotograma clave por la vista actual",
+      "deleteNumber": "Eliminar fotograma clave {number}",
+      "needSecond": "Mueva la vista y capture un segundo fotograma clave para crear movimiento."
     },
     "settings": {
       "title": "Ajustes de la historia",
@@ -423,29 +384,20 @@
     "frame": {
       "label": "Encuadre del capítulo",
       "chapterAria": "Encuadre del capítulo",
-      "keyframeAria": "Encuadre del punto de cámara {number}",
-      "keyframeTag": "Punto {number}"
+      "keyframeAria": "Encuadre del fotograma clave {number}",
+      "keyframeTag": "Fotograma clave {number}"
     },
     "inspector": {
-      "groupsLabel": "Inspector del capítulo",
-      "groups": {
-        "about": "Acerca de",
-        "timing": "Tiempos",
-        "source": "Fuente"
-      },
       "edit": "Editar",
-      "draw": "Dibujar",
       "open": "Abrir",
       "done": "Hecho",
-      "onStage": "En el escenario",
       "annotationsSummary": "{count} anotaciones. Use el espacio de trabajo del escenario para añadirlas, seleccionarlas y editarlas.",
-      "motionNone": "Sin movimiento de cámara. Edite para añadir puntos de cámara en el escenario.",
-      "motionSummary": "{count} puntos de cámara · {style} · {seconds}s",
       "narrationNone": "Sin segmento de narración para {language}.",
       "narrationSummary": "{language}: {start}–{end}",
       "mediaSummary": "Reproduce {start}–{end} de la fuente.",
       "mediaWhole": "Reproduce la fuente completa.",
-      "adjust": "Ajustar"
+      "more": "Más",
+      "moreHint": "Región del encuadre, transición, fuente, capas"
     }
   },
   "viewer": {

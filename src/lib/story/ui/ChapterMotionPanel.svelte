@@ -267,10 +267,10 @@
   }
   .motion-panel__feedback {
     margin: 0;
-    border: 1px solid color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 38%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 38%, transparent);
     border-radius: 9px;
     padding: 8px 10px;
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 9%, transparent);
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 9%, transparent);
     color: var(--viewer-muted, #9aa6b2);
     font-size: 11px;
     line-height: 1.45;
@@ -341,8 +341,8 @@
     cursor: not-allowed;
   }
   .motion-panel__presets .motion-panel__preset--active {
-    border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 12%, transparent);
+    border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 12%, transparent);
     color: var(--viewer-text, #e8edf4);
   }
   .motion-panel__heading {
@@ -367,8 +367,8 @@
     display: grid;
     place-items: center;
     border-radius: 9px;
-    color: var(--accent, var(--story-builder-accent, #e07a3f));
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 14%, transparent);
+    color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 14%, transparent);
   }
   .motion-panel input {
     min-width: 0;

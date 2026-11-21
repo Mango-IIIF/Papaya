@@ -135,7 +135,7 @@
 
 <style>
   .mango-about-backdrop {
-    --mango-about-accent: var(--story-builder-accent, #e07a3f);
+    --mango-about-accent: var(--story-builder-accent, #2ac7ff);
     --mango-about-accent-hover: var(--story-builder-accent-hover, #e8864b);
     --mango-about-surface: var(--viewer-panel, #18202c);
     --mango-about-text: var(--viewer-text, #e8edf4);
@@ -172,7 +172,7 @@
     border-radius: 16px;
     padding: 28px;
     color: var(--mango-about-text);
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px color-mix(in srgb, var(--story-builder-accent, #e07a3f) 15%, transparent);
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 15%, transparent);
     animation: mangoAboutScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
@@ -211,8 +211,8 @@
     width: 64px;
     height: 64px;
     border-radius: 18px;
-    background: color-mix(in srgb, var(--story-builder-accent, #e07a3f) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--story-builder-accent, #e07a3f) 25%, transparent);
+    background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 25%, transparent);
     margin-bottom: 12px;
   }
 

@@ -631,7 +631,7 @@
     left: 10px;
     right: 10px;
     height: 2px;
-    background: var(--accent, var(--story-builder-accent, #e07a3f));
+    background: var(--accent, var(--story-builder-accent, #2ac7ff));
   }
 
   .story-sidebar__row--drop-before::before {

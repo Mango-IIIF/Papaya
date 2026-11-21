@@ -59,10 +59,10 @@
   }
 
   .annotation-language-tabs__active {
-    border-color: var(--viewer-accent-2, var(--story-builder-accent, #e07a3f));
+    border-color: var(--viewer-accent-2, var(--story-builder-accent, #2ac7ff));
     background: color-mix(
       in srgb,
-      var(--viewer-accent-2, var(--story-builder-accent, #e07a3f)) 16%,
+      var(--viewer-accent-2, var(--story-builder-accent, #2ac7ff)) 16%,
       transparent
     );
     color: var(--viewer-text, #fff);

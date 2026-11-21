@@ -27,7 +27,9 @@
 
   let root: HTMLDivElement | null = null;
   let viewerRoot: HTMLElement | null = null;
-  $: previewActive = $isPreviewing || $motionPreviewing;
+  /* Only the story preview takes over the window. Camera motion plays in
+     place from the timeline, whose play button and playhead stay on screen. */
+  $: previewActive = $isPreviewing;
 
   $: if (root) {
     viewerRoot = root.closest('.viewer');
@@ -54,9 +56,14 @@
     $t('storyBuilder.settings.untitled');
 
   const handlePreview = () => {
+    if ($isPreviewing) {
+      onStopPreview?.();
+      return;
+    }
+    // Camera motion may be playing in place on the timeline; the story
+    // preview takes over from it rather than merely stopping it.
     if ($motionPreviewing) onStopMotionPreview?.();
-    else if ($isPreviewing) onStopPreview?.();
-    else onPreview?.();
+    onPreview?.();
   };
 </script>
 
@@ -236,8 +243,8 @@
 
   .story-topbar__button--primary {
     border-color: transparent !important;
-    background: var(--accent, var(--story-builder-accent, #e07a3f)) !important;
-    color: #fff !important;
+    background: var(--accent, var(--story-builder-accent, #2ac7ff)) !important;
+    color: var(--story-builder-on-accent, #06141d) !important;
   }
 
   @container mango-viewer (max-width: 860px) {

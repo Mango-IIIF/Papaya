@@ -2,13 +2,14 @@
   import { t } from '../../core/i18n';
 
   /*
-   * The numbers beside the frame.
+   * The frame as numbers.
    *
-   * The frame itself lives on the canvas, where it is moved and resized by
-   * hand; this is its readout, kept editable because a region typed straight
-   * from a IIIF recipe is a real way to author a chapter. What is typed is
-   * what is kept: a width or height pulls the other dimension along at the
-   * story's aspect, and nothing is re-normalised afterwards.
+   * The frame itself is drawn on the image, where it is dragged, and is set
+   * from the current view in the bar under the image. This is its readout,
+   * kept editable because a region typed straight from a IIIF recipe is a
+   * real way to author a chapter. What is typed is what is kept: a width or
+   * height pulls the other dimension along at the story's aspect, and nothing
+   * is re-normalised afterwards.
    */
 
   export let hasSavedPosition = false;
@@ -118,7 +119,7 @@
 
   .chapter-position__aspect {
     margin: 10px 0 0;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.45;
     color: var(--viewer-muted, #9aa6b2);
   }
@@ -127,10 +128,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 12px;
   }
 
-  .chapter-position__actions .chapter-overlay__button {
-    flex: 1 1 auto;
-  }
 </style>

@@ -84,7 +84,7 @@ describe('StoryBuilderTopBar', () => {
     target.remove();
   });
 
-  it('uses the clean preview shell and exit action during a motion preview', async () => {
+  it('leaves the editor in place while camera motion plays on the timeline', async () => {
     const viewerRoot = document.createElement('div');
     viewerRoot.className = 'viewer';
     const target = document.createElement('div');
@@ -92,6 +92,7 @@ describe('StoryBuilderTopBar', () => {
     document.body.appendChild(viewerRoot);
     const motionPreviewing = writable(true);
     const onStopMotionPreview = vi.fn();
+    const onPreview = vi.fn();
     const instance = mount(StoryBuilderTopBar, {
       target,
       props: {
@@ -112,20 +113,20 @@ describe('StoryBuilderTopBar', () => {
         canUndo: writable(false),
         canRedo: writable(false),
         onStopMotionPreview,
+        onPreview,
       },
     });
     await tick();
 
-    expect(viewerRoot.classList.contains('viewer--story-preview')).toBe(true);
-    const exit = [...target.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('Exit preview'),
-    );
-    exit?.click();
-    expect(onStopMotionPreview).toHaveBeenCalledOnce();
-
-    motionPreviewing.set(false);
-    await tick();
+    // Motion preview is not the story preview: no clean shell, no Exit.
     expect(viewerRoot.classList.contains('viewer--story-preview')).toBe(false);
+    const buttons = [...target.querySelectorAll('button')];
+    expect(buttons.some((button) => button.textContent?.includes('Exit preview'))).toBe(false);
+
+    // Asking for the story preview takes over from the motion that is playing.
+    buttons.find((button) => button.textContent?.includes('Preview story'))?.click();
+    expect(onStopMotionPreview).toHaveBeenCalledOnce();
+    expect(onPreview).toHaveBeenCalledOnce();
     unmount(instance);
     viewerRoot.remove();
   });

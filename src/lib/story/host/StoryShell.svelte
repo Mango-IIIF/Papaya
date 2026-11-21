@@ -262,9 +262,12 @@
     --viewer-danger: #ffb8b8;
     --viewer-success: #72cea4;
     --viewer-warning: #e8b85f;
+    /* The family accent: Mango's `--viewer-accent-2` and Lychee's editor
+       accent on the dark theme. `--story-builder-on-accent` is the label
+       colour that reads on a solid fill of it; every theme states the pair. */
     --story-builder-accent: #2ac7ff;
     --story-builder-accent-hover: #5bd5ff;
-    --story-timeline-accent: #9a57ff;
+    --story-builder-on-accent: #06141d;
     /*
        * Sunken surfaces — inputs, scrub tracks, timeline wells. These sit *below*
        * their panel, so they cannot be mixed from `--viewer-text` the way raised
@@ -510,6 +513,7 @@
     --viewer-warning: #8a5a00;
     --story-builder-accent: #b4551f;
     --story-builder-accent-hover: #93430f;
+    --story-builder-on-accent: #ffffff;
     --viewer-well-bg: rgba(34, 48, 65, 0.07);
     --viewer-focus-ring: #0b6fa4;
     border-color: #dbe2eb;
@@ -594,6 +598,7 @@
     --viewer-warning: #7a5410;
     --story-builder-accent: #a8562a;
     --story-builder-accent-hover: #8a4319;
+    --story-builder-on-accent: #ffffff;
     --viewer-well-bg: rgba(76, 58, 35, 0.09);
     --viewer-focus-ring: #1b6b70;
     border-color: #d8c7aa;
@@ -649,6 +654,7 @@
        */
     --story-builder-accent: #c2410c;
     --story-builder-accent-hover: #d4550f;
+    --story-builder-on-accent: #ffffff;
     --viewer-well-bg: rgba(3, 8, 16, 0.45);
     border-color: #142b46;
     box-shadow: var(--viewer-frame-shadow, none);
@@ -756,6 +762,7 @@
     --viewer-warning: #7a4b00;
     --story-builder-accent: #9c2b22;
     --story-builder-accent-hover: #8c1f1a;
+    --story-builder-on-accent: #ffffff;
     --viewer-well-bg: rgba(74, 48, 0, 0.1);
     --viewer-focus-ring: #0056a3;
     border-color: #e0a800;

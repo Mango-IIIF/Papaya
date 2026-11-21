@@ -94,11 +94,7 @@
     "tasks": {
       "title": "Outils du chapitre",
       "description": "Tout sur ce chapitre, en trois groupes. Les sections qui travaillent sur la scène s’ouvrent d’ici.",
-      "languages": "{translated}/{total} langues",
       "status": {
-        "empty": "Non configuré",
-        "partial": "Partiellement configuré",
-        "complete": "Configuré",
         "attention": "Nécessite une attention"
       },
       "items": {
@@ -216,25 +212,21 @@
       "descriptionLabel": "Description"
     },
     "position": {
-      "title": "Cadre",
-      "hint": "Déplacez et zoomez l’œuvre sous le cadre fixe du récit. Pour une édition IIIF précise, vous pouvez aussi saisir ici la région du canevas.",
-      "empty": "Aucun cadre pour l’instant. Saisissez une région en pixels du canevas pour en créer un.",
+      "hint": "Le cadre dessiné sur l’image est ce que voient les lecteurs. Faites-le glisser, réglez-le depuis la vue dans la barre sous l’image, ou saisissez une région ici.",
+      "empty": "Aucun cadre pour l’instant. Déplacez et zoomez, puis réglez le cadre.",
       "x": "X",
       "y": "Y",
       "width": "Largeur",
       "height": "Hauteur",
       "goTo": "Aller au cadre",
       "aspectLocked": "Cadre du récit {aspect}. L’aperçu et les lecteurs conservent exactement cette forme ; la largeur et la hauteur changent ensemble.",
-      "stageLabel": "Cadre du récit · {aspect}"
+      "setFromView": "Régler le cadre",
+      "setFromViewHint": "Utiliser la vue actuelle comme cadre de ce chapitre"
     },
     "annotations": {
       "chapter": "Annotations du chapitre",
-      "annotationsTab": "Annotations",
-      "optionsTab": "Options",
       "drawing": "Annotations dessinées",
-      "add": "Ajouter une annotation",
       "tools": "Outils de dessin d'annotations",
-      "drawingHint": "Choisissez Sélectionner / Déplacer pour modifier une annotation existante, ou choisissez une forme pour en ajouter une.",
       "edit": "Modifier l'annotation",
       "editDrawing": "Modifier l'annotation {type} {index}",
       "deleteDrawing": "Supprimer l'annotation {type} {index}",
@@ -264,21 +256,20 @@
         "identifying": "Identification",
         "classifying": "Classification",
         "questioning": "Question"
-      }
+      },
+      "hintSelect": "Choisissez une forme à dessiner, ou cliquez sur une annotation de l’image pour la modifier.",
+      "hintDraw": "Dessinez la forme ({shape}) sur l’image. Elle s’ouvre dans le panneau Annotations une fois terminée.",
+      "hintEditing": "Faites glisser l’annotation pour la déplacer ou la redimensionner. Son texte et sa couleur sont dans le panneau Annotations."
     },
     "motion": {
       "title": "Se déplacer dans ce chapitre",
       "requireTwo": "Choisissez un style de mouvement ou ajoutez deux points de caméra pour activer les commandes de mouvement.",
       "requireOneMore": "Ajoutez un point de caméra supplémentaire pour prévisualiser et configurer ce mouvement.",
       "durationError": "La durée du mouvement doit être supérieure à 0 seconde.",
-      "durationDwellError": "La durée doit laisser le temps de se déplacer après la pause initiale de {seconds} s.",
-      "dwellError": "La pause initiale doit être plus courte que le temps jusqu'au point de caméra suivant.",
       "customHint": "Le mode personnalisé conserve le cadre de chaque point tel que vous l’avez dessiné. La prévisualisation démarre au point 1.",
       "presetHint": "Les points définissent le cadrage ; le style de mouvement contrôle le zoom. Redimensionner un point passe en Personnalisé. La prévisualisation démarre au point 1.",
       "preview": "Prévisualiser",
       "stopPreview": "Arrêter l’aperçu",
-      "showPreviewPins": "Afficher les repères",
-      "hidePreviewPins": "Masquer les repères",
       "style": "Style de mouvement",
       "presets": "Préréglages de mouvement",
       "preset": {
@@ -305,53 +296,23 @@
       "duration": "Durée du mouvement du chapitre",
       "durationHint": "Les positions sont réparties sur ce temps de mouvement. La pause initiale est ajoutée avant.",
       "durationSeconds": "Durée (secondes)",
-      "zoomValue": "Zoom {zoom}×",
-      "timeline": "Chronologie du mouvement du chapitre",
-      "pinsTab": "Repères",
-      "optionsTab": "Options",
-      "fineTuning": "Réglages avancés",
-      "goToPoint": "Aller au point de caméra {number}",
-      "movePointTitle": "Point {number} à {seconds} s. Cliquez pour le sélectionner ; faites glisser pour le repositionner.",
-      "point": "Point {number}",
-      "deletePoint": "Supprimer le point de caméra",
-      "deletePointNumber": "Supprimer le point de caméra {number}",
-      "emptyPoints": "Aucun point de caméra. Ajoutez-en un pour enregistrer la position et le zoom actuels.",
-      "addPoint": "Ajouter un point de caméra",
-      "updatePoint": "Actualiser le repère depuis la vue actuelle",
-      "captureGuideTitle": "Réglez séparément la position et le zoom",
-      "captureGuideHint": "Faites glisser un repère pour définir sa position. Zoomez ensuite sur l’image et enregistrez ce zoom pour le point sélectionné ; le repère restera en place.",
-      "saveZoom": "Enregistrer le zoom actuel",
-      "saveZoomForPoint": "Enregistrer le zoom actuel pour le point {number}",
-      "selectPointToUpdate": "Sélectionnez un repère avant d’enregistrer son zoom."
+      "fineTuning": "Réglages avancés"
     },
     "cameraTimeline": {
       "title": "Chronologie de la caméra",
-      "info": "Les images clés conservent une vue et un point focal dans les coordonnées du canevas.",
-      "showNarration": "Afficher la narration",
       "capture": "Capturer une image clé",
       "keyframes": "Images clés ({count})",
-      "empty": "Capturez la vue actuelle pour démarrer la piste caméra",
+      "empty": "Aucun mouvement de caméra. Déplacez et zoomez, puis capturez des images clés pour en ajouter.",
       "goTo": "Aller à l’image clé {number} à {time}",
       "select": "Sélectionner l’image clé {number}",
-      "inspectorMode": "Mode de l’inspecteur",
-      "keyframe": "Image clé",
-      "chapter": "Chapitre",
-      "keyframeNumber": "Image clé {number}",
-      "navigation": "Navigation des images clés",
-      "previous": "Image clé précédente",
-      "next": "Image clé suivante",
-      "savedPreview": "Aperçu de la vue enregistrée de l’image clé",
-      "savedView": "Vue enregistrée",
-      "details": "Détails",
-      "time": "Temps",
-      "durationNext": "Durée (jusqu’à la suivante)",
-      "cameraView": "Vue caméra",
-      "cameraViewMode": "Mode de vue caméra",
-      "frame": "Cadre",
-      "panZoom": "Panoramique et zoom",
-      "updateFromView": "Actualiser depuis la vue actuelle",
-      "narrationFallback": "Ajoutez la narration avec les outils de minutage du chapitre.",
-      "delete": "Supprimer l’image clé"
+      "updateFromView": "Actualiser depuis la vue",
+      "narrationLength": "Narration {time}",
+      "matchNarration": "Aligner sur la narration",
+      "options": "Options de mouvement",
+      "captureHint": "Ajouter la vue actuelle comme image clé",
+      "updateFromViewHint": "Remplacer cette image clé par la vue actuelle",
+      "deleteNumber": "Supprimer l’image clé {number}",
+      "needSecond": "Déplacez la vue et capturez une deuxième image clé pour créer un mouvement."
     },
     "settings": {
       "title": "Paramètres de l'histoire",
@@ -423,29 +384,20 @@
     "frame": {
       "label": "Cadre du chapitre",
       "chapterAria": "Cadre du chapitre",
-      "keyframeAria": "Cadre du point de caméra {number}",
-      "keyframeTag": "Point {number}"
+      "keyframeAria": "Cadre de l’image clé {number}",
+      "keyframeTag": "Image clé {number}"
     },
     "inspector": {
-      "groupsLabel": "Inspecteur du chapitre",
-      "groups": {
-        "about": "À propos",
-        "timing": "Durées",
-        "source": "Source"
-      },
       "edit": "Modifier",
-      "draw": "Dessiner",
       "open": "Ouvrir",
       "done": "Terminé",
-      "onStage": "Sur la scène",
       "annotationsSummary": "{count} annotations. Utilisez l’espace de travail de la scène pour les ajouter, les sélectionner et les modifier.",
-      "motionNone": "Aucun mouvement de caméra. Modifiez pour ajouter des points de caméra sur la scène.",
-      "motionSummary": "{count} points de caméra · {style} · {seconds}s",
       "narrationNone": "Aucun segment de narration pour {language}.",
       "narrationSummary": "{language} : {start}–{end}",
       "mediaSummary": "Lit {start}–{end} de la source.",
       "mediaWhole": "Lit la source entière.",
-      "adjust": "Ajuster"
+      "more": "Plus",
+      "moreHint": "Région du cadre, transition, source, calques"
     }
   },
   "viewer": {

@@ -7,10 +7,12 @@ import type { ChapterTaskId } from "../../chapterTasks";
 import type { StoryState } from "../../../core/types/story";
 
 /*
- * The inspector is one surface in three groups. There is no dashboard to
- * drill into and nothing to come back from: every section about the selected
- * chapter is stacked under About, Timing or Source, and the sections that
- * work on the stage open their tool in place.
+ * The inspector is one form: the chapter's words. There are no tabs, no
+ * status chips and nothing folds away — its title and description, its
+ * annotations and its narration are stacked in the order an author writes
+ * them, what is set rarely sits behind More, and the sections that need the
+ * stage to themselves open their tool in place. What acts on the image — the
+ * frame and camera motion — is set from the bar under the image, not here.
  */
 const mountInspector = (
   props: Record<string, unknown> = {},
@@ -44,58 +46,75 @@ const mountInspector = (
     unmount(instance);
     target.remove();
   };
-  const group = (name: string) =>
-    target.querySelector(`[data-testid="inspector-group-${name}"]`) as HTMLButtonElement;
+  const more = () =>
+    target.querySelector('[data-testid="inspector-more"]') as HTMLButtonElement | null;
+  const moreBody = () =>
+    target.querySelector("#chapter-inspector-more") as HTMLElement | null;
   const section = (id: string) =>
     target.querySelector(`[data-testid="inspector-section-${id}"]`) as HTMLElement | null;
-  return { target, story, group, section, cleanup };
+  return { target, story, more, moreBody, section, cleanup };
 };
 
 describe("Chapter inspector", () => {
-  it("stacks the chapter's sections under three groups with no back button", async () => {
-    const { target, group, section, cleanup } = mountInspector();
+  it("stacks the everyday sections in one form and keeps the rest behind More", async () => {
+    const { target, more, moreBody, section, cleanup } = mountInspector();
 
-    // About is open by default and holds details, the frame and annotations.
-    expect(group("about").getAttribute("aria-selected")).toBe("true");
+    // Everything an author does to every chapter is on screen at once.
+    expect(target.querySelector('[data-testid^="inspector-group-"]')).toBeNull();
     expect(section("details")?.textContent).toContain("Details");
-    expect(section("details")?.textContent).toContain("0/2 languages");
-    expect(section("position")?.textContent).toContain("Frame");
     expect(section("focus")?.textContent).toContain("Annotations");
-    expect(section("transition-timing")).toBeNull();
+    expect(section("audio-timing")?.textContent).toContain("Narration");
+    // A form, not a checklist: no status chips, and nothing to fold away.
+    expect(target.textContent).not.toContain("Not configured");
+    expect(target.textContent).not.toContain("Configured");
+    expect(target.textContent).not.toContain("languages");
+    expect(target.querySelector('[data-testid^="inspector-toggle-"]')).toBeNull();
+    expect(target.querySelector('[data-testid^="inspector-attention-"]')).toBeNull();
     expect(target.querySelector('[data-testid="chapter-title"]')).toBeTruthy();
     expect(target.textContent).not.toContain("Back to chapter tools");
-
-    group("timing").click();
-    await tick();
-    expect(section("details")).toBeNull();
-    expect(section("transition-timing")?.textContent).toContain("Chapter transition time");
-    expect(section("audio-timing")?.textContent).toContain("Narration");
-    expect(section("audio-timing")?.textContent).toContain("Not configured");
-    expect(section("motion")?.textContent).toContain("Motion");
     // An image chapter has no source media to time.
     expect(section("media-timing")).toBeNull();
+    // Motion is authored on the timeline, not in a section here.
+    expect(section("motion")).toBeNull();
 
-    group("source").click();
+    // In document order: name it, annotate it, narrate it.
+    const order = [...target.querySelectorAll("[data-task-id]")].map((node) =>
+      node.getAttribute("data-task-id"),
+    );
+    expect(order.slice(0, 3)).toEqual(["details", "focus", "audio-timing"]);
+
+    // The rarely-set sections exist but stay out of the way until asked for.
+    expect(more()?.getAttribute("aria-expanded")).toBe("false");
+    expect(moreBody()?.hidden).toBe(true);
+    more()!.click();
     await tick();
+    expect(more()?.getAttribute("aria-expanded")).toBe("true");
+    expect(moreBody()?.hidden).toBe(false);
+    expect(section("transition-timing")?.textContent).toContain("Chapter transition time");
     expect(section("source")?.textContent).toContain("Source");
     expect(target.querySelector('[data-testid="chapter-manifest"]')).toBeTruthy();
     expect(section("layers")?.textContent).toContain("Layers");
     expect(section("comparison")).toBeNull();
+    expect(moreBody()?.contains(section("source"))).toBe(true);
+    // The frame as typed numbers is here too; setting it from the view is
+    // in the bar under the image.
+    expect(moreBody()?.contains(section("position"))).toBe(true);
+    expect(section("position")?.textContent).toContain("Frame");
 
     cleanup();
   });
 
-  it("opens a stage tool in place and follows an open tool into its group", async () => {
+  it("opens a stage tool in place and follows an open tool to its section", async () => {
     const activeChapterTask = writable<ChapterTaskId | null>(null);
     const onChapterTaskChange = vi.fn((task: ChapterTaskId | null) =>
       activeChapterTask.set(task),
     );
-    const { group, section, cleanup } = mountInspector({
+    const { more, section, cleanup } = mountInspector({
       activeChapterTask,
       onChapterTaskChange,
     });
 
-    // Closed: a summary and an Edit control, no tools.
+    // Closed: a summary and an Open control, no tools.
     const annotations = section("focus")!;
     expect(annotations.textContent).toContain("0 annotations");
     expect(annotations.querySelector(".chapter-overlay__annotation-tools")).toBeNull();
@@ -107,25 +126,67 @@ describe("Chapter inspector", () => {
     expect(onChapterTaskChange).toHaveBeenCalledWith("focus");
     expect(section("focus")?.classList.contains("inspector-section--active")).toBe(true);
     expect(section("focus")?.querySelector(".chapter-overlay__annotation-tools")).toBeNull();
-    expect(section("focus")?.textContent).toContain("0 annotations");
+    // Open, the section is the annotation list itself.
+    expect(section("focus")?.querySelector(".story-wide-annotations")).toBeTruthy();
+    expect(section("focus")?.textContent).toContain("No annotations in this chapter");
     expect(section("focus")?.textContent).toContain("Done");
     // Annotation editing becomes a focused inspector instead of squeezing its
     // properties beneath unrelated chapter sections.
     expect(section("details")).toBeNull();
-    expect(group("about")).toBeNull();
+    expect(section("audio-timing")).toBeNull();
+    expect(more()).toBeNull();
 
-    // A tool opened from elsewhere — the annotation list, a keyboard shortcut —
-    // pulls the inspector to its group.
-    activeChapterTask.set("motion");
+    // A tool opened from elsewhere is shown as open in its own section.
+    activeChapterTask.set("audio-timing");
     await tick();
-    expect(group("timing").getAttribute("aria-selected")).toBe("true");
-    expect(section("motion")?.classList.contains("inspector-section--active")).toBe(true);
-    expect(section("motion")?.textContent).toContain("Done");
+    expect(section("details")).not.toBeNull();
+    expect(section("audio-timing")?.classList.contains("inspector-section--active")).toBe(true);
+    expect(section("audio-timing")?.textContent).toContain("Done");
 
     activeChapterTask.set(null);
     await tick();
-    expect(section("motion")?.classList.contains("inspector-section--active")).toBe(false);
-    expect(section("motion")?.textContent).toContain("No camera movement");
+    expect(section("audio-timing")?.classList.contains("inspector-section--active")).toBe(false);
+
+    // A task that lives behind More opens it.
+    expect(more()?.getAttribute("aria-expanded")).toBe("false");
+    activeChapterTask.set("source");
+    await tick();
+    expect(more()?.getAttribute("aria-expanded")).toBe("true");
+
+    cleanup();
+  });
+
+  it("keeps the frame out of the form: only its numbers, behind More", async () => {
+    const { target, moreBody, section, cleanup } = mountInspector({
+      mediaType: writable("image"),
+    });
+    await tick();
+
+    const frame = section("position")!;
+    expect(moreBody()?.contains(frame)).toBe(true);
+    // No Adjust, no Done, no capture: the frame is not a tool that opens here.
+    expect(frame.querySelector('[data-testid="inspector-activate-position"]')).toBeNull();
+    expect(frame.querySelector('[data-testid="inspector-done-position"]')).toBeNull();
+    expect(target.querySelector('[data-testid="chapter-position-from-view"]')).toBeNull();
+    expect(frame.querySelectorAll('input[type="number"]')).toHaveLength(4);
+    expect(frame.querySelector('[data-testid="chapter-position-goto"]')).toBeTruthy();
+
+    cleanup();
+  });
+
+  it("says nothing about a section unless it needs attention, and then shows it", async () => {
+    const { more, moreBody, section, target, cleanup } = mountInspector({
+      validationErrors: ["Chapter 1: manifest is missing"],
+    });
+    await tick();
+
+    const marker = target.querySelectorAll('[data-testid^="inspector-attention-"]');
+    expect(marker).toHaveLength(1);
+    expect(marker[0].getAttribute("data-testid")).toBe("inspector-attention-source");
+    expect(section("source")?.textContent).toContain("Needs attention");
+    // A problem behind More is not left hidden behind it.
+    expect(more()?.getAttribute("aria-expanded")).toBe("true");
+    expect(moreBody()?.hidden).toBe(false);
 
     cleanup();
   });
@@ -163,9 +224,9 @@ describe("Chapter inspector", () => {
     cleanup();
   });
 
-  it("shows Layers guidance only when expanded and keeps Comparison hidden", async () => {
-    const { group, section, cleanup } = mountInspector();
-    group("source").click();
+  it("explains why Layers is unavailable and keeps Comparison hidden", async () => {
+    const { more, section, cleanup } = mountInspector();
+    more()!.click();
     await tick();
 
     const sections = [
@@ -179,16 +240,7 @@ describe("Chapter inspector", () => {
 
     for (const item of sections) {
       const target = section(item.id)!;
-      const toggle = target.querySelector(
-        `[data-testid="inspector-toggle-${item.id}"]`,
-      ) as HTMLButtonElement;
-
-      expect(toggle.getAttribute("aria-expanded")).toBe("false");
-      expect(target.textContent?.trim()).toBe(item.title);
-
-      toggle.click();
-      await tick();
-      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      expect(target.textContent).toContain(item.title);
       expect(target.textContent).toContain(item.reason);
       expect(target.textContent).toContain(item.action);
     }
@@ -204,7 +256,7 @@ describe("Chapter inspector", () => {
     const onClose = vi.fn();
     const { cleanup } = mountInspector({ activeChapterTask, onChapterTaskChange, onClose });
     await tick();
-    activeChapterTask.set("motion");
+    activeChapterTask.set("audio-timing");
     await tick();
     onChapterTaskChange.mockClear();
 

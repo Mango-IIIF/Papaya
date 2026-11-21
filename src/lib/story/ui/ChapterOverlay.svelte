@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import { Play, Square } from "@lucide/svelte";
-  import { readable, type Readable } from "svelte/store";
+  import { ChevronDown, Play, Square } from "@lucide/svelte";
+  import { readable, writable, type Readable } from "svelte/store";
   import {
     type AnnotationPlacement,
     type ChapterAdvance,
+    type ChapterDrawingAnnotation,
     type StoryState,
   } from "../../core/types/story";
   import type { ViewBox } from "@mango-iiif/iiif-viewer/core";
   import type { MediaType, MediaSource } from "@mango-iiif/iiif-viewer/core";
   import type { MediaMarksState } from "../mediaMarks";
-  import { animatableCameraDurationMs } from "../cameraTrack";
   import {
     coerceAnnotationPlacement,
     cloneAnnotationPlacement,
@@ -21,14 +21,13 @@
   import ChapterPositionSection from "./ChapterPositionSection.svelte";
   import ChapterCameraConfig from "./ChapterCameraConfig.svelte";
   import InspectorSection from "./InspectorSection.svelte";
+  import StoryBuilderWideAnnotations from "./StoryBuilderWideAnnotations.svelte";
+  import StoryBuilderWideAnnotationOptions from "./StoryBuilderWideAnnotationOptions.svelte";
   import {
     evaluateChapterTasks,
-    INSPECTOR_GROUPS,
-    inspectorGroupForTask,
     isStageTool,
     type ChapterTaskEvaluation,
     type ChapterTaskId,
-    type InspectorGroup,
   } from "../chapterTasks";
   import { resolvePresentationAspect } from "../framing";
   import { applyFrameField } from "../frameGeometry";
@@ -101,6 +100,24 @@
     ((chapterId: string, delayMs?: number) => void) | undefined;
   export let onSetChapterPosition:
     ((chapterId: string, viewBox: ViewBox) => void) | undefined = undefined;
+  /* Drawn annotations, edited here while the annotation tool is open. */
+  export let selectedAnnotationId: Readable<string | null> = readable(null);
+  export let onEditAnnotation: ((annotationId: string) => void) | undefined = undefined;
+  export let onFinishAnnotationEdit: (() => void) | undefined = undefined;
+  export let onDeleteAnnotation: ((annotationId: string) => void) | undefined = undefined;
+  export let onSetAnnotationLabel:
+    ((annotationId: string, language: string, value: string) => void) | undefined = undefined;
+  export let onSetAnnotationStyle:
+    | ((
+        annotationId: string,
+        style: {
+          color?: string | null;
+          strokeWidth?: "thin" | "medium" | "thick";
+          fillMode?: ChapterDrawingAnnotation["fillMode"];
+          motivation?: ChapterDrawingAnnotation["motivation"] | null;
+        },
+      ) => void)
+    | undefined = undefined;
   export let storyPreviewing: Readable<boolean> = readable(false);
   export let onPreviewChapter: ((chapterId: string) => void) | undefined =
     undefined;
@@ -111,6 +128,21 @@
   /** Re-reads the chapter from the viewer after its source or canvas changed. */
   export let onChapterTaskChange:
     ((task: ChapterTaskId | null) => void) | undefined = undefined;
+
+  /* The annotation list and options take the chapter as a store. */
+  const chapterIdStore = writable<string | null>(chapterId);
+  $: chapterIdStore.set(chapterId);
+  $: annotationSelected = Boolean(
+    $selectedAnnotationId &&
+      chapter?.drawingAnnotations?.some(
+        (annotation) => annotation.id === $selectedAnnotationId,
+      ),
+  );
+  /* A second click on the selected annotation lets go of it. */
+  const toggleAnnotation = (annotationId: string) => {
+    if ($selectedAnnotationId === annotationId) onFinishAnnotationEdit?.();
+    else onEditAnnotation?.(annotationId);
+  };
 
   let activeLanguage = language;
   let lastLanguageProp = language;
@@ -160,32 +192,24 @@
     value ? `${value.x}:${value.y}:${value.w}:${value.h}` : "";
 
   /*
-   * One inspector, three groups, no back button. Everything about the
-   * selected chapter is stacked under About, Timing and Source; the sections
-   * that work on the stage — drawing, camera points, narration, media timing
-   * — open their tool in place and the inspector follows the open tool into
-   * its group, so a tool started from elsewhere (the annotation list, say) is
-   * never out of sight.
-  */
-  let inspectorGroup: InspectorGroup = "about";
-  let collapsedSections: Partial<Record<ChapterTaskId, boolean>> = {
-    position: true,
-    "transition-timing": true,
-    layers: true,
-    comparison: true,
-  };
-
-  const selectGroup = (group: InspectorGroup) => {
-    inspectorGroup = group;
-  };
-
-  const toggleSection = (task: ChapterTaskId) => {
-    collapsedSections = {
-      ...collapsedSections,
-      [task]: !collapsedSections[task],
-    };
-  };
-
+   * One inspector, one form, no tabs. This panel is the chapter's words: its
+   * title and description, its annotations, its narration, stacked in the
+   * order an author writes them. What is set once or rarely (the transition,
+   * the source, layers, the frame as typed numbers) sits behind More. The
+   * sections that need the stage to themselves — drawing, narration, media
+   * timing — open their tool in place.
+   *
+   * What acts on the image is not here. The frame and camera motion are both
+   * set from the bar under the image, where the view being taken is.
+   */
+  const MORE_TASKS: ReadonlySet<ChapterTaskId> = new Set<ChapterTaskId>([
+    "position",
+    "transition-timing",
+    "source",
+    "layers",
+    "comparison",
+  ]);
+  let moreOpen = false;
   /*
    * Keyed for the template. A lookup function would hide the dependency on
    * `taskEvaluations` from the compiler, and a section rendered before the
@@ -200,7 +224,6 @@
 
   const activateTool = (task: ChapterTaskId) => {
     if (evaluationFor(task)?.availability.state !== "available") return;
-    collapsedSections = { ...collapsedSections, [task]: false };
     onChapterTaskChange?.(task);
   };
 
@@ -209,24 +232,15 @@
     handleSave();
   };
 
+  /* The inspector follows an open tool to its section, so a tool started
+     from elsewhere (the annotation list, say) is never out of sight. */
   let followedTask: ChapterTaskId | null = null;
   $: {
     const task = $activeChapterTask;
     if (task && task !== followedTask) {
-      const previousTask = followedTask;
       followedTask = task;
-      inspectorGroup = inspectorGroupForTask(task);
-      collapsedSections = {
-        ...collapsedSections,
-        ...(previousTask === "position" || task !== "position"
-          ? { position: true }
-          : {}),
-        [task]: false,
-      };
+      if (MORE_TASKS.has(task)) moreOpen = true;
     } else if (!task) {
-      if (followedTask === "position") {
-        collapsedSections = { ...collapsedSections, position: true };
-      }
       followedTask = null;
     }
   }
@@ -234,12 +248,19 @@
   let inspectorChapterId: string | null = null;
   $: if (chapterId !== inspectorChapterId) {
     inspectorChapterId = chapterId;
-    collapsedSections = {
-      ...collapsedSections,
-      position: true,
-      "transition-timing": true,
-    };
     onChapterTaskChange?.(null);
+  }
+
+  /* A problem in a section behind More must not stay hidden behind it. */
+  $: if (
+    taskEvaluations.some(
+      (evaluation) =>
+        MORE_TASKS.has(evaluation.id) &&
+        evaluation.availability.state === "available" &&
+        evaluation.status.completion === "attention",
+    )
+  ) {
+    moreOpen = true;
   }
 
   let fallbackPlacement: AnnotationPlacement | undefined;
@@ -884,14 +905,6 @@
    * One line each for the stage tools while they are closed, so the inspector
    * says what a chapter has without the tool having to be opened to find out.
    */
-  $: motionSummary = (() => {
-    const track = chapter?.cameraTrack;
-    const count = track?.keyframes.length ?? 0;
-    if (count === 0) return $t('storyBuilder.inspector.motionNone');
-    const style = $t(`storyBuilder.motion.preset.${track?.preset ?? "custom"}`);
-    const seconds = Math.round(animatableCameraDurationMs(track) / 100) / 10;
-    return $t('storyBuilder.inspector.motionSummary', { count, style, seconds });
-  })();
   $: narrationSummary = (() => {
     const segment = chapter?.narrationSegment?.[activeLanguage];
     if (!segment || !(segment.end > segment.start)) {
@@ -1097,34 +1110,13 @@
           </div>
         </div>
       {:else}
-        {#if $activeChapterTask !== "focus"}
-          <div class="chapter-inspector__groups" role="tablist" aria-label={$t('storyBuilder.inspector.groupsLabel')}>
-            {#each INSPECTOR_GROUPS as group (group)}
-              <button
-                class="chapter-inspector__group"
-                class:chapter-inspector__group--active={inspectorGroup === group}
-                type="button"
-                role="tab"
-                aria-selected={inspectorGroup === group}
-                data-testid={`inspector-group-${group}`}
-                on:click={() => selectGroup(group)}
-              >
-                {$t(`storyBuilder.inspector.groups.${group}`)}
-              </button>
-            {/each}
-          </div>
-        {/if}
-
-        <div class="chapter-overlay__body chapter-inspector__sections" role="tabpanel">
-          {#if inspectorGroup === "about"}
+        <div class="chapter-overlay__body chapter-inspector__sections">
             {#if $activeChapterTask !== "focus"}
             <InspectorSection
               id="details"
               title={$t('storyBuilder.tasks.items.details.title')}
               status={evaluations["details"]?.status}
               availability={evaluations["details"]?.availability ?? { state: "available" }}
-              collapsed={Boolean(collapsedSections.details)}
-              onToggle={() => toggleSection("details")}
             >
               <ChapterTextForm
                 {activeLanguage}
@@ -1137,29 +1129,6 @@
               />
             </InspectorSection>
 
-            <InspectorSection
-              id="position"
-              title={$t('storyBuilder.tasks.items.position.title')}
-              status={evaluations["position"]?.status}
-              availability={evaluations["position"]?.availability ?? { state: "available" }}
-              collapsed={Boolean(collapsedSections.position)}
-              onToggle={() => toggleSection("position")}
-              active={$activeChapterTask === "position"}
-              activateLabel={$t('storyBuilder.inspector.adjust')}
-              onActivate={() => activateTool("position")}
-              onDone={finishTool}
-            >
-              {#if positionSectionAvailable}
-                <ChapterPositionSection
-                  hasSavedPosition={chapterHasSavedPosition}
-                  {positionDrafts}
-                  aspect={presentationAspect}
-                  onFieldInput={handlePositionFieldInput}
-                  onCommit={commitPositionField}
-                  onGoToPosition={handleRevertView}
-                />
-              {/if}
-            </InspectorSection>
             {/if}
 
             <InspectorSection
@@ -1167,52 +1136,49 @@
               title={$t('storyBuilder.tasks.items.focus.title')}
               status={evaluations["focus"]?.status}
               availability={evaluations["focus"]?.availability ?? { state: "available" }}
-              collapsed={Boolean(collapsedSections.focus)}
-              onToggle={() => toggleSection("focus")}
               active={$activeChapterTask === "focus"}
               activateLabel={$t('storyBuilder.inspector.open')}
               onActivate={() => activateTool("focus")}
               onDone={finishTool}
             >
-              <p class="chapter-overlay__hint" data-testid="inspector-summary-focus">
-                {$t('storyBuilder.inspector.annotationsSummary', {
-                  count: chapter.drawingAnnotations?.length ?? 0,
-                })}
-              </p>
-            </InspectorSection>
-          {:else if inspectorGroup === "timing"}
-            <InspectorSection
-              id="transition-timing"
-              title={$t('storyBuilder.tasks.items.transition-timing.title')}
-              status={evaluations["transition-timing"]?.status}
-              availability={evaluations["transition-timing"]?.availability ?? { state: "available" }}
-              collapsed={Boolean(collapsedSections["transition-timing"])}
-              onToggle={() => toggleSection("transition-timing")}
-            >
-              <p class="chapter-overlay__hint">
-                {$t('storyBuilder.transition.description')}
-              </p>
-              <label class="chapter-overlay__label">
-                {$t('storyBuilder.transition.delay')}
-                <input
-                  class="chapter-overlay__input"
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  data-testid="chapter-transition-delay"
-                  value={delayMs !== undefined ? (delayMs / 1000).toString() : ''}
-                  on:input={handleDelaySecondsChange}
+              {#if $activeChapterTask === "focus"}
+                <StoryBuilderWideAnnotations
+                  {story}
+                  layout="inspector"
+                  selectedChapterId={chapterIdStore}
+                  {selectedAnnotationId}
+                  language={activeLanguage}
+                  onDeleteDrawing={(id) => onDeleteAnnotation?.(id)}
+                  onEditDrawing={toggleAnnotation}
                 />
-              </label>
+                {#if annotationSelected}
+                  <div class="chapter-inspector__annotation" data-testid="annotation-options">
+                    <StoryBuilderWideAnnotationOptions
+                      {story}
+                      layout="inspector"
+                      selectedChapterId={chapterIdStore}
+                      {selectedAnnotationId}
+                      language={activeLanguage}
+                      {languages}
+                      onSetLabel={(id, lang, value) => onSetAnnotationLabel?.(id, lang, value)}
+                      onSetStyle={(id, style) => onSetAnnotationStyle?.(id, style)}
+                    />
+                  </div>
+                {/if}
+              {:else}
+                <p class="chapter-overlay__hint" data-testid="inspector-summary-focus">
+                  {$t('storyBuilder.inspector.annotationsSummary', {
+                    count: chapter.drawingAnnotations?.length ?? 0,
+                  })}
+                </p>
+              {/if}
             </InspectorSection>
-
+            {#if $activeChapterTask !== "focus"}
             <InspectorSection
               id="audio-timing"
               title={$t('storyBuilder.tasks.items.audio-timing.title')}
               status={evaluations["audio-timing"]?.status}
               availability={evaluations["audio-timing"]?.availability ?? { state: "available" }}
-              collapsed={Boolean(collapsedSections["audio-timing"])}
-              onToggle={() => toggleSection("audio-timing")}
               active={$activeChapterTask === "audio-timing"}
               activateLabel={$t('storyBuilder.inspector.edit')}
               onActivate={() => activateTool("audio-timing")}
@@ -1282,29 +1248,10 @@
             </InspectorSection>
 
             <InspectorSection
-              id="motion"
-              title={$t('storyBuilder.tasks.items.motion.title')}
-              status={evaluations["motion"]?.status}
-              availability={evaluations["motion"]?.availability ?? { state: "available" }}
-              collapsed={Boolean(collapsedSections.motion)}
-              onToggle={() => toggleSection("motion")}
-              active={$activeChapterTask === "motion"}
-              activateLabel={$t('storyBuilder.inspector.edit')}
-              onActivate={() => activateTool("motion")}
-              onDone={finishTool}
-            >
-              <p class="chapter-overlay__hint" data-testid="inspector-summary-motion">
-                {motionSummary}
-              </p>
-            </InspectorSection>
-
-            <InspectorSection
               id="media-timing"
               title={$t('storyBuilder.tasks.items.media-timing.title')}
               status={evaluations["media-timing"]?.status}
               availability={evaluations["media-timing"]?.availability ?? { state: "hidden" }}
-              collapsed={Boolean(collapsedSections["media-timing"])}
-              onToggle={() => toggleSection("media-timing")}
               active={$activeChapterTask === "media-timing"}
               activateLabel={$t('storyBuilder.inspector.edit')}
               onActivate={() => activateTool("media-timing")}
@@ -1350,14 +1297,69 @@
                 </p>
               {/if}
             </InspectorSection>
-          {:else}
+
+            <button
+              class="chapter-inspector__more"
+              type="button"
+              aria-expanded={moreOpen}
+              aria-controls="chapter-inspector-more"
+              data-testid="inspector-more"
+              on:click={() => (moreOpen = !moreOpen)}
+            >
+              <ChevronDown aria-hidden="true" />
+              <span>{$t('storyBuilder.inspector.more')}</span>
+              <small>{$t('storyBuilder.inspector.moreHint')}</small>
+            </button>
+            <div
+              id="chapter-inspector-more"
+              class="chapter-inspector__more-body"
+              hidden={!moreOpen}
+            >
+            <InspectorSection
+              id="position"
+              title={$t('storyBuilder.tasks.items.position.title')}
+              status={evaluations["position"]?.status}
+              availability={evaluations["position"]?.availability ?? { state: "available" }}
+            >
+              {#if positionSectionAvailable}
+                <ChapterPositionSection
+                  hasSavedPosition={chapterHasSavedPosition}
+                  {positionDrafts}
+                  aspect={presentationAspect}
+                  onFieldInput={handlePositionFieldInput}
+                  onCommit={commitPositionField}
+                  onGoToPosition={handleRevertView}
+                />
+              {/if}
+            </InspectorSection>
+            <InspectorSection
+              id="transition-timing"
+              title={$t('storyBuilder.tasks.items.transition-timing.title')}
+              status={evaluations["transition-timing"]?.status}
+              availability={evaluations["transition-timing"]?.availability ?? { state: "available" }}
+            >
+              <p class="chapter-overlay__hint">
+                {$t('storyBuilder.transition.description')}
+              </p>
+              <label class="chapter-overlay__label">
+                {$t('storyBuilder.transition.delay')}
+                <input
+                  class="chapter-overlay__input"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  data-testid="chapter-transition-delay"
+                  value={delayMs !== undefined ? (delayMs / 1000).toString() : ''}
+                  on:input={handleDelaySecondsChange}
+                />
+              </label>
+            </InspectorSection>
+
             <InspectorSection
               id="source"
               title={$t('storyBuilder.tasks.items.source.title')}
               status={evaluations["source"]?.status}
               availability={evaluations["source"]?.availability ?? { state: "available" }}
-              collapsed={Boolean(collapsedSections.source)}
-              onToggle={() => toggleSection("source")}
             >
               <ChapterCameraConfig
                 embedded={true}
@@ -1373,8 +1375,6 @@
               id="layers"
               title={$t('storyBuilder.tasks.items.layers.title')}
               availability={evaluations["layers"]?.availability ?? { state: "available" }}
-              collapsed={Boolean(collapsedSections.layers)}
-              onToggle={() => toggleSection("layers")}
             >
               {#if manifestSupportsLayers}
                 <div class="chapter-overlay__section-content">
@@ -1419,15 +1419,14 @@
                 id="comparison"
                 title={$t('storyBuilder.tasks.items.comparison.title')}
                 availability={evaluations["comparison"]?.availability ?? { state: "available" }}
-                collapsed={Boolean(collapsedSections.comparison)}
-                onToggle={() => toggleSection("comparison")}
               >
                 <p class="chapter-overlay__hint">
                   {$t('storyBuilder.comparison.hint')}
                 </p>
               </InspectorSection>
             {/if}
-          {/if}
+            </div>
+            {/if}
         </div>
 
       {/if}
@@ -1533,8 +1532,8 @@
     }
 
     .chapter-overlay__eyebrow {
-      font-size: 10px;
-      letter-spacing: 0.16em;
+      font-size: 11px;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--viewer-muted, #9aa6b2);
     }
@@ -1552,10 +1551,10 @@
       gap: 10px;
       align-items: center;
       width: 100%;
-      border: 1px solid color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 48%, transparent);
-      border-radius: 11px;
-      padding: 10px 12px;
-      background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 10%, transparent);
+      border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
+      border-radius: 8px;
+      padding: 9px 12px;
+      background: transparent;
       color: var(--viewer-text, #e8edf4);
       text-align: left;
       cursor: pointer;
@@ -1563,14 +1562,14 @@
 
     .chapter-overlay__preview-chapter:hover,
     .chapter-overlay__preview-chapter:focus-visible {
-      border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-      background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 16%, transparent);
+      border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+      background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 10%, transparent);
     }
 
     .chapter-overlay__preview-chapter :global(svg) {
       width: 17px;
       height: 17px;
-      color: var(--accent, var(--story-builder-accent, #e07a3f));
+      color: var(--accent, var(--story-builder-accent, #2ac7ff));
     }
 
     .chapter-overlay__preview-chapter span {
@@ -1579,12 +1578,13 @@
     }
 
     .chapter-overlay__preview-chapter strong {
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: 600;
     }
 
     .chapter-overlay__preview-chapter small {
       color: var(--viewer-muted, #9aa6b2);
-      font-size: 10px;
+      font-size: 12px;
       line-height: 1.35;
     }
 
@@ -1660,48 +1660,82 @@
      * the sections beneath it change, so there is no drill-down and nothing to
      * go back from.
      */
-    .chapter-inspector__groups {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 4px;
-      padding: 4px;
-      border-radius: 12px;
-      border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
-      background: color-mix(in srgb, var(--viewer-text, #e8edf4) 3%, transparent);
+    .chapter-inspector__annotation {
+      padding-top: 12px;
+      border-top: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
     }
 
-    .chapter-inspector__group {
-      padding: 8px 6px;
+    .chapter-inspector__more {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-width: 0;
+      min-height: 46px;
+      padding: 8px 0;
       border: 0;
-      border-radius: 9px;
+      border-top: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
+      border-radius: 0;
       background: transparent;
+      color: var(--viewer-text, #e8edf4);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: start;
+      cursor: pointer;
+    }
+
+    .chapter-inspector__more small {
+      margin-inline-start: auto;
+      overflow: hidden;
       color: var(--viewer-muted, #9aa6b2);
       font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      cursor: pointer;
-      transition:
-        background-color 0.15s ease,
-        color 0.15s ease;
+      font-weight: 400;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .chapter-inspector__group:hover {
-      color: var(--viewer-text, #e8edf4);
+    .chapter-inspector__more svg {
+      flex: 0 0 auto;
+      width: 15px;
+      height: 15px;
+      transition: transform 0.15s ease;
     }
 
-    .chapter-inspector__group:focus-visible {
-      outline: 2px solid var(--accent, var(--story-builder-accent, #e07a3f));
-      outline-offset: -2px;
+    .chapter-inspector__more[aria-expanded="false"] svg {
+      transform: rotate(-90deg);
     }
 
-    .chapter-inspector__group--active {
-      background: var(--viewer-surface, #151d26);
-      color: var(--viewer-text, #e8edf4);
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    .chapter-inspector__more:hover {
+      background: color-mix(in srgb, var(--viewer-text, #e8edf4) 4%, transparent);
+    }
+
+    .chapter-inspector__more:focus-visible {
+      outline: 2px solid var(--viewer-focus-ring, rgba(42, 199, 255, 0.7));
+      outline-offset: 1px;
+    }
+
+    .chapter-inspector__more-body {
+      display: grid;
+      gap: 0;
+    }
+
+    /* The first section under More follows its heading directly. */
+    .chapter-inspector__more-body > :global(.inspector-section:first-child) {
+      padding-block-start: 2px;
+      border-top: 0;
+    }
+
+    .chapter-inspector__more-body[hidden] {
+      display: none;
     }
 
     .chapter-inspector__sections {
+      /* Zero-floored, so a long heading or hint truncates instead of pushing
+         the form wider than its panel. */
+      grid-template-columns: minmax(0, 1fr);
       align-content: start;
+      gap: 0;
     }
 
     .chapter-inspector__tool-actions {
@@ -1731,7 +1765,7 @@
       padding: 13px;
       border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
       border-radius: 10px;
-      background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 7%, transparent);
+      background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 7%, transparent);
     }
 
     .chapter-overlay__wide-tool-note strong {
@@ -1800,7 +1834,7 @@
     .chapter-overlay__annotation-palette input[type="color"] { width:30px; height:27px; padding:1px; border:1px solid var(--viewer-panel-border, rgba(255,255,255,.1)); border-radius:7px; background:transparent; cursor:pointer; }
     .chapter-overlay__segmented-control { display:flex; gap:5px; }
     .chapter-overlay__segmented-control button { flex:1; border:1px solid var(--viewer-panel-border, rgba(255,255,255,.1)); border-radius:8px; padding:7px; background:transparent; color:var(--viewer-muted, #9aa6b2); text-transform:capitalize; cursor:pointer; }
-    .chapter-overlay__segmented-control .chapter-overlay__segmented-control--active { border-color:var(--accent, var(--story-builder-accent, #e07a3f)); background:color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 14%, transparent); color:var(--viewer-text, #e8edf4); }
+    .chapter-overlay__segmented-control .chapter-overlay__segmented-control--active { border-color:var(--accent, var(--story-builder-accent, #2ac7ff)); background:color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 14%, transparent); color:var(--viewer-text, #e8edf4); }
 
     .chapter-overlay__section {
       display: grid;
@@ -1857,8 +1891,8 @@
     }
 
     .chapter-overlay__language-tab--active {
-      border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-      background: color-mix(in srgb, var(--story-builder-accent, #e07a3f) 16%, transparent);
+      border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+      background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 16%, transparent);
       /*
        * A 16% tint, so the label sits on the panel colour rather than on the
        * accent — white would disappear on the light themes' pale tint.
@@ -1911,7 +1945,7 @@
       gap: 6px;
       font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.1em;
       color: var(--viewer-muted, #9aa6b2);
     }
 
@@ -1928,7 +1962,7 @@
     .chapter-overlay__validation {
       padding: 12px 14px;
       border: 1px solid color-mix(in srgb, var(--viewer-danger, #ffb8b8) 35%, transparent);
-      border-radius: 12px;
+      border-radius: 8px;
       background: color-mix(in srgb, var(--viewer-danger, #ffb8b8) 10%, transparent);
       color: var(--viewer-danger, #ffd0d0);
       font-size: 12px;
@@ -1942,9 +1976,9 @@
     .chapter-overlay__input,
     .chapter-overlay__select,
     .chapter-overlay__textarea {
-      border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
-      border-radius: 12px;
-      padding: 10px 12px;
+      border: 1px solid color-mix(in srgb, var(--viewer-text, #e8edf4) 22%, transparent);
+      border-radius: 8px;
+      padding: 9px 11px;
       background: var(--viewer-panel, #121922);
       color: var(--viewer-text, #e8edf4);
       font-size: 13px;
@@ -1959,9 +1993,9 @@
     .chapter-overlay__input:focus,
     .chapter-overlay__select:focus,
     .chapter-overlay__textarea:focus {
-      border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-      box-shadow: 0 0 0 2px
-        color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 18%, transparent);
+      border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+      outline: 2px solid var(--viewer-focus-ring, rgba(42, 199, 255, 0.7));
+      outline-offset: 1px;
     }
 
     .chapter-overlay__textarea {
@@ -1998,13 +2032,14 @@
 
     .chapter-overlay__button {
       border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.08));
-      border-radius: 11px;
-      padding: 8px 12px;
+      border-radius: 8px;
+      min-height: 34px;
+      padding: 7px 12px;
       background: var(--viewer-panel-strong, #1b242e);
       color: var(--viewer-text, #e8edf4);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
       transition:
         background 0.16s ease,
@@ -2019,9 +2054,9 @@
 
     .chapter-overlay__button--primary,
     .chapter-overlay__button--accent {
-      background: var(--accent, var(--story-builder-accent, #e07a3f));
+      background: var(--accent, var(--story-builder-accent, #2ac7ff));
       border-color: transparent;
-      color: #fff;
+      color: var(--story-builder-on-accent, #06141d);
     }
 
     .chapter-overlay__button--subtle {
@@ -2043,12 +2078,7 @@
 
     .chapter-overlay__button--primary:not(:disabled):hover,
     .chapter-overlay__button--accent:not(:disabled):hover {
-      /*
-       * Darken on hover rather than lighten. These fills carry white labels, so
-       * mixing toward white pushed the label under 4.5:1 exactly when the
-       * pointer was on it; mixing toward black raises it instead.
-       */
-      background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 86%, black);
+      background: var(--story-builder-accent-hover, #5bd5ff);
     }
 
     .chapter-overlay__audio-source {
@@ -2145,7 +2175,7 @@
 
     .chapter-overlay__layer-slider {
       width: 100%;
-      accent-color: var(--accent, var(--story-builder-accent, #e07a3f));
+      accent-color: var(--accent, var(--story-builder-accent, #2ac7ff));
       cursor: pointer;
       background: color-mix(in srgb, var(--viewer-text, #e8edf4) 10%, transparent);
       height: 4px;

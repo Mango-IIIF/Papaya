@@ -94,11 +94,7 @@
     "tasks": {
       "title": "Chapter tools",
       "description": "Everything about this chapter, in three groups. Sections that work on the stage open from here.",
-      "languages": "{translated}/{total} languages",
       "status": {
-        "empty": "Not configured",
-        "partial": "Partially configured",
-        "complete": "Configured",
         "attention": "Needs attention"
       },
       "items": {
@@ -216,25 +212,21 @@
       "descriptionLabel": "Description"
     },
     "position": {
-      "title": "Frame",
-      "hint": "Pan and zoom the artwork beneath the fixed story frame. For precise IIIF authoring, you can also type the canvas region here.",
-      "empty": "No frame yet. Type a region in canvas pixels to create one.",
+      "hint": "The frame drawn on the image is what readers see. Drag it there, set it from the view in the bar under the image, or type a region here.",
+      "empty": "No frame yet. Pan and zoom, then set the frame.",
       "x": "X",
       "y": "Y",
       "width": "Width",
       "height": "Height",
       "goTo": "Go to frame",
       "aspectLocked": "Story frame {aspect}. Preview and readers preserve this exact shape; width and height change together.",
-      "stageLabel": "Story frame · {aspect}"
+      "setFromView": "Set frame",
+      "setFromViewHint": "Use the current view as this chapter’s frame"
     },
     "annotations": {
       "chapter": "Chapter annotations",
-      "annotationsTab": "Annotations",
-      "optionsTab": "Options",
       "drawing": "Drawing annotations",
-      "add": "Add annotation",
       "tools": "Annotation drawing tools",
-      "drawingHint": "Choose Select / Pan to edit an existing annotation, or choose a shape to add one.",
       "edit": "Edit annotation",
       "editDrawing": "Edit {type} annotation {index}",
       "deleteDrawing": "Delete {type} annotation {index}",
@@ -264,21 +256,20 @@
         "identifying": "Identifying",
         "classifying": "Classifying",
         "questioning": "Questioning"
-      }
+      },
+      "hintSelect": "Pick a shape to draw, or click an annotation on the image to edit it.",
+      "hintDraw": "Draw the {shape} on the image. It opens in the Annotations panel when you finish.",
+      "hintEditing": "Drag the annotation to move or resize it. Its text and colour are in the Annotations panel."
     },
     "motion": {
       "title": "Move through this chapter",
-      "requireTwo": "Choose a movement style or add two camera points to enable motion controls.",
-      "requireOneMore": "Add one more camera point to preview and configure this movement.",
+      "requireTwo": "Choose a movement style or capture two keyframes to enable motion controls.",
+      "requireOneMore": "Capture one more keyframe to preview and configure this movement.",
       "durationError": "Motion duration must be greater than 0 seconds.",
-      "durationDwellError": "Duration must leave time to move after the {seconds}s start hold.",
-      "dwellError": "The start hold must be shorter than the time to the next camera point.",
-      "customHint": "Custom keeps each point’s frame as you drew it. Preview starts at Point 1.",
-      "presetHint": "Points set the focus; the movement style controls zoom. Resizing a point switches to Custom. Preview starts at Point 1.",
+      "customHint": "Custom keeps each keyframe as you captured it. Preview starts at keyframe 1.",
+      "presetHint": "Keyframes set where the camera looks; the movement style controls zoom. Resizing a keyframe switches to Custom. Preview starts at keyframe 1.",
       "preview": "Preview",
       "stopPreview": "Stop preview",
-      "showPreviewPins": "Show pins",
-      "hidePreviewPins": "Hide pins",
       "style": "Movement style",
       "presets": "Motion presets",
       "preset": {
@@ -303,55 +294,25 @@
         "ease-in-out": "Ease in/out"
       },
       "duration": "Chapter motion duration",
-      "durationHint": "Positions are spaced across this movement time. The start hold is added before it.",
+      "durationHint": "Keyframes are spaced evenly across this movement time. The start hold is added before it.",
       "durationSeconds": "Duration (seconds)",
-      "zoomValue": "{zoom}× zoom",
-      "timeline": "Chapter motion timeline",
-      "pinsTab": "Pins",
-      "optionsTab": "Options",
-      "fineTuning": "Fine tuning",
-      "goToPoint": "Go to camera point {number}",
-      "movePointTitle": "Point {number} at {seconds}s. Click to select; drag to reposition.",
-      "point": "Point {number}",
-      "deletePoint": "Delete camera point",
-      "deletePointNumber": "Delete camera point {number}",
-      "emptyPoints": "No camera points yet. Add a point to capture the current position and zoom.",
-      "addPoint": "Add camera point",
-      "updatePoint": "Update pin from current view",
-      "captureGuideTitle": "Set position and zoom separately",
-      "captureGuideHint": "Drag a pin to set its position. Then zoom the artwork and save that zoom to the selected point; the pin will stay where you placed it.",
-      "saveZoom": "Save current zoom",
-      "saveZoomForPoint": "Save current zoom to Point {number}",
-      "selectPointToUpdate": "Select a pin before saving its zoom."
+      "fineTuning": "Fine tuning"
     },
     "cameraTimeline": {
       "title": "Camera timeline",
-      "info": "Keyframes preserve a canvas-space view and focal point.",
-      "showNarration": "Show narration",
       "capture": "Capture keyframe",
       "keyframes": "Keyframes ({count})",
-      "empty": "Capture the current view to start the camera track",
+      "empty": "No camera motion. Pan and zoom, then capture keyframes to add it.",
       "goTo": "Go to keyframe {number} at {time}",
       "select": "Select keyframe {number}",
-      "inspectorMode": "Inspector mode",
-      "keyframe": "Keyframe",
-      "chapter": "Chapter",
-      "keyframeNumber": "Keyframe {number}",
-      "navigation": "Keyframe navigation",
-      "previous": "Previous keyframe",
-      "next": "Next keyframe",
-      "savedPreview": "Saved keyframe view preview",
-      "savedView": "Saved view",
-      "details": "Details",
-      "time": "Time",
-      "durationNext": "Duration (to next)",
-      "cameraView": "Camera view",
-      "cameraViewMode": "Camera view mode",
-      "frame": "Frame",
-      "panZoom": "Pan & zoom",
-      "updateFromView": "Update from current view",
-      "narrationFallback": "Add narration from the chapter timing tools.",
-      "delete": "Delete keyframe"
+      "updateFromView": "Update from view",
+      "narrationLength": "Narration {time}",
+      "matchNarration": "Match narration",
+      "options": "Motion options",
+      "captureHint": "Add the current view as a keyframe",
+      "updateFromViewHint": "Replace this keyframe with the current view",
+      "deleteNumber": "Delete keyframe {number}",
+      "needSecond": "Move the view and capture a second keyframe to create motion."
     },
     "settings": {
       "title": "Story settings",
@@ -423,29 +384,20 @@
     "frame": {
       "label": "Chapter frame",
       "chapterAria": "Chapter frame",
-      "keyframeAria": "Camera point {number} frame",
-      "keyframeTag": "Point {number}"
+      "keyframeAria": "Keyframe {number} frame",
+      "keyframeTag": "Keyframe {number}"
     },
     "inspector": {
-      "groupsLabel": "Chapter inspector",
-      "groups": {
-        "about": "About",
-        "timing": "Timing",
-        "source": "Source"
-      },
       "edit": "Edit",
-      "draw": "Draw",
       "open": "Open",
       "done": "Done",
-      "onStage": "On stage",
-      "annotationsSummary": "{count} annotations. Use the stage workspace to add, select, and edit them.",
-      "motionNone": "No camera movement. Edit to add camera points on the stage.",
-      "motionSummary": "{count} camera points · {style} · {seconds}s",
+      "annotationsSummary": "{count} annotations on this chapter.",
       "narrationNone": "No narration segment for {language}.",
       "narrationSummary": "{language}: {start}–{end}",
       "mediaSummary": "Plays {start}–{end} of the source.",
       "mediaWhole": "Plays the whole source.",
-      "adjust": "Adjust"
+      "more": "More",
+      "moreHint": "Frame region, transition, source, layers"
     }
   },
   "viewer": {

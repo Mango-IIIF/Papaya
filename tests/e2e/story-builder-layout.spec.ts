@@ -74,7 +74,7 @@ const selectChapterSix = async (page: Page) => {
 test("places Reload manifest below the source URL", async ({ page }) => {
   await waitForStage(page);
   const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
-  await viewer.locator('[data-testid="inspector-group-source"]').click();
+  await viewer.locator('[data-testid="inspector-more"]').click();
 
   const input = viewer.getByTestId("chapter-manifest");
   const reload = viewer.getByTestId("chapter-manifest-reload");
@@ -207,57 +207,56 @@ test("leaves the stage the same size whatever chrome the author opens", async ({
       .toEqual([Math.round(baseline.width), Math.round(baseline.height)]);
   };
 
-  const groupFor: Record<string, string> = {
-    position: "about",
-    focus: "about",
-    motion: "timing",
-    "audio-timing": "timing",
-  };
   const openTool = async (task: string) => {
-    await viewer.locator(`[data-testid="inspector-group-${groupFor[task]}"]`).click();
     await viewer.locator(`[data-testid="inspector-activate-${task}"]`).click();
   };
   const closeTool = async (task: string) => {
-    // Every open tool has Done on the stage; the frame tool also sends the
-    // panels aside, so that is the one to use there.
-    if (task === "position" || task === "focus" || task === "motion") {
+    if (task === "focus") {
       await viewer.locator('[data-testid="story-wide-done"]').click();
       return;
     }
-    if (task === 'audio-timing' || task === 'media-timing') {
-      await viewer.locator('.story-wide-modal__done').click();
-      return;
-    }
-    await viewer.locator(`[data-testid="inspector-done-${task}"]`).click();
+    await viewer.locator('.story-wide-modal__done').click();
   };
 
-  for (const task of ["position", "focus", "motion", "audio-timing"]) {
+  // The frame is not a tool that opens: it is already drawn on the image, and
+  // the camera timeline is already under it.
+  await expect(viewer.locator(".story-frame--chapter")).toHaveCount(1);
+  await expect(viewer.locator('[data-testid="inspector-activate-position"]')).toHaveCount(0);
+  await expect(viewer.locator('[data-testid="inspector-activate-motion"]')).toHaveCount(0);
+  await expect(viewer.locator('[data-testid="camera-timeline"]')).toBeVisible();
+
+  for (const task of ["focus", "audio-timing"]) {
     await openTool(task);
-    if (task === "position") {
-      // The stage boundary is the output frame; there is no second draggable
-      // chapter rectangle competing with it.
-      await expect(viewer.locator(".story-frame--chapter")).toHaveCount(0);
-      await expect(viewer.locator(".viewer__grid--builder-left-collapsed")).toHaveCount(1);
-    } else {
-      // The tool's own panel has appeared...
-      await expect(viewer.locator(".stage__bottom")).toBeVisible();
-    }
+    // The tool's own panel has appeared...
+    await expect(viewer.locator(".stage__bottom")).toBeVisible();
     // ...and the picture has not flinched.
     await expectUnchanged(`opening ${task}`);
     await closeTool(task);
     await expectUnchanged(`closing ${task}`);
-    if (task === "position") {
-      await expect(
-        viewer.locator('[data-testid="inspector-toggle-position"]'),
-      ).toHaveAttribute("aria-expanded", "false");
-    }
   }
 
-  // Switching inspector groups is chrome too.
-  for (const group of ["timing", "source", "about"]) {
-    await viewer.locator(`[data-testid="inspector-group-${group}"]`).click();
-    await expectUnchanged(`showing ${group}`);
-  }
+  // Authoring motion is chrome too: the first keyframe, a second, the options
+  // that open over the image, and playing it back all leave the stage alone.
+  const capture = viewer.locator('[data-testid="camera-timeline-capture"]');
+  await capture.click();
+  await expectUnchanged("capturing the first keyframe");
+  await capture.click();
+  await expect(viewer.locator('[data-testid="camera-timeline-keyframe"]')).toHaveCount(2);
+  await expectUnchanged("capturing a second keyframe");
+  const options = viewer.locator('[data-testid="camera-timeline-options"]');
+  await options.click();
+  await expect(viewer.locator('[data-testid="camera-timeline-options-panel"]')).toBeVisible();
+  await expectUnchanged("opening motion options");
+  await options.click();
+  const play = viewer.locator('[data-testid="camera-timeline-play"]');
+  await play.click();
+  await expectUnchanged("playing motion in place");
+  await expect(viewer.locator(".panel-stack--left")).toBeVisible();
+  await expect(viewer.locator('[data-testid="camera-timeline"]')).toBeVisible();
+
+  // So is the rest of the form.
+  await viewer.locator('[data-testid="inspector-more"]').click();
+  await expectUnchanged("opening More");
 
   // Desktop columns are docked. Their restore handles are reserved for the
   // drawer layout below the desktop breakpoint.
@@ -268,7 +267,7 @@ test("leaves the stage the same size whatever chrome the author opens", async ({
   await expect(viewer.locator(".panel-stack--right")).toHaveCSS("position", "relative");
 });
 
-test("opens narration in a full-stage modal and keeps its controls in reach", async ({
+test("opens narration in a modal over the editor and keeps its controls in reach", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 700 });
@@ -276,7 +275,6 @@ test("opens narration in a full-stage modal and keeps its controls in reach", as
   const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   const stageBefore = await measureStage(page);
 
-  await viewer.locator('[data-testid="inspector-group-timing"]').click();
   await viewer.locator('[data-testid="inspector-activate-audio-timing"]').click();
   const footer = viewer.locator(".stage__bottom");
   const narration = footer.locator(".story-wide-narration");
@@ -291,25 +289,27 @@ test("opens narration in a full-stage modal and keeps its controls in reach", as
   await expect(sidebarToggles.first()).toHaveCSS('visibility', 'hidden');
   await expect(sidebarToggles.last()).toHaveCSS('visibility', 'hidden');
 
-  // Modal: the footer fills the stage as an overlay, not a row of it.
-  const position = await footer.evaluate((element) => getComputedStyle(element).position);
+  // Modal: an overlay across the whole editor, not a row of it, so the
+  // image underneath keeps its size.
+  const modal = footer.locator(".story-wide-modal");
+  const position = await modal.evaluate((element) => getComputedStyle(element).position);
   expect(position).toBe("absolute");
   const stageAfter = await measureStage(page);
   expect(Math.round(stageAfter.height)).toBe(Math.round(stageBefore.height));
 
-  const footerBox = await footer.boundingBox();
-  const stageBox = await viewer.locator(".stage--story-builder").boundingBox();
+  const modalBox = await modal.boundingBox();
+  const gridBox = await viewer.locator(".viewer__grid--builder-overlay").boundingBox();
   const dialogBox = await dialog.boundingBox();
-  expect(footerBox && stageBox && dialogBox).toBeTruthy();
-  if (!footerBox || !stageBox || !dialogBox) return;
-  expect(Math.round(footerBox.x)).toBe(Math.round(stageBox.x));
-  expect(Math.round(footerBox.y)).toBe(Math.round(stageBox.y));
-  expect(Math.round(footerBox.width)).toBe(Math.round(stageBox.width));
-  expect(Math.round(footerBox.height)).toBe(Math.round(stageBox.height));
-  expect(dialogBox.width).toBeGreaterThan(stageBox.width * 0.6);
-  expect(dialogBox.y).toBeGreaterThanOrEqual(stageBox.y);
+  expect(modalBox && gridBox && dialogBox).toBeTruthy();
+  if (!modalBox || !gridBox || !dialogBox) return;
+  expect(Math.round(modalBox.x)).toBe(Math.round(gridBox.x));
+  expect(Math.round(modalBox.y)).toBe(Math.round(gridBox.y));
+  expect(Math.round(modalBox.width)).toBe(Math.round(gridBox.width));
+  expect(Math.round(modalBox.height)).toBe(Math.round(gridBox.height));
+  expect(dialogBox.width).toBeGreaterThan(gridBox.width * 0.6);
+  expect(dialogBox.y).toBeGreaterThanOrEqual(gridBox.y);
   expect(dialogBox.y + dialogBox.height).toBeLessThanOrEqual(
-    stageBox.y + stageBox.height + 1,
+    gridBox.y + gridBox.height + 1,
   );
   await expect(
     narration.getByRole("button", { name: "Apply to chapter" }),
@@ -337,7 +337,6 @@ test("keeps audio and video timing inside the modal without resizing the stage",
   await expect(audioRow).toBeVisible({ timeout: 30_000 });
   await audioRow.locator("button").first().click();
 
-  await viewer.locator('[data-testid="inspector-group-timing"]').click();
   const mediaTiming = viewer.locator('[data-testid="inspector-activate-media-timing"]');
   await expect(mediaTiming).toBeVisible({ timeout: 30_000 });
   const media = viewer.locator(".stage__media");
@@ -397,7 +396,6 @@ test("keeps audio and video timing inside the modal without resizing the stage",
   const videoRow = viewer.locator('[data-testid="chapter-row-chapter_13"]');
   await expect(videoRow).toBeVisible({ timeout: 30_000 });
   await videoRow.locator('button').first().click();
-  await viewer.locator('[data-testid="inspector-group-timing"]').click();
   const videoTiming = viewer.locator(
     '[data-testid="inspector-activate-media-timing"]',
   );
@@ -431,7 +429,7 @@ test("keeps audio and video timing inside the modal without resizing the stage",
   );
 });
 
-test("hides both sidebars while annotations are being created", async ({
+test("closes both drawers for drawing and keeps the inspector one tap away", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 543, height: 591 });
@@ -451,22 +449,29 @@ test("hides both sidebars while annotations are being created", async ({
   const chapters = viewer.locator('.panel-stack--left');
   const inspector = viewer.locator('.panel-stack--right');
   const stage = viewer.locator('.stage--story-builder');
+  const bar = viewer.locator('.stage__bottom');
+  // Drawing needs the image, so both drawers close when the tool opens...
   await expect(chapters).toHaveCSS('visibility', 'hidden');
   await expect(inspector).toHaveCSS('visibility', 'hidden');
-  await expect(chaptersToggle).toHaveCSS('visibility', 'hidden');
-  await expect(toolsToggle).toHaveCSS('visibility', 'hidden');
-  await expect(
-    viewer.locator('.story-wide-authoring--annotations'),
-  ).toBeVisible();
+  await expect(viewer.getByTestId('annotation-bar')).toBeVisible();
+  // ...but an annotation's text and colour live in the inspector, so its
+  // handle stays, and brings the annotation list back over the image.
+  await expect(toolsToggle).toBeVisible();
+  await toolsToggle.click();
+  await expect(inspector).toHaveCSS('visibility', 'visible');
+  await expect(inspector.locator('.story-wide-annotations')).toBeVisible();
+  await toolsToggle.click();
+  await expect(inspector).toHaveCSS('visibility', 'hidden');
 
   const done = viewer.locator('[data-testid="story-wide-done"]');
   const doneBox = await done.boundingBox();
   const stageBox = await stage.boundingBox();
-  expect(doneBox && stageBox).toBeTruthy();
-  if (!doneBox || !stageBox) return;
-  expect(doneBox.x + doneBox.width).toBeLessThanOrEqual(
-    stageBox.x + stageBox.width,
-  );
+  const barBox = await bar.boundingBox();
+  expect(doneBox && stageBox && barBox).toBeTruthy();
+  if (!doneBox || !stageBox || !barBox) return;
+  // Done is in the bar under the image, never over it or off the edge.
+  expect(doneBox.x + doneBox.width).toBeLessThanOrEqual(barBox.x + barBox.width + 1);
+  expect(doneBox.y).toBeGreaterThanOrEqual(stageBox.y + stageBox.height - 1);
 
   await done.click();
   await expect(inspector).toHaveCSS('visibility', 'visible');
@@ -478,4 +483,67 @@ test("hides both sidebars while annotations are being created", async ({
   );
   await expect(chapters).toHaveCSS('z-index', '6');
   await expect(inspector).toHaveCSS('z-index', '6');
+});
+
+test("sets the chapter frame from the view on request, and never otherwise", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await waitForStage(page);
+  const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
+  await viewer.locator('[data-testid^="chapter-row-"]').nth(1).locator("button").first().click();
+  const saved = () =>
+    viewer.evaluate((element: any) => element.getStory().chapters[1].viewBox);
+  await expect.poll(saved).toBeTruthy();
+  const before = await saved();
+
+  // The frame is on the image, in hand, without entering any mode.
+  await expect(viewer.locator(".story-frame--chapter.story-frame--editable")).toHaveCount(1);
+
+  /*
+   * Opening and closing a tool must leave the stored frame exactly as it was.
+   * The editor stage is not the story's shape, and closing the old frame mode
+   * used to re-read the viewport into the chapter and widen it.
+   */
+  await viewer.locator('[data-testid="inspector-activate-focus"]').click();
+  await viewer.locator('[data-testid="story-wide-done"]').click();
+  expect(await saved()).toEqual(before);
+
+  // Pan and zoom, then ask. Selecting the chapter flies the camera to it, so
+  // wait for that to settle before moving the view somewhere else.
+  await page.waitForTimeout(1500);
+  const settled = await viewer.evaluate((element: any) => element.getViewBox());
+  await viewer.evaluate((element: any, view) => {
+    element.setViewBox({
+      x: view.x + view.w * 0.2,
+      y: view.y + view.h * 0.2,
+      w: view.w * 0.6,
+      h: view.h * 0.6,
+    });
+  }, settled);
+  await expect
+    .poll(() => viewer.evaluate((element: any) => element.getViewBox().w))
+    .toBeLessThan(settled.w * 0.7);
+  await page.waitForTimeout(400);
+  expect(await saved()).toEqual(before);
+  const view = await viewer.evaluate((element: any) => element.getViewBox());
+  await viewer.locator('[data-testid="chapter-position-from-view"]').click();
+  await expect.poll(saved).not.toEqual(before);
+  const after = await saved();
+
+  // The story's shape, kept...
+  expect(after.w / after.h).toBeCloseTo(before.w / before.h, 3);
+  // ...and wholly inside what was on screen: nothing the author did not see.
+  expect(after.x).toBeGreaterThanOrEqual(view.x - 1);
+  expect(after.y).toBeGreaterThanOrEqual(view.y - 1);
+  expect(after.x + after.w).toBeLessThanOrEqual(view.x + view.w + 1);
+  expect(after.y + after.h).toBeLessThanOrEqual(view.y + view.h + 1);
+
+  // Asking again without moving changes nothing.
+  await viewer.locator('[data-testid="chapter-position-from-view"]').click();
+  await page.waitForTimeout(300);
+  const again = await saved();
+  for (const key of ["x", "y", "w", "h"] as const) {
+    expect(again[key]).toBeCloseTo(after[key], 0);
+  }
 });

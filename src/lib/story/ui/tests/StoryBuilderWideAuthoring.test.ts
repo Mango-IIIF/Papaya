@@ -62,26 +62,14 @@ describe("StoryBuilderWideAuthoring", () => {
     const onStopPreviewMediaSegment = vi.fn();
     const selectedPointId = writable<string | null>(null);
     const motionPreviewing = writable(false);
-    const motionPreviewPinsVisible = writable(false);
     const selectedAnnotationId = writable<string | null>(null);
     const annotationTool = writable("select" as const);
     const onSetAnnotationTool = vi.fn((tool) => annotationTool.set(tool));
-    const onSetAnnotationLabel = vi.fn();
-    const onSetAnnotationStyle = vi.fn();
-    const onEditAnnotation = vi.fn((annotationId: string) =>
-      selectedAnnotationId.set(annotationId),
-    );
-    const onFinishAnnotationEdit = vi.fn(() =>
-      selectedAnnotationId.set(null),
-    );
     const onUpdatePointFromView = vi.fn();
     const onDeletePoint = vi.fn();
     const onUpdateMotionPathType = vi.fn();
     const onUpdateMotionInitialDwell = vi.fn();
     const onUpdateMotionEasing = vi.fn();
-    const onSetMotionPreviewPinsVisible = vi.fn((visible: boolean) =>
-      motionPreviewPinsVisible.set(visible),
-    );
     const onPreviewMotion = vi.fn();
     const onStopMotionPreview = vi.fn();
     const onSkipNarration = vi.fn();
@@ -102,8 +90,6 @@ describe("StoryBuilderWideAuthoring", () => {
         onGoToPoint: vi.fn(),
         onUpdatePointFromView,
         motionPreviewing,
-        motionPreviewPinsVisible,
-        onSetMotionPreviewPinsVisible,
         onUpdateMotionPathType,
         onUpdateMotionInitialDwell,
         onUpdateMotionEasing,
@@ -114,11 +100,6 @@ describe("StoryBuilderWideAuthoring", () => {
         annotationTool,
         selectedAnnotationId,
         onSetAnnotationTool,
-        onSetAnnotationLabel,
-        onSetAnnotationStyle,
-        onDeleteAnnotation: vi.fn(),
-        onEditAnnotation,
-        onFinishAnnotationEdit,
         onSetNarrationTrack: vi.fn(),
         onAssignNarrationSegment: vi.fn(),
         onSkipNarration,
@@ -131,49 +112,41 @@ describe("StoryBuilderWideAuthoring", () => {
     expect(target.querySelector(".story-wide-authoring")).toBeNull();
     expect(target.querySelector(".story-wide-narration")).toBeNull();
 
-    activeTask.set("motion");
+    // An audio chapter has no camera to move, so no timeline.
+    expect(target.querySelector('[data-testid="camera-timeline"]')).toBeNull();
+
+    // A spatial chapter always has the camera timeline under the image: it is
+    // not a tool to open, and the whole of motion authoring is on it.
+    mediaType.set("image");
     await tick();
-    expect(target.querySelector(".story-wide-authoring")).toBeTruthy();
-    expect(target.querySelector(".story-wide-narration")).toBeNull();
-    const previewNextToDone = target.querySelector<HTMLButtonElement>(
-      '[data-testid="motion-preview-next-to-done"]',
-    )!;
-    expect(previewNextToDone.nextElementSibling?.getAttribute('data-testid')).toBe(
-      'story-wide-done',
-    );
-    expect(target.querySelector('[data-testid="motion-preview-pins-toggle"]')).toBeNull();
-    expect(target.querySelector('[data-testid="story-wide-done"]')).toBeTruthy();
-    previewNextToDone.click();
+    const timeline = target.querySelector('[data-testid="camera-timeline"]')!;
+    expect(timeline).toBeTruthy();
+    expect(target.querySelector('[data-testid="story-wide-done"]')).toBeNull();
+    expect(target.querySelector('[role="tab"]')).toBeNull();
+    expect(
+      timeline.querySelectorAll('[data-testid="camera-timeline-keyframe"]'),
+    ).toHaveLength(2);
+    timeline
+      .querySelector<HTMLButtonElement>('[data-testid="camera-timeline-play"]')!
+      .click();
     expect(onPreviewMotion).toHaveBeenCalledOnce();
-    expect(target.textContent).toContain("1.00× zoom");
-    expect(target.textContent).toContain("2.00× zoom");
-    const updatePoint = [...target.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent?.includes("Save current zoom"),
-    )!;
-    expect(updatePoint.disabled).toBe(true);
-    expect(target.querySelector('[data-testid="motion-delete-selected"]')).toBeNull();
+
     selectedPointId.set("one");
     await tick();
-    expect(updatePoint.disabled).toBe(false);
-    const deleteSelected = target.querySelector<HTMLButtonElement>(
-      '[data-testid="motion-delete-selected"]',
-    )!;
-    expect(deleteSelected.textContent).toContain("Delete camera point 1");
-    expect(target.querySelector(".story-wide-authoring__point-delete")).toBeNull();
-    deleteSelected.click();
-    expect(onDeletePoint).toHaveBeenCalledWith("one");
-    updatePoint.click();
+    timeline
+      .querySelector<HTMLButtonElement>('[data-testid="camera-timeline-update"]')!
+      .click();
     expect(onUpdatePointFromView).toHaveBeenCalledWith("one");
+    timeline
+      .querySelector<HTMLButtonElement>('[data-testid="camera-timeline-delete"]')!
+      .click();
+    expect(onDeletePoint).toHaveBeenCalledWith("one");
 
-    const tab = (label: string) =>
-      [...target.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
-        (button) => button.textContent?.trim() === label,
-      )!;
-    expect(tab("Pins").getAttribute("aria-selected")).toBe("true");
-    tab("Options").click();
+    timeline
+      .querySelector<HTMLButtonElement>('[data-testid="camera-timeline-options"]')!
+      .click();
     await tick();
-    expect(target.querySelector("#motion-pins-panel")).toBeNull();
-    expect(target.querySelector("#motion-options-panel .motion-panel--wide")).toBeTruthy();
+    expect(target.querySelector(".motion-panel--wide")).toBeTruthy();
     expect(target.querySelector(".motion-panel__fine-tuning-grid")).toBeTruthy();
     const motionOption = (label: string) =>
       [...target.querySelectorAll<HTMLButtonElement>("button")].find(
@@ -185,27 +158,20 @@ describe("StoryBuilderWideAuthoring", () => {
     expect(onUpdateMotionPathType).toHaveBeenCalledWith("spline");
     expect(onUpdateMotionInitialDwell).toHaveBeenCalledWith(1000);
     expect(onUpdateMotionEasing).toHaveBeenCalledWith("ease-out");
+
+    // Playing keeps the timeline where it is; its play button becomes stop.
     motionPreviewing.set(true);
     await tick();
-    expect(target.querySelector(".story-wide-authoring")).toBeNull();
-    expect(target.querySelector('[data-testid="story-wide-done"]')).toBeTruthy();
-    expect(target.querySelector(".story-wide-preview-controls")).toBeTruthy();
-    const pinToggle = target.querySelector<HTMLButtonElement>(
-      '[data-testid="motion-preview-pins-toggle"]',
-    )!;
-    pinToggle.click();
-    expect(onSetMotionPreviewPinsVisible).toHaveBeenCalledWith(true);
-    expect(previewNextToDone.textContent).toContain('Stop preview');
-    previewNextToDone.click();
+    expect(target.querySelector('[data-testid="camera-timeline"]')).toBeTruthy();
+    target
+      .querySelector<HTMLButtonElement>('[data-testid="camera-timeline-play"]')!
+      .click();
     expect(onStopMotionPreview).toHaveBeenCalledOnce();
     motionPreviewing.set(false);
     await tick();
-    expect(target.querySelector("#motion-options-panel")).toBeTruthy();
-    tab("Pins").click();
-    await tick();
-    expect(target.querySelector("#motion-pins-panel")).toBeTruthy();
-    expect(target.querySelector("#motion-options-panel")).toBeNull();
 
+    // A tool that takes the stage replaces the timeline while it is open.
+    mediaType.set("audio");
     activeTask.set("audio-timing");
     await tick();
     expect(target.querySelector(".story-wide-authoring")).toBeNull();
@@ -359,77 +325,40 @@ describe("StoryBuilderWideAuthoring", () => {
     expect(target.querySelector(".story-wide-media__track")).toBeNull();
     expect(target.querySelector(".story-wide-media__sliders")).toBeNull();
 
+    // Annotation mode is one tool row in the same bar: the tool in hand, a
+    // line saying what the pointer does, and the way out. The list and an
+    // annotation's properties are in the inspector, not here.
+    mediaType.set("image");
     activeTask.set("focus");
     await tick();
-    expect(target.querySelector(".story-wide-authoring--annotations")).toBeTruthy();
-    expect(target.querySelector('[data-testid="story-wide-done"]')).toBeTruthy();
-    expect(target.querySelectorAll('[role="tab"]')).toHaveLength(0);
-    expect(target.querySelector(".story-wide-authoring__annotation-intro")?.textContent)
-      .toContain("Add annotation");
-    expect(target.querySelectorAll(".story-wide-authoring__annotation-tool")).toHaveLength(6);
-    (
-      [...target.querySelectorAll<HTMLButtonElement>(
-        ".story-wide-authoring__annotation-tools button",
-      )].find((button) => button.textContent?.trim() === "Rectangle")!
-    ).click();
+    const bar = target.querySelector('[data-testid="annotation-bar"]')!;
+    expect(bar).toBeTruthy();
+    expect(target.querySelector('[data-testid="camera-timeline"]')).toBeNull();
+    expect(bar.querySelectorAll('[data-testid^="annotation-tool-"]')).toHaveLength(6);
+    expect(bar.querySelectorAll('[data-testid="story-wide-done"]')).toHaveLength(1);
+    expect(target.querySelector(".story-wide-annotations")).toBeNull();
+    expect(target.querySelector(".annotation-options")).toBeNull();
+    expect(target.querySelector('[data-testid="annotation-edit-done"]')).toBeNull();
+    const hint = () =>
+      target.querySelector('[data-testid="annotation-bar-hint"]')?.textContent?.trim() ?? "";
+    expect(hint()).toContain("Pick a shape to draw");
+
+    const rectangle = bar.querySelector<HTMLButtonElement>(
+      '[data-testid="annotation-tool-rectangle"]',
+    )!;
+    rectangle.click();
     expect(onSetAnnotationTool).toHaveBeenCalledWith("rectangle");
     await tick();
-    expect(target.querySelector(".story-wide-authoring--annotations")).toBeNull();
-    expect(
-      target.querySelector(".story-wide-authoring--annotation-placing"),
-    ).toBeTruthy();
-    // The viewer returns to Select after committing the new shape.
+    // The bar stays put while a shape is being drawn; only the hint changes.
+    expect(target.querySelector('[data-testid="annotation-bar"]')).toBeTruthy();
+    expect(rectangle.getAttribute("aria-pressed")).toBe("true");
+    expect(hint()).toContain("Draw the rectangle on the image");
+
     annotationTool.set("select");
+    selectedAnnotationId.set("rectangle-one");
     await tick();
-    (
-      target.querySelector(".story-wide-annotations__select") as HTMLButtonElement
-    ).click();
-    await tick();
-    expect(onEditAnnotation).toHaveBeenCalledWith("rectangle-one");
-    expect(target.querySelector("#annotation-options-panel")).toBeTruthy();
-    expect(
-      target.querySelector(".story-wide-authoring__annotation-context")
-        ?.textContent,
-    ).toContain("Edit annotation");
-    expect(
-      target.querySelector(".story-wide-authoring__annotation-context")
-        ?.textContent,
-    ).toContain("Rectangle");
-    const appearance = target.querySelector(".annotation-options__appearance")!;
-    expect(
-      appearance.querySelectorAll(".annotation-options__field--nested"),
-    ).toHaveLength(2);
-    expect(appearance.textContent).toContain("Background");
-    expect(appearance.textContent).toContain("Stroke");
-    (
-      target.querySelector('[data-testid="drawing-language-cy"]') as HTMLButtonElement
-    ).click();
-    await tick();
-    const translation = target.querySelector<HTMLTextAreaElement>(
-      ".annotation-options__translation textarea",
-    )!;
-    expect(translation.rows).toBe(2);
-    translation.value = "Nodyn";
-    translation.dispatchEvent(new Event("input", { bubbles: true }));
-    expect(onSetAnnotationLabel).toHaveBeenCalledWith(
-      "rectangle-one",
-      "cy",
-      "Nodyn",
-    );
-    const solid = [...target.querySelectorAll<HTMLButtonElement>(
-      ".annotation-options__segments button",
-    )].find((button) => button.textContent?.trim() === "Solid")!;
-    solid.click();
-    expect(onSetAnnotationStyle).toHaveBeenCalledWith("rectangle-one", {
-      fillMode: "solid",
-    });
-    (
-      target.querySelector('[data-testid="annotation-edit-done"]') as HTMLButtonElement
-    ).click();
-    await tick();
-    expect(onFinishAnnotationEdit).toHaveBeenCalledOnce();
-    expect(target.querySelector("#annotation-list-panel")).toBeTruthy();
-    expect(target.querySelector("#annotation-options-panel")).toBeNull();
+    expect(hint()).toContain("Drag the annotation to move or resize it");
+    selectedAnnotationId.set(null);
 
     activeTask.set("details");
     await tick();

@@ -66,55 +66,39 @@ test("previews saved chapter motion without showing authoring frames", async ({
   page,
 }) => {
   await page.goto("/story-builder.html?iiif-content=test-story/demo.json");
-  await page.locator('[data-testid="inspector-group-timing"]').click();
-  const motionTask = page.locator('[data-testid="inspector-activate-motion"]');
-  await expect(motionTask).toBeVisible();
+  const builder = page.locator(":is(mango-story-viewer, mango-story-builder)");
+  const capture = page.locator('[data-testid="camera-timeline-capture"]');
+  await expect(capture).toBeVisible();
   await expect
-    .poll(() =>
-      page
-        .locator(":is(mango-story-viewer, mango-story-builder)")
-        .evaluate((element: any) => element.getViewBox()),
-    )
+    .poll(() => builder.evaluate((element: any) => element.getViewBox()))
     .not.toBeNull();
-  await page.locator(":is(mango-story-viewer, mango-story-builder)").evaluate((element: any) => {
-    const view = element.getViewBox();
-    element.setViewBox({
-      x: view.x + view.w * 0.2,
-      y: view.y + view.h * 0.2,
-      w: view.w * 0.6,
-      h: view.h * 0.6,
-    });
-  });
-  await page.waitForTimeout(300);
-  await motionTask.click();
+  const moveView = (dx: number, dy: number, scale: number) =>
+    builder.evaluate(
+      (element: any, [x, y, k]) => {
+        const view = element.getViewBox();
+        element.setViewBox({
+          x: view.x + view.w * x,
+          y: view.y + view.h * y,
+          w: view.w * k,
+          h: view.h * k,
+        });
+      },
+      [dx, dy, scale],
+    );
 
-  // Capture two deliberately different views. Camera points are represented
-  // by stable pins and timeline entries; rectangular keyframe overlays were
-  // removed from the motion workflow.
-  const addPoint = page.getByRole("button", {
-    name: "Add camera point",
-    exact: true,
-  });
-  await addPoint.click();
-  await expect(page.locator(".story-wide-authoring__point")).toHaveCount(1);
-  await page.locator(":is(mango-story-viewer, mango-story-builder)").evaluate((element: any) => {
-    const view = element.getViewBox();
-    element.setViewBox({
-      x: view.x + view.w * 0.15,
-      y: view.y + view.h * 0.1,
-      w: view.w * 0.7,
-      h: view.h * 0.7,
-    });
-  });
+  // Capture two deliberately different views. Each keyframe is the view the
+  // author was looking at, and is drawn on the image as a numbered outline.
+  await moveView(0.2, 0.2, 0.6);
   await page.waitForTimeout(300);
-  await addPoint.click();
-  await expect(page.locator(".story-wide-authoring__point")).toHaveCount(2);
-  await expect(page.locator(".story-builder-motion-marker--selected")).toHaveCount(1);
-  await page.locator('[data-testid="inspector-done-motion"]').click();
-  await expect(page.locator(".story-wide-authoring")).toHaveCount(0);
-  // Out of the motion tool every editing object leaves the fixed output stage.
-  await expect(page.locator(".story-frame--keyframe")).toHaveCount(0);
-  await expect(page.locator(".story-frame--chapter")).toHaveCount(0);
+  await capture.click();
+  await expect(page.locator('[data-testid="camera-timeline-keyframe"]')).toHaveCount(1);
+  await moveView(0.15, 0.1, 0.7);
+  await page.waitForTimeout(300);
+  await capture.click();
+  await expect(page.locator('[data-testid="camera-timeline-keyframe"]')).toHaveCount(2);
+  await expect(page.locator(".story-frame--keyframe")).toHaveCount(2);
+  await expect(page.locator(".story-frame--keyframe.story-frame--editable")).toHaveCount(1);
+  await expect(page.locator(".story-frame--chapter")).toHaveCount(1);
 
   const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
   const viewBeforePreview = await viewer.evaluate((element: any) =>
@@ -140,122 +124,82 @@ test("previews saved chapter motion without showing authoring frames", async ({
   await page.getByRole("button", { name: "Exit preview", exact: true }).click();
 });
 
-test("authors stable diagonal motion with independent pin position and zoom", async ({
+test("authors camera motion from captured views on the timeline", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/story-builder.html?iiif-content=test-story/demo.json");
   const viewer = page.locator(":is(mango-story-viewer, mango-story-builder)");
-  await viewer.locator('[data-testid="inspector-group-timing"]').click();
-  const motionTask = viewer.locator('[data-testid="inspector-activate-motion"]');
-  await expect(motionTask).toBeVisible();
+  const capture = viewer.getByTestId("camera-timeline-capture");
+  await expect(capture).toBeVisible();
   await expect.poll(() => viewer.evaluate((element: any) => element.getViewBox())).not.toBeNull();
-  await motionTask.click();
+  const track = () =>
+    viewer.evaluate((element: any) => element.getStory().chapters[0].cameraTrack);
+  const inside = (box: any, view: any) =>
+    box.x >= view.x - 1 &&
+    box.y >= view.y - 1 &&
+    box.x + box.w <= view.x + view.w + 1 &&
+    box.y + box.h <= view.y + view.h + 1;
+
+  // Nothing is invented before there is motion: no time, nothing to play.
+  await expect(viewer.getByTestId("camera-timeline-time")).toHaveCount(0);
+  await expect(viewer.getByTestId("camera-timeline-play")).toBeDisabled();
 
   const initialView = await viewer.evaluate((element: any) => element.getViewBox());
-  const addPoint = viewer.getByRole("button", { name: "Add camera point", exact: true });
-  await addPoint.click();
-  const marker = viewer.locator(".story-builder-motion-marker").first();
-  await expect(marker).toBeVisible();
-  await expect(marker).not.toHaveAttribute("title");
-  await expect(viewer.locator(".story-wide-authoring__point-delete")).toHaveCount(0);
-  const deleteSelected = viewer.getByTestId("motion-delete-selected");
-  await expect(deleteSelected).toBeVisible();
-  const [timelineBox, deleteBox] = await Promise.all([
-    viewer.locator(".story-wide-authoring__timeline").boundingBox(),
-    deleteSelected.boundingBox(),
-  ]);
-  expect(timelineBox && deleteBox).toBeTruthy();
-  if (!timelineBox || !deleteBox) return;
-  expect(Math.abs(timelineBox.x + timelineBox.width - (deleteBox.x + deleteBox.width))).toBeLessThanOrEqual(12);
-  expect(Math.abs(timelineBox.y + timelineBox.height - (deleteBox.y + deleteBox.height))).toBeLessThanOrEqual(2);
+  await capture.click();
+  await expect(viewer.getByTestId("camera-timeline-keyframe")).toHaveCount(1);
+  const first = (await track()).keyframes[0];
+  // A keyframe is the story-shaped box inside the view, never wider than it.
+  expect(inside(first.viewBox, initialView)).toBe(true);
 
-  const beforeHover = await marker.boundingBox();
-  expect(beforeHover).toBeTruthy();
-  if (!beforeHover) return;
-  await page.mouse.move(beforeHover.x + beforeHover.width / 2, beforeHover.y + beforeHover.height / 2);
-  await page.mouse.move(beforeHover.x + beforeHover.width / 2 + 3, beforeHover.y + beforeHover.height / 2 + 2);
-  const afterHover = await marker.boundingBox();
-  expect(afterHover).toBeTruthy();
-  if (!afterHover) return;
-  expect(Math.abs(afterHover.x - beforeHover.x)).toBeLessThanOrEqual(0.5);
-  expect(Math.abs(afterHover.y - beforeHover.y)).toBeLessThanOrEqual(0.5);
-  expect(Math.abs(afterHover.width - beforeHover.width)).toBeLessThanOrEqual(0.5);
-  expect(Math.abs(afterHover.height - beforeHover.height)).toBeLessThanOrEqual(0.5);
-
-  const overlay = viewer.locator(".story-builder-overlay-root");
-  const overlayBox = await overlay.boundingBox();
-  expect(overlayBox).toBeTruthy();
-  if (!overlayBox) return;
-  await page.mouse.move(beforeHover.x + beforeHover.width / 2, beforeHover.y + beforeHover.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(
-    overlayBox.x + overlayBox.width * 0.2,
-    overlayBox.y + overlayBox.height * 0.75,
-    { steps: 8 },
-  );
-  // The marker must visibly follow while the button is still held; checking
-  // only after mouse-up would miss the original release-only rendering bug.
-  const heldMarkerBox = await marker.boundingBox();
-  expect(heldMarkerBox).toBeTruthy();
-  if (!heldMarkerBox) return;
-  expect(heldMarkerBox.x).toBeLessThan(beforeHover.x - overlayBox.width * 0.15);
-  expect(heldMarkerBox.y).toBeGreaterThan(beforeHover.y + overlayBox.height * 0.15);
-  await page.mouse.up();
-
-  const firstBeforeZoom = await viewer.evaluate((element: any) =>
-    element.getStory().chapters[0].cameraTrack.keyframes[0],
-  );
-  const centredHalfView = {
-    x: initialView.x + initialView.w * 0.25,
-    y: initialView.y + initialView.h * 0.25,
-    w: initialView.w * 0.5,
-    h: initialView.h * 0.5,
-  };
-  await viewer.evaluate((element: any, next) => element.setViewBox(next), centredHalfView);
-  await expect.poll(() => viewer.evaluate((element: any) => element.getViewBox().w)).toBeLessThan(initialView.w * 0.7);
-  await viewer.locator('[data-testid="motion-save-zoom"]').click();
-
-  const firstAfterZoom = await viewer.evaluate((element: any) =>
-    element.getStory().chapters[0].cameraTrack.keyframes[0],
-  );
-  expect(firstAfterZoom.focus.x).toBeCloseTo(firstBeforeZoom.focus.x, 5);
-  expect(firstAfterZoom.focus.y).toBeCloseTo(firstBeforeZoom.focus.y, 5);
-  expect(firstAfterZoom.viewBox.x + firstAfterZoom.viewBox.w / 2).toBeCloseTo(firstAfterZoom.focus.x, 5);
-  expect(firstAfterZoom.viewBox.y + firstAfterZoom.viewBox.h / 2).toBeCloseTo(firstAfterZoom.focus.y, 5);
-  expect(firstAfterZoom.viewBox.w).toBeLessThan(firstBeforeZoom.viewBox.w);
-
-  await addPoint.click();
-  await expect(viewer.locator(".story-wide-authoring__point")).toHaveCount(2);
-  const secondMarker = viewer.locator(".story-builder-motion-marker--selected");
-  const secondBox = await secondMarker.boundingBox();
-  expect(secondBox).toBeTruthy();
-  if (!secondBox) return;
-  await page.mouse.move(secondBox.x + secondBox.width / 2, secondBox.y + secondBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(
-    overlayBox.x + overlayBox.width * 0.8,
-    overlayBox.y + overlayBox.height * 0.2,
-    { steps: 8 },
-  );
-  await page.mouse.up();
-
-  const centredThirdView = {
-    x: initialView.x + initialView.w * 0.35,
+  const closeView = {
+    x: initialView.x + initialView.w * 0.5,
     y: initialView.y + initialView.h * 0.35,
     w: initialView.w * 0.3,
     h: initialView.h * 0.3,
   };
-  await viewer.evaluate((element: any, next) => element.setViewBox(next), centredThirdView);
+  await viewer.evaluate((element: any, next) => element.setViewBox(next), closeView);
   await expect.poll(() => viewer.evaluate((element: any) => element.getViewBox().w)).toBeLessThan(initialView.w * 0.45);
-  await viewer.locator('[data-testid="motion-save-zoom"]').click();
-
-  const authored = await viewer.evaluate((element: any) => element.getStory().chapters[0].cameraTrack);
-  expect(authored.keyframes[1].focus.x).toBeGreaterThan(authored.keyframes[0].focus.x);
-  expect(authored.keyframes[1].focus.y).toBeLessThan(authored.keyframes[0].focus.y);
+  await capture.click();
+  await expect(viewer.getByTestId("camera-timeline-keyframe")).toHaveCount(2);
+  let authored = await track();
   expect(authored.keyframes[1].viewBox.w).toBeLessThan(authored.keyframes[0].viewBox.w);
+  expect(authored.keyframes[1].focus.x).toBeGreaterThan(authored.keyframes[0].focus.x);
+  await expect(viewer.getByTestId("camera-timeline-time")).toHaveText(/^0:00 \/ 0:0\d/);
 
-  await viewer.getByRole("tab", { name: "Options", exact: true }).click();
+  // The new keyframe is selected: its outline has the handles, and its
+  // actions are on the timeline beside it.
+  await expect(viewer.locator(".story-frame--keyframe.story-frame--editable")).toHaveCount(1);
+  await expect(viewer.getByTestId("camera-timeline-update")).toBeVisible();
+
+  // Selecting the first keyframe goes to it; moving the view and updating
+  // replaces the keyframe with the view — where it looks and how far in.
+  await viewer.getByTestId("camera-timeline-keyframe").first().click();
+  await expect
+    .poll(() => viewer.evaluate((element: any) => element.getViewBox().w))
+    .toBeGreaterThan(initialView.w * 0.6);
+  const leftView = {
+    x: initialView.x + initialView.w * 0.05,
+    y: initialView.y + initialView.h * 0.3,
+    w: initialView.w * 0.4,
+    h: initialView.h * 0.4,
+  };
+  await viewer.evaluate((element: any, next) => element.setViewBox(next), leftView);
+  await expect.poll(() => viewer.evaluate((element: any) => element.getViewBox().w)).toBeLessThan(initialView.w * 0.5);
+  const viewAtUpdate = await viewer.evaluate((element: any) => element.getViewBox());
+  await viewer.getByTestId("camera-timeline-update").click();
+  authored = await track();
+  expect(inside(authored.keyframes[0].viewBox, viewAtUpdate)).toBe(true);
+  expect(authored.keyframes[0].viewBox.w).toBeLessThan(first.viewBox.w);
+  expect(authored.keyframes[0].focus.x).toBeLessThan(authored.keyframes[1].focus.x);
+
+  // A third keyframe can be deleted again from the same place.
+  await capture.click();
+  await expect(viewer.getByTestId("camera-timeline-keyframe")).toHaveCount(3);
+  await viewer.getByTestId("camera-timeline-delete").click();
+  await expect(viewer.getByTestId("camera-timeline-keyframe")).toHaveCount(2);
+
+  await viewer.getByTestId("camera-timeline-options").click();
   const fineTuning = viewer.locator(".motion-panel__fine-tuning");
   const options = viewer.locator(".motion-panel__options");
   await fineTuning.locator("summary").click();
@@ -271,37 +215,19 @@ test("authors stable diagonal motion with independent pin position and zoom", as
   const duration = viewer.getByTestId("motion-duration");
   await duration.fill("3");
   await duration.blur();
-  await viewer.getByTestId("motion-preview-next-to-done").click();
+  await viewer.getByTestId("camera-timeline-options").click();
+  await expect(viewer.getByTestId("camera-timeline-time")).toHaveText("0:00 / 0:03");
+
+  // Motion plays in place: the editor stays exactly where it is, the frames
+  // step aside, and the same button stops it.
+  const play = viewer.getByTestId("camera-timeline-play");
+  await play.click();
   const viewerRoot = viewer.locator(".viewer:not(.viewer--headless)");
-  await expect(viewerRoot).toHaveClass(/viewer--story-preview/);
-  await expect(viewer.locator(".panel-stack--left")).toHaveCSS("display", "none");
-  await expect(viewer.locator(".panel-stack--right")).toHaveCSS("display", "none");
-  await expect(viewer.locator(".stage__bottom")).not.toHaveCSS("display", "none");
-  await expect(viewer.locator(".stage__toolbar--below")).toHaveCSS("display", "none");
-  await expect(viewer.locator(".story-wide-authoring")).toHaveCount(0);
-  const previewPinsToggle = viewer.getByTestId("motion-preview-pins-toggle");
-  const stopPreview = viewer.getByTestId("motion-preview-next-to-done");
-  const done = viewer.getByTestId("story-wide-done");
-  await expect(previewPinsToggle).toBeVisible();
-  await expect(viewer.locator(".stage__bottom .plugin-panel__title")).toHaveCSS("display", "none");
-  const [previewBarBox, pinsButtonBox, stopButtonBox, doneButtonBox] = await Promise.all([
-    viewer.locator(".stage__bottom").boundingBox(),
-    previewPinsToggle.boundingBox(),
-    stopPreview.boundingBox(),
-    done.boundingBox(),
-  ]);
-  expect(previewBarBox && pinsButtonBox && stopButtonBox && doneButtonBox).toBeTruthy();
-  if (!previewBarBox || !pinsButtonBox || !stopButtonBox || !doneButtonBox) return;
-  expect(previewBarBox.height).toBeLessThanOrEqual(50);
-  expect(Math.max(pinsButtonBox.height, stopButtonBox.height, doneButtonBox.height) -
-    Math.min(pinsButtonBox.height, stopButtonBox.height, doneButtonBox.height)).toBeLessThanOrEqual(1);
-  expect(stopButtonBox.x - (pinsButtonBox.x + pinsButtonBox.width)).toBeGreaterThanOrEqual(7);
-  expect(doneButtonBox.x - (stopButtonBox.x + stopButtonBox.width)).toBeGreaterThanOrEqual(7);
-  await expect(viewer.locator(".story-builder-motion-marker")).toHaveCount(0);
-  await previewPinsToggle.click();
-  // Pins outside the moving viewport are naturally clipped; every pin that
-  // is currently in view is reference-only during preview.
-  await expect(viewer.locator(".story-builder-motion-marker").first()).toBeDisabled();
+  await expect(viewerRoot).not.toHaveClass(/viewer--story-preview/);
+  await expect(viewer.locator(".panel-stack--left")).toBeVisible();
+  await expect(viewer.locator(".panel-stack--right")).toBeVisible();
+  await expect(viewer.getByTestId("camera-timeline")).toBeVisible();
+  await expect(viewer.locator(".story-frame")).toHaveCount(0);
 
   const centre = async () => viewer.evaluate((element: any) => {
     const box = element.getViewBox();
@@ -317,8 +243,7 @@ test("authors stable diagonal motion with independent pin position and zoom", as
   expect(Math.hypot(late.x - early.x, late.y - early.y)).toBeGreaterThan(10);
   expect(Math.abs(late.w - early.w)).toBeGreaterThan(10);
 
-  await viewer.getByTestId("motion-preview-next-to-done").click();
-  await expect(viewerRoot).not.toHaveClass(/viewer--story-preview/);
-  await expect(viewer.locator(".panel-stack--left")).not.toHaveCSS("display", "none");
-  await expect(viewer.locator(".stage__toolbar--below")).not.toHaveCSS("display", "none");
+  await play.click();
+  await expect(viewer.locator(".story-frame--chapter")).toHaveCount(1);
+  await expect(viewer.locator(".story-frame--keyframe")).toHaveCount(2);
 });
