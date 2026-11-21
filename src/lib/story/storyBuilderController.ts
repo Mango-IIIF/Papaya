@@ -159,6 +159,10 @@ export type StoryBuilderController = {
    * a chapter frame is when the author asks for it here.
    */
   setChapterPositionFromView: () => void;
+  /** Glides the live viewer back to the active shot or chapter's saved framing. */
+  resetViewToSaved: () => void;
+  /** Clears all camera motion keyframes on the active chapter (returns to static). */
+  clearMotionTrack: () => void;
   deleteChapter: (chapterId: string) => void;
   duplicateChapter: (chapterId: string) => void;
   reorderChapter: (
@@ -2173,6 +2177,31 @@ export const createStoryBuilderController = (
     setChapterPosition(frame);
   };
 
+  const resetViewToSaved = () => {
+    const chapterId = get(selectedChapterId);
+    const chapter = get(storyStore).chapters.find((item) => item.id === chapterId);
+    if (!chapter || !viewer) return;
+    const selectedPointId = get(selectedMotionPointId);
+    const selectedPoint = selectedPointId
+      ? chapter.cameraTrack?.keyframes?.find((point) => point.id === selectedPointId)
+      : null;
+    const targetBox = selectedPoint?.viewBox ?? chapter.viewBox;
+    if (targetBox) {
+      viewer.setViewBox?.(targetBox);
+      viewBox.set(targetBox);
+    }
+    const targetModel = selectedPoint?.model ?? chapter.model;
+    if (targetModel) {
+      viewer.setModelPose?.(targetModel);
+    }
+  };
+
+  const clearMotionTrack = () => {
+    selectedMotionPointId.set(null);
+    stopMotionPreview();
+    updateCameraTrack(() => undefined);
+  };
+
   const deleteChapter = (chapterId: string) => {
     activeChapterTask.set(null);
     pushHistorySnapshot();
@@ -3411,6 +3440,8 @@ export const createStoryBuilderController = (
     updateChapter,
     setChapterPosition,
     setChapterPositionFromView,
+    resetViewToSaved,
+    clearMotionTrack,
     deleteChapter,
     duplicateChapter,
     reorderChapter,

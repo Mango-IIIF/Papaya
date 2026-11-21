@@ -10,6 +10,7 @@
   export let story: Readable<StoryState>;
   export let open = false;
   export let currentManifest: string | null = null;
+  export let initialUrl: string | null = null;
   export let hasSelectedChapter = false;
   export let language = 'en';
   export let onClose: (() => void) | undefined = undefined;
@@ -27,6 +28,8 @@
 
   onMount(() => {
     if (!panelRoot) return;
+    const legacyOverlay = panelRoot.closest('.stage__overlay');
+    if (!legacyOverlay) return;
     const stage = panelRoot.closest('.stage--story-builder');
     const grid = stage?.closest('.viewer__grid');
     grid?.classList.add('viewer__grid--settings-modal');
@@ -88,7 +91,7 @@
 
   $: if (open && !wasOpen) {
     wasOpen = true;
-    const initial = currentManifest || storyManifests[0] || '';
+    const initial = initialUrl?.trim() || currentManifest || storyManifests[0] || '';
     if (initial && initial !== lastLoadedUrl) {
       void loadResource(initial);
     } else if (initial && !urlInput) {
