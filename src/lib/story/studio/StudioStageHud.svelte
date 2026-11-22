@@ -186,6 +186,7 @@
   >
     <div
       class="studio-hud__caption-head"
+      role="presentation"
       title={!isPreviewing ? $t('storyBuilder.studio.dragCard') : undefined}
       onpointerdown={startCardDrag}
     >

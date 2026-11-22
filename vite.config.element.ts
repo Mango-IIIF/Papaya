@@ -19,7 +19,7 @@ const customElementConfig = (filename: string | undefined) => {
 };
 
 export default defineConfig({
-  root: resolve(__dirname, 'src'),
+  root: resolve(import.meta.dirname, 'src'),
   /*
    * `@mango-iiif/iiif-viewer` may be linked from a sibling checkout, which
    * would otherwise resolve its own copies of these from its own
@@ -30,7 +30,7 @@ export default defineConfig({
   },
   plugins: [
     svelte({
-      configFile: resolve(__dirname, 'svelte.config.js'),
+      configFile: resolve(import.meta.dirname, 'svelte.config.js'),
       dynamicCompileOptions({ filename }) {
         return customElementConfig(filename);
       },
@@ -38,8 +38,8 @@ export default defineConfig({
     {
       name: 'mango-story-element-shadow-css',
       closeBundle() {
-        const jsPath = resolve(__dirname, 'src/dist/mango-story-element.js');
-        const cssPath = resolve(__dirname, 'src/dist/mango-story-element.css');
+        const jsPath = resolve(import.meta.dirname, 'src/dist/mango-story-element.js');
+        const cssPath = resolve(import.meta.dirname, 'src/dist/mango-story-element.css');
 
         console.log('[CSS Inject] Checking files:', jsPath, cssPath);
         const jsExists = existsSync(jsPath);
@@ -65,7 +65,7 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/lib/element-bundle.ts'),
+      entry: resolve(import.meta.dirname, 'src/lib/element-bundle.ts'),
       name: 'MangoStoryElement',
       formats: ['es'],
       fileName: () => 'mango-story-element.js',
@@ -75,7 +75,7 @@ export default defineConfig({
         assetFileNames: 'mango-story-element.[ext]',
       },
     },
-    outDir: resolve(__dirname, 'src/dist'),
+    outDir: resolve(import.meta.dirname, 'src/dist'),
     emptyOutDir: false,
     cssCodeSplit: false,
   },

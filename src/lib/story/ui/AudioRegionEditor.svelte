@@ -6,33 +6,43 @@
   } from "wavesurfer.js/dist/plugins/regions.esm.js";
   import { t, translate } from '../../core/i18n';
 
-  export let url = "";
-  export let start = 0;
-  export let end = 0;
-  export let duration = 0;
-  export let disabled = false;
-  export let label: string | undefined = undefined;
-  export let testId = "audio-region-editor";
-  export let onChange: (
-    start: number,
-    end: number,
-    committed: boolean,
-  ) => void = () => {};
-  export let onReady: (duration: number) => void = () => {};
-  export let onPlayStateChange: (playing: boolean) => void = () => {};
+  interface Props {
+    url?: string;
+    start?: number;
+    end?: number;
+    duration?: number;
+    disabled?: boolean;
+    label?: string;
+    testId?: string;
+    onChange?: (start: number, end: number, committed: boolean) => void;
+    onReady?: (duration: number) => void;
+    onPlayStateChange?: (playing: boolean) => void;
+  }
+
+  let {
+    url = "",
+    start = 0,
+    end = 0,
+    duration = 0,
+    disabled = false,
+    label = undefined,
+    testId = "audio-region-editor",
+    onChange = () => {},
+    onReady = () => {},
+    onPlayStateChange = () => {},
+  }: Props = $props();
 
   let container: HTMLDivElement;
   let waveSurfer: WaveSurfer | null = null;
   let regions: RegionsPlugin | null = null;
   let region: Region | null = null;
   let loadedUrl = "";
-  let readyDuration = 0;
-  let loading = false;
-  let loadError = "";
+  let readyDuration = $state(0);
+  let loading = $state(false);
+  let loadError = $state("");
   let syncingRegion = false;
   let destroyed = false;
-  let regionSyncKey = "";
-  let zoomPxPerSec = 0;
+  let zoomPxPerSec = $state(0);
   let autoZoomed = false;
 
   const centerSelection = () => {
@@ -224,9 +234,18 @@
     void loadMedia(url.trim());
   });
 
-  $: if (waveSurfer && url.trim() !== loadedUrl) void loadMedia(url.trim());
-  $: regionSyncKey = `${start}:${end}:${duration}:${disabled ? "1" : "0"}`;
-  $: if (region && regionSyncKey) syncRegion();
+  $effect(() => {
+    const trimmed = url.trim();
+    if (waveSurfer && trimmed !== loadedUrl) void loadMedia(trimmed);
+  });
+
+  $effect(() => {
+    void start;
+    void end;
+    void duration;
+    void disabled;
+    if (region) syncRegion();
+  });
 
   onDestroy(() => {
     destroyed = true;
@@ -245,7 +264,7 @@
 >
   {#if readyDuration > 0}
     <div class="audio-region__zoom" aria-label={$t('storyBuilder.audio.zoomControls')}>
-      <button type="button" disabled={disabled} on:click={() => applyZoom(0)}>{$t('storyBuilder.audio.fitMedia')}</button
+      <button type="button" disabled={disabled} onclick={() => applyZoom(0)}>{$t('storyBuilder.audio.fitMedia')}</button
       >
       <label>
         <span>{$t('storyBuilder.audio.zoom')}</span>
@@ -257,11 +276,11 @@
           value={zoomPxPerSec}
           aria-label={$t('storyBuilder.audio.waveformZoom')}
           disabled={disabled}
-          on:input={(event) =>
+          oninput={(event) =>
             applyZoom(Number((event.currentTarget as HTMLInputElement).value))}
         />
       </label>
-      <button type="button" disabled={disabled} on:click={zoomToSelection}>{$t('storyBuilder.audio.showSelection')}</button>
+      <button type="button" disabled={disabled} onclick={zoomToSelection}>{$t('storyBuilder.audio.showSelection')}</button>
     </div>
   {/if}
   <div class="audio-region__wave" bind:this={container}></div>

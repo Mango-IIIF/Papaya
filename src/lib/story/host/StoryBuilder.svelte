@@ -43,6 +43,7 @@
   } from '../framing';
   import { STORY_LABEL_SIZING } from '../annotations/rectangleLabelLayout';
   import { renderChapterRichText } from '../richText';
+  import { isSafeContentUrl } from '../sanitize';
   import StoryStage from '../ui/StoryStage.svelte';
   import StoryFrameLayer from '../ui/StoryFrameLayer.svelte';
   import StoryAnnotationOverlay from '../ui/StoryAnnotationOverlay.svelte';
@@ -99,7 +100,8 @@
 
   const contentStateUrl = (): string | undefined => {
     if (typeof window === 'undefined') return undefined;
-    return new URLSearchParams(window.location.search).get('iiif-content') ?? undefined;
+    const raw = new URLSearchParams(window.location.search).get('iiif-content');
+    return raw && isSafeContentUrl(raw) ? raw : undefined;
   };
   let effectiveStoryUrl = $derived(storyUrl ?? contentStateUrl());
 

@@ -1,50 +1,52 @@
 <script lang="ts">
   import { FolderOpen, Layers, Plus, Replace } from '@lucide/svelte';
-  import { onMount } from 'svelte';
   import type { Readable } from 'svelte/store';
   import { manifestsStore } from '@mango-iiif/iiif-viewer/core';
   import type { StoryState } from '../../core/types/story';
   import { parseIiifResource, type ParsedIiifResource } from '../manifestSources';
   import { t } from '../../core/i18n';
 
-  export let story: Readable<StoryState>;
-  export let open = false;
-  export let currentManifest: string | null = null;
-  export let initialUrl: string | null = null;
-  export let hasSelectedChapter = false;
-  export let language = 'en';
-  export let onClose: (() => void) | undefined = undefined;
-  export let onSelectSourceCanvas:
-    | ((manifest: string, canvasIndex: number, mode: 'add' | 'replace') => void)
-    | undefined = undefined;
+  interface Props {
+    story: Readable<StoryState>;
+    open?: boolean;
+    currentManifest?: string | null;
+    initialUrl?: string | null;
+    hasSelectedChapter?: boolean;
+    language?: string;
+    onClose?: () => void;
+    onSelectSourceCanvas?: (
+      manifest: string,
+      canvasIndex: number,
+      mode: 'add' | 'replace',
+    ) => void;
+  }
 
-  let panelRoot: HTMLDivElement | null = null;
-  let urlInput = '';
-  let loading = false;
-  let errorMessage: string | null = null;
-  let resource: ParsedIiifResource | null = null;
-  let lastLoadedUrl = '';
+  let {
+    story,
+    open = false,
+    currentManifest = null,
+    initialUrl = null,
+    hasSelectedChapter = false,
+    language = 'en',
+    onClose = undefined,
+    onSelectSourceCanvas = undefined,
+  }: Props = $props();
+
+  let urlInput = $state('');
+  let loading = $state(false);
+  let errorMessage = $state<string | null>(null);
+  let resource = $state<ParsedIiifResource | null>(null);
+  let lastLoadedUrl = $state('');
   let wasOpen = false;
 
-  onMount(() => {
-    if (!panelRoot) return;
-    const legacyOverlay = panelRoot.closest('.stage__overlay');
-    if (!legacyOverlay) return;
-    const stage = panelRoot.closest('.stage--story-builder');
-    const grid = stage?.closest('.viewer__grid');
-    grid?.classList.add('viewer__grid--settings-modal');
-    stage?.appendChild(panelRoot);
-    return () => {
-      grid?.classList.remove('viewer__grid--settings-modal');
-    };
-  });
-
-  $: storyManifests = Array.from(
-    new Set(
-      [
-        ...$story.chapters.map((chapter) => chapter.manifest),
-        ...(currentManifest ? [currentManifest] : []),
-      ].filter((entry): entry is string => Boolean(entry?.trim())),
+  let storyManifests = $derived(
+    Array.from(
+      new Set(
+        [
+          ...$story.chapters.map((chapter) => chapter.manifest),
+          ...(currentManifest ? [currentManifest] : []),
+        ].filter((entry): entry is string => Boolean(entry?.trim())),
+      ),
     ),
   );
 
@@ -89,17 +91,19 @@
     }
   };
 
-  $: if (open && !wasOpen) {
-    wasOpen = true;
-    const initial = initialUrl?.trim() || currentManifest || storyManifests[0] || '';
-    if (initial && initial !== lastLoadedUrl) {
-      void loadResource(initial);
-    } else if (initial && !urlInput) {
-      urlInput = initial;
+  $effect(() => {
+    if (open && !wasOpen) {
+      wasOpen = true;
+      const initial = initialUrl?.trim() || currentManifest || storyManifests[0] || '';
+      if (initial && initial !== lastLoadedUrl) {
+        void loadResource(initial);
+      } else if (initial && !urlInput) {
+        urlInput = initial;
+      }
+    } else if (!open && wasOpen) {
+      wasOpen = false;
     }
-  } else if (!open && wasOpen) {
-    wasOpen = false;
-  }
+  });
 
   const chooseCanvas = (manifestId: string, canvasIndex: number, mode: 'add' | 'replace') => {
     onSelectSourceCanvas?.(manifestId, canvasIndex, mode);
@@ -108,7 +112,7 @@
 </script>
 
 <svelte:window
-  on:keydown={(event) => {
+  onkeydown={(event) => {
     if (open && event.key === 'Escape') {
       onClose?.();
     }
@@ -116,7 +120,6 @@
 />
 
 <div
-  bind:this={panelRoot}
   class="story-sources-modal"
   data-testid="story-sources-modal"
   aria-hidden={!open}
@@ -127,7 +130,7 @@
     type="button"
     tabindex="-1"
     aria-label={$t('common.close')}
-    on:click={() => onClose?.()}
+    onclick={() => onClose?.()}
   ></button>
 
   <div
@@ -146,7 +149,7 @@
         class="story-sources-modal__close"
         data-testid="story-sources-close"
         aria-label={$t('common.close')}
-        on:click={() => onClose?.()}
+        onclick={() => onClose?.()}
       >
         {$t('common.closeGlyph')}
       </button>
@@ -166,7 +169,7 @@
                 class:story-sources-modal__chip--active={lastLoadedUrl === manifestId}
                 data-testid="story-source-chip"
                 title={manifestId}
-                on:click={() => loadResource(manifestId)}
+                onclick={() => loadResource(manifestId)}
               >
                 <Layers aria-hidden="true" />
                 <span>{labelForManifest(manifestId)}</span>
@@ -178,7 +181,10 @@
 
       <form
         class="story-sources-modal__url-row"
-        on:submit|preventDefault={() => loadResource(urlInput)}
+        onsubmit={(event) => {
+          event.preventDefault();
+          void loadResource(urlInput);
+        }}
       >
         <label class="story-sources-modal__label">
           {$t('storyBuilder.sources.urlLabel')}
@@ -213,7 +219,7 @@
               <button
                 type="button"
                 class="story-sources-modal__card story-sources-modal__card--clickable"
-                on:click={() => loadResource(item.id)}
+                onclick={() => loadResource(item.id)}
               >
                 <div class="story-sources-modal__thumb">
                   {#if item.thumbnail}
@@ -250,7 +256,7 @@
                     type="button"
                     class="story-sources-modal__action story-sources-modal__action--primary"
                     data-testid={`source-canvas-add-${canvas.index}`}
-                    on:click={() => chooseCanvas(lastLoadedUrl, canvas.index, 'add')}
+                    onclick={() => chooseCanvas(lastLoadedUrl, canvas.index, 'add')}
                   >
                     <Plus aria-hidden="true" />
                     <span>{$t('storyBuilder.sources.addAsChapter')}</span>
@@ -260,7 +266,7 @@
                       type="button"
                       class="story-sources-modal__action"
                       data-testid={`source-canvas-use-${canvas.index}`}
-                      on:click={() => chooseCanvas(lastLoadedUrl, canvas.index, 'replace')}
+                      onclick={() => chooseCanvas(lastLoadedUrl, canvas.index, 'replace')}
                     >
                       <Replace aria-hidden="true" />
                       <span>{$t('storyBuilder.sources.useForChapter')}</span>

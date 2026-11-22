@@ -19,7 +19,7 @@ const escapeHtml = (input: string): string =>
 
 const isSafeHref = (rawUrl: string): boolean => {
   const trimmed = rawUrl.trim();
-  if (!trimmed) return false;
+  if (!trimmed || trimmed.startsWith('//')) return false;
   if (trimmed.startsWith('/') || trimmed.startsWith('#')) return true;
   try {
     const parsed = new URL(trimmed);

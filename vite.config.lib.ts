@@ -11,7 +11,7 @@ if (
   Object.defineProperty(globalThis, 'crypto', { configurable: true, value: webcrypto });
 }
 
-const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as {
+const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')) as {
   dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
 };
@@ -28,10 +28,10 @@ const customElementConfig = (filename: string | undefined) => {
 };
 
 export default defineConfig({
-  root: resolve(__dirname, 'src'),
+  root: resolve(import.meta.dirname, 'src'),
   plugins: [
     svelte({
-      configFile: resolve(__dirname, 'svelte.config.js'),
+      configFile: resolve(import.meta.dirname, 'svelte.config.js'),
       dynamicCompileOptions({ filename }) {
         return customElementConfig(filename);
       },
@@ -40,12 +40,12 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        index: resolve(__dirname, 'src/lib/index.ts'),
-        element: resolve(__dirname, 'src/lib/element.ts'),
-        'element-story-viewer': resolve(__dirname, 'src/lib/elements/story-viewer.ts'),
-        'element-story-builder': resolve(__dirname, 'src/lib/elements/story-builder.ts'),
-        'story-viewer': resolve(__dirname, 'src/lib/story-viewer.ts'),
-        'story-builder': resolve(__dirname, 'src/lib/story-builder.ts'),
+        index: resolve(import.meta.dirname, 'src/lib/index.ts'),
+        element: resolve(import.meta.dirname, 'src/lib/element.ts'),
+        'element-story-viewer': resolve(import.meta.dirname, 'src/lib/elements/story-viewer.ts'),
+        'element-story-builder': resolve(import.meta.dirname, 'src/lib/elements/story-builder.ts'),
+        'story-viewer': resolve(import.meta.dirname, 'src/lib/story-viewer.ts'),
+        'story-builder': resolve(import.meta.dirname, 'src/lib/story-builder.ts'),
       },
       formats: ['es'],
       fileName: (_format, entryName) => `${entryName}.js`,
@@ -53,7 +53,7 @@ export default defineConfig({
     rollupOptions: {
       external: isExternal,
     },
-    outDir: resolve(__dirname, 'src/dist'),
+    outDir: resolve(import.meta.dirname, 'src/dist'),
     emptyOutDir: true,
   },
 });

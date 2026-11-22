@@ -3,10 +3,14 @@
   import MangoAboutModal from './MangoAboutModal.svelte';
   import { t } from '../../core/i18n';
 
-  export let position: 'fixed' | 'absolute' | 'relative' | 'inline' = 'relative';
-  export let size = 16;
+  interface Props {
+    position?: 'fixed' | 'absolute' | 'relative' | 'inline';
+    size?: number;
+  }
 
-  let aboutOpen = false;
+  let { position = 'relative', size = 16 }: Props = $props();
+
+  let aboutOpen = $state(false);
 
   const toggleModal = () => {
     aboutOpen = !aboutOpen;
@@ -25,7 +29,7 @@
     class="mango-footer-brand__button"
     title={$t('about.buttonTitle')}
     aria-label={$t('about.buttonLabel')}
-    on:click={toggleModal}
+    onclick={toggleModal}
   >
     <MangoLogoIcon {size} color="currentColor" />
     <span class="mango-footer-brand__label">{$t('about.brand')}</span>

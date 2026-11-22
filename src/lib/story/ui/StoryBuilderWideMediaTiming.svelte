@@ -8,48 +8,71 @@
   import AudioRegionEditor from "./AudioRegionEditor.svelte";
   import { t } from '../../core/i18n';
 
-  export let story: Readable<StoryState>;
-  export let selectedChapterId: Readable<string | null>;
-  export let mediaType: Readable<MediaType | null>;
-  export let mediaSources: Readable<MediaSource[]>;
-  export let mediaMarks: Readable<MediaMarksState>;
-  export let marksValid: Readable<boolean>;
-  export let onAssignMediaSegment: (start: number, end: number) => void;
-  export let onPreview: () => void;
-  export let onStopPreview: () => void;
+  interface Props {
+    story: Readable<StoryState>;
+    selectedChapterId: Readable<string | null>;
+    mediaType: Readable<MediaType | null>;
+    mediaSources: Readable<MediaSource[]>;
+    mediaMarks: Readable<MediaMarksState>;
+    marksValid: Readable<boolean>;
+    onAssignMediaSegment: (start: number, end: number) => void;
+    onPreview: () => void;
+    onStopPreview: () => void;
+  }
 
-  let startDraft = "0.00";
-  let endDraft = "0.00";
-  let waveformDuration = 0;
+  let {
+    story,
+    selectedChapterId,
+    mediaType,
+    mediaSources,
+    mediaMarks,
+    marksValid,
+    onAssignMediaSegment,
+    onPreview,
+    onStopPreview,
+  }: Props = $props();
+
+  let startDraft = $state("0.00");
+  let endDraft = $state("0.00");
+  let waveformDuration = $state(0);
   let lastSyncKey = "";
-  let videoElement: HTMLVideoElement | null = null;
-  let videoTime = 0;
+  let videoElement: HTMLVideoElement | null = $state(null);
+  let videoTime = $state(0);
   let videoPreviewEnd: number | null = null;
   let pausedSourceId = "";
 
   const formatTime = (value: number) => value.toFixed(2);
 
-  $: chapter =
-    $story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null;
-  $: source =
-    $mediaSources.find((entry) => entry.type === $mediaType) ??
-    $mediaSources.find(
-      (entry) => entry.type === "audio" || entry.type === "video",
-    );
-  $: videoSource = source?.type === "video" ? source : null;
-  $: if (videoSource && pausedSourceId !== videoSource.id) {
-    pausedSourceId = videoSource.id;
-    // Opening the modal transfers playback ownership away from the stage.
-    onStopPreview();
-  }
-  $: duration = Math.max(
-    1,
-    source?.duration ?? 0,
-    waveformDuration,
-    chapter?.media?.end ?? 0,
-    $mediaMarks.markOut ?? 0,
+  let chapter = $derived(
+    $story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null,
   );
-  $: {
+  let source = $derived(
+    $mediaSources.find((entry) => entry.type === $mediaType) ??
+      $mediaSources.find(
+        (entry) => entry.type === "audio" || entry.type === "video",
+      ),
+  );
+  let videoSource = $derived(source?.type === "video" ? source : null);
+
+  $effect(() => {
+    if (videoSource && pausedSourceId !== videoSource.id) {
+      pausedSourceId = videoSource.id;
+      // Opening the modal transfers playback ownership away from the stage.
+      onStopPreview();
+    }
+  });
+
+  let duration = $derived(
+    Math.max(
+      1,
+      source?.duration ?? 0,
+      waveformDuration,
+      chapter?.media?.end ?? 0,
+      $mediaMarks.markOut ?? 0,
+    ),
+  );
+
+  $effect(() => {
     const syncKey = `${chapter?.id ?? ""}:${chapter?.media?.start ?? ""}:${chapter?.media?.end ?? ""}:${$mediaMarks.markIn ?? ""}:${$mediaMarks.markOut ?? ""}:${duration}`;
     if (syncKey !== lastSyncKey) {
       lastSyncKey = syncKey;
@@ -58,13 +81,15 @@
         chapter?.media?.end ?? $mediaMarks.markOut ?? duration,
       );
     }
-  }
-  $: valid =
+  });
+
+  let valid = $derived(
     Number.isFinite(Number(startDraft)) &&
-    Number.isFinite(Number(endDraft)) &&
-    Number(startDraft) >= 0 &&
-    Number(endDraft) > Number(startDraft) &&
-    Number(endDraft) <= duration + 0.001;
+      Number.isFinite(Number(endDraft)) &&
+      Number(startDraft) >= 0 &&
+      Number(endDraft) > Number(startDraft) &&
+      Number(endDraft) <= duration + 0.001,
+  );
 
   const commit = () => {
     const nextStart = Number(startDraft);
@@ -196,10 +221,10 @@
         playsinline
         preload="metadata"
         aria-label={videoSource.label ?? $t('storyBuilder.media.media')}
-        on:loadedmetadata={handleVideoLoaded}
-        on:timeupdate={handleVideoTimeUpdate}
-        on:seeked={handleVideoTimeUpdate}
-        on:ended={() => (videoPreviewEnd = null)}
+        onloadedmetadata={handleVideoLoaded}
+        ontimeupdate={handleVideoTimeUpdate}
+        onseeked={handleVideoTimeUpdate}
+        onended={() => (videoPreviewEnd = null)}
       ></video>
       {#if videoSource.label}
         <small>{videoSource.label}</small>
@@ -210,13 +235,13 @@
   <div class="story-wide-media__editor">
     <div class="story-wide-media__toolbar">
       <strong>{$t('storyBuilder.media.segment')}</strong>
-      <button type="button" on:click={useFullMedia}>
+      <button type="button" onclick={useFullMedia}>
         <RotateCcw aria-hidden="true" /> {$t('storyBuilder.media.useFull')}
       </button>
-      <button type="button" disabled={!valid} on:click={() => void preview()}>
+      <button type="button" disabled={!valid} onclick={() => void preview()}>
         <Play aria-hidden="true" /> {$t('storyBuilder.chapter.preview')}
       </button>
-      <button type="button" on:click={stop}>
+      <button type="button" onclick={stop}>
         <Square aria-hidden="true" /> {$t('storyBuilder.media.stop')}
       </button>
     </div>
@@ -242,14 +267,14 @@
           step="0.01"
           aria-label={$t('storyBuilder.media.startTime')}
           bind:value={startDraft}
-          on:change={normalizeAndCommit}
-          on:blur={normalizeAndCommit}
+          onchange={normalizeAndCommit}
+          onblur={normalizeAndCommit}
         />
       </label>
       <button
         type="button"
         class="story-wide-media__current"
-        on:click={() => useCurrent("start")}
+        onclick={() => useCurrent("start")}
       >
         {$t('storyBuilder.media.useCurrent')}
       </button>
@@ -263,14 +288,14 @@
           step="0.01"
           aria-label={$t('storyBuilder.media.endTime')}
           bind:value={endDraft}
-          on:change={normalizeAndCommit}
-          on:blur={normalizeAndCommit}
+          onchange={normalizeAndCommit}
+          onblur={normalizeAndCommit}
         />
       </label>
       <button
         type="button"
         class="story-wide-media__current"
-        on:click={() => useCurrent("end")}
+        onclick={() => useCurrent("end")}
       >
         {$t('storyBuilder.media.useCurrent')}
       </button>

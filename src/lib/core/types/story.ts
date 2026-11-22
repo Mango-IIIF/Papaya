@@ -176,6 +176,18 @@ export type StoryPublication = {
 
 export type ChapterModel = ModelPose;
 
+export type ChapterTaskId =
+  | "details"
+  | "position"
+  | "focus"
+  | "motion"
+  | "audio-timing"
+  | "transition-timing"
+  | "media-timing"
+  | "layers"
+  | "comparison"
+  | "source";
+
 export type ChapterMedia = {
   start: number;
   end: number;

@@ -2,50 +2,17 @@
   "storyBuilder": {
     "chapters": {
       "title": "Penodau",
-      "empty": "Lleolwch y gwyliwr, yna Ychwanegwch Bennod.",
-      "edit": "Golygu",
       "delete": "Dileu",
-      "cancel": "Canslo",
-      "confirmDelete": "Dileu'r bennod hon?",
-      "add": "Ychwanegu pennod",
       "number": "Pennod {number}",
-      "start": "Dechreuwch eich stori",
-      "startHint": "Llwythwch Faniffest IIIF yn y panel gosod, yna crëwch eich pennod gyntaf.",
-      "options": "Dewisiadau'r bennod",
-      "duplicate": "Dyblygu",
-      "moveUp": "Symud i fyny",
-      "moveDown": "Symud i lawr",
-      "reorder": "Llusgwch i aildrefnu'r penodau",
-      "modelPose": "Ystum 3D"
+      "duplicate": "Dyblygu"
     },
     "actions": {
-      "add": "+ Ychwanegu Pennod",
       "save": "Cadw / Allforio",
-      "saving": "Wrthi'n cadw...",
       "saveSuccess": "Wedi cadw'n llwyddiannus",
-      "saveFailed": "Methwyd â chadw",
-      "updatePosition": "Diweddaru safle'r bennod"
+      "saveFailed": "Methwyd â chadw"
     },
     "chapter": {
-      "header": "Gosodiadau Pennod",
-      "manifestLabel": "URL y Maniffest",
-      "manifestLoad": "Llwytho / Aillwytho",
-      "manifestHint": "Llwythwch faniffest i ddechrau dal penodau.",
-      "language": "Iaith",
-      "narration": "Adroddiant",
-      "start": "Dechrau (HH:MM:SS)",
-      "end": "Diwedd (HH:MM:SS)",
-      "useCurrentTime": "Defnyddio'r amser cyfredol",
-      "preview": "Rhagolwg segment",
-      "markInOut": "Nodi Dechrau / Diwedd (HH:MM:SS)",
-      "markIn": "Nodi Dechrau",
-      "markOut": "Nodi Diwedd",
-      "markHint": "Rhaid i'r Nod Diwedd fod yn fwy na'r Nod Dechrau ar gyfer sain / fideo.",
-      "annotation": "Anodiad ({lang})",
-      "advance": "Symud ymlaen",
-      "advanceHint": "Bydd chwarae awtomatig yn symud i'r bennod nesaf ar ôl yr oedi isod. Gadewch yn wag i aros ar ddull llaw.",
-      "advanceDelay": "Oedi rhwng penodau (eiliadau)",
-      "save": "Cadw"
+      "preview": "Rhagolwg segment"
     },
     "export": {
       "title": "Allforio JSON y stori",
@@ -57,26 +24,11 @@
       "draftIdentifiers": "Mae'r allforio hwn yn defnyddio dynodwr a gynhyrchwyd gan Mango o dan mangoviewer.dev. Mae'n IIIF dilys, ond nid eich parth chi ydyw — gosodwch ID AnnotationPage yng ngosodiadau'r stori cyn cyhoeddi."
     },
     "topBar": {
-      "saved": "Wedi'i gadw",
-      "unsaved": "Newidiadau heb eu cadw",
-      "upToDate": "Cyfredol",
-      "history": "Hanes y stori",
       "undo": "Dadwneud",
       "redo": "Ailwneud",
       "preview": "Rhagolwg o'r stori",
       "exitPreview": "Gadael y rhagolwg",
-      "save": "Cadw",
-      "export": "Allforio",
-      "settings": "Gosodiadau'r stori"
-    },
-    "source": {
-      "reloadManifest": "Ail-lwytho'r maniffest",
-      "loadManifest": "Llwytho'r maniffest"
-    },
-    "transition": {
-      "title": "Amser pontio rhwng penodau",
-      "description": "Gosodwch pa mor hir i aros cyn symud i'r bennod nesaf. Gadewch hyn yn wag i fynnu llywio â llaw.",
-      "delay": "Oedi cyn y bennod nesaf (eiliadau)"
+      "export": "Allforio"
     },
     "audio": {
       "chapterSelection": "Dewisiad y bennod",
@@ -91,70 +43,6 @@
       "loading": "Wrthi'n llwytho'r donffurf…",
       "unavailable": "Tonffurf ddim ar gael"
     },
-    "tasks": {
-      "title": "Offer y bennod",
-      "status": {
-        "attention": "Angen sylw"
-      },
-      "items": {
-        "details": {
-          "title": "Manylion",
-          "description": "Teitl, disgrifiad a chyfieithiadau."
-        },
-        "position": {
-          "title": "Ffrâm",
-          "description": "Rhanbarth y cynfas y mae'r bennod hon yn agor arno, wedi'i dynnu ar y llwyfan."
-        },
-        "focus": {
-          "title": "Anodiadau",
-          "description": "Blychau testun ac anodiadau lluniadu.",
-          "save": "Cadw'r anodiad"
-        },
-        "motion": {
-          "title": "Symudiad",
-          "description": "Pwyntiau camera wedi'u hamseru ar gyfer symud o fewn y bennod."
-        },
-        "audio-timing": {
-          "title": "Adroddiant",
-          "description": "Traciau trosleisio ac amseru adroddiant y bennod."
-        },
-        "transition-timing": {
-          "title": "Amser pontio rhwng penodau",
-          "description": "Gosodwch yr oedi cyn symud i'r bennod nesaf."
-        },
-        "media-timing": {
-          "title": "Amseru'r cyfrwng",
-          "description": "Pwyntiau dechrau a diwedd sain neu fideo ffynhonnell y bennod hon."
-        },
-        "layers": {
-          "title": "Haenau",
-          "description": "Gwelededd ac afloywder haenau delwedd."
-        },
-        "comparison": {
-          "title": "Cymhariaeth",
-          "description": "Cyflwyno ffynonellau cydnaws gyda'i gilydd."
-        },
-        "source": {
-          "title": "Ffynhonnell · Uwch",
-          "description": "Ffurfweddu'r Maniffest a'r Cynfas.",
-          "save": "Cadw'r ffynhonnell a'r cynfas"
-        }
-      },
-      "availability": {
-        "annotationsMedia": "Mae anodiadau ar gael ar gyfer penodau delwedd a PDF yn unig.",
-        "positionMedia": "Mae safle'r gwyliwr ar gael ar gyfer penodau delwedd a PDF yn unig.",
-        "chooseImage": "Dewiswch ffynhonnell ddelwedd neu PDF i ychwanegu anodiadau.",
-        "annotationsSpatial": "Mae angen golwg ofodol delwedd, PDF neu 3D ar anodiadau.",
-        "captureSpatial": "Cipiwch olwg delwedd, PDF neu 3D yn gyntaf.",
-        "motionSpatial": "Mae angen safle camera gofodol i'w gipio ar gyfer symudiad.",
-        "layers": "Nid yw'r ffynhonnell hon yn dangos haenau delwedd lluosog ar hyn o bryd.",
-        "chooseLayered": "Dewiswch Faniffest haenog yn Ffynhonnell.",
-        "comparisonUnavailable": "Mae ffynonellau cydnaws wedi'u llwytho, ond nid yw creu penodau cymharu wedi'i alluogi eto.",
-        "keepSources": "Cadwch y ffynonellau wedi'u llwytho ar gyfer pennod gymharu yn y dyfodol.",
-        "comparisonSources": "Mae angen o leiaf dwy ffynhonnell wedi'u llwytho ar gyfer cymhariaeth.",
-        "loadSource": "Llwythwch ffynhonnell gydnaws arall."
-      }
-    },
     "media": {
       "segment": "Segment cyfrwng y bennod",
       "useFull": "Defnyddio'r cyfrwng cyfan",
@@ -167,22 +55,9 @@
       "endTime": "Amser gorffen y cyfrwng",
       "useCurrent": "Defnyddio'r un cyfredol",
       "to": "i",
-      "invalidRange": "Rhaid i'r diwedd fod yn hwyrach na'r dechrau.",
-      "markIn": "Marc Mewn (HH:MM:SS)",
-      "markOut": "Marc Allan (HH:MM:SS)",
-      "avPreview": "Rhagolwg Sain / Fideo",
-      "marksHint": "Defnyddiwch reolyddion cyfrwng y gwyliwr i osod amseroedd Marc Mewn a Marc Allan.",
-      "videoTiming": "Amseru fideo'r maniffest",
-      "audioTiming": "Amseru sain y maniffest",
-      "chooseSegment": "Dewiswch segment {type} maniffest y bennod",
-      "editorHint": "Dim ond {type} y ffynhonnell y mae'r golygydd tonffurf yn ei reoli. Caiff adroddiant y stori ei olygu ar wahân.",
-      "dragSelection": "Llusgwch y dewisiad cysgodol i symud ei ddechrau a'i ddiwedd gyda'i gilydd.",
-      "dragEdge": "Llusgwch y naill ymyl neu'r llall i addasu'r amser dechrau neu ddiwedd.",
-      "longMediaHint": "Ar gyfer cyfryngau hir, chwyddwch a sgroliwch y donffurf. Defnyddiwch “Dangos y dewisiad” i ddychwelyd at ystod y bennod.",
-      "autoSaveHint": "Cewch ragolwg o'r dewisiad pryd bynnag y bo angen. Caiff rhanbarthau a lusgwyd a golygiadau amser union eu cadw'n awtomatig."
+      "invalidRange": "Rhaid i'r diwedd fod yn hwyrach na'r dechrau."
     },
     "narration": {
-      "button": "Adroddwr sain",
       "title": "Adroddiant",
       "description": "Dewiswch y trac adroddiant a llusgwch neu newidiwch faint rhanbarth y bennod.",
       "mode": "Modd adroddiant y bennod",
@@ -191,18 +66,10 @@
       "language": "Iaith yr adroddiant",
       "audioUrl": "URL sain yr adroddiant",
       "preview": "Rhagolwg o'r adroddiant",
-      "stopPreview": "Stopio'r rhagolwg",
       "dragSelection": "Llusgwch neu newidiwch faint dewisiad y bennod",
       "waveform": "Tonffurf yr adroddiant",
       "apply": "Cymhwyso i'r bennod",
-      "chapterTitle": "Adroddiant y bennod ({language})",
-      "expand": "Ehangu'r adran adrodd sain",
-      "collapse": "Cwympo'r adran adrodd sain",
-      "footerHint": "Defnyddiwch olygydd WaveSurfer yn nhroedyn y crëwr storïau i addasu'r ystod hon.",
-      "storyAudioSource": "Ffynhonnell sain y stori",
-      "skip": "Hepgor yr adroddiant ar gyfer y bennod hon",
-      "editor": "Golygydd adroddiant",
-      "editorHint": "Dewiswch sain a gosodwch ystod y bennod hon yn y golygydd adroddiant."
+      "skip": "Hepgor yr adroddiant ar gyfer y bennod hon"
     },
     "content": {
       "language": "Iaith y cynnwys",
@@ -220,14 +87,6 @@
       "previewEmpty": "Mae rhagolwg o'r disgrifiad wedi'i fformatio yn ymddangos yma."
     },
     "position": {
-      "hint": "Y ffrâm a dynnir ar y ddelwedd yw’r hyn y mae darllenwyr yn ei weld. Llusgwch hi yno, gosodwch hi o’r olygfa yn y bar o dan y ddelwedd, neu teipiwch ranbarth yma.",
-      "empty": "Dim ffrâm eto. Symudwch a chwyddwch, yna gosodwch y ffrâm.",
-      "x": "X",
-      "y": "Y",
-      "width": "Lled",
-      "height": "Uchder",
-      "goTo": "Mynd i'r ffrâm",
-      "aspectLocked": "Ffrâm stori {aspect}. Mae'r rhagolwg a'r darllenwyr yn cadw'r union siâp hwn; mae'r lled a'r uchder yn newid gyda'i gilydd.",
       "setFromView": "Gosod y ffrâm",
       "setFromViewHint": "Defnyddio’r olygfa gyfredol fel ffrâm y bennod hon"
     },
@@ -264,36 +123,20 @@
         "identifying": "Adnabod",
         "classifying": "Dosbarthu",
         "questioning": "Cwestiynu"
-      },
-      "hintSelect": "Dewiswch siâp i’w dynnu, neu cliciwch anodiad ar y ddelwedd i’w olygu.",
-      "hintDraw": "Tynnwch y {shape} ar y ddelwedd. Bydd yn agor yn y panel Anodiadau pan fyddwch wedi gorffen.",
-      "hintEditing": "Llusgwch yr anodiad i’w symud neu ei ailfeintio. Mae ei destun a’i liw yn y panel Anodiadau."
+      }
     },
     "motion": {
-      "title": "Symud drwy'r bennod hon",
-      "requireTwo": "Dewiswch arddull symud neu ychwanegwch ddau bwynt camera i alluogi'r rheolyddion symud.",
-      "requireOneMore": "Ychwanegwch un pwynt camera arall i gael rhagolwg a ffurfweddu'r symudiad hwn.",
-      "durationError": "Rhaid i hyd y symudiad fod yn fwy na 0 eiliad.",
-      "customHint": "Mae'r modd personol yn cadw ffrâm pob pwynt fel y'i tynnwyd gennych. Mae'r rhagolwg yn dechrau ar Bwynt 1.",
-      "presetHint": "Mae'r pwyntiau'n gosod y ffocws; mae'r arddull symud yn rheoli'r chwyddo. Mae newid maint pwynt yn newid i Personol. Mae'r rhagolwg yn dechrau ar Bwynt 1.",
       "preview": "Rhagolwg",
       "stopPreview": "Stopio’r rhagolwg",
-      "style": "Arddull symud",
-      "presets": "Rhagosodiadau symud",
       "preset": {
         "zoom-in": "Chwyddo i mewn",
         "zoom-out": "Chwyddo allan",
-        "pan": "Panio",
-        "static": "Llonydd",
-        "custom": "Personol"
+        "pan": "Panio"
       },
       "path": "Taith y llwybr",
       "curved": "Sblein Crwm",
       "straight": "Llinellol Syth",
       "dwell": "Amser Dal ar y Dechrau (Saib)",
-      "dwellHint": "Dal yn llonydd ar yr olwg gychwynnol cyn i'r symud ddechrau.",
-      "noDwell": "0 eiliad (Dim)",
-      "seconds": "{seconds} eiliad",
       "easing": "Esmwytho'r symudiad",
       "easingOptions": {
         "linear": "Llinellol",
@@ -302,77 +145,38 @@
         "ease-in-out": "Esmwytho i mewn/allan"
       },
       "duration": "Hyd symudiad y bennod",
-      "durationHint": "Caiff safleoedd eu rhannu ar draws yr amser symud hwn. Ychwanegir y saib cychwynnol cyn hynny.",
-      "durationSeconds": "Hyd (eiliadau)",
-      "fineTuning": "Mân-diwnio"
+      "durationSeconds": "Hyd (eiliadau)"
     },
     "cameraTimeline": {
-      "title": "Llinell amser y camera",
-      "capture": "Dal ffrâm allweddol",
-      "keyframes": "Fframiau allweddol ({count})",
-      "empty": "Dim symudiad camera. Symudwch a chwyddwch, yna daliwch fframiau allweddol i’w ychwanegu.",
       "goTo": "Mynd i ffrâm allweddol {number} am {time}",
-      "select": "Dewis ffrâm allweddol {number}",
       "updateFromView": "Diweddaru o’r olygfa",
-      "narrationLength": "Adroddiant {time}",
       "matchNarration": "Cyfateb i’r adroddiant",
-      "options": "Dewisiadau symud",
-      "captureHint": "Ychwanegu’r olygfa gyfredol fel ffrâm allweddol",
       "updateFromViewHint": "Disodli’r ffrâm allweddol hon â’r olygfa gyfredol",
       "deleteNumber": "Dileu ffrâm allweddol {number}",
-      "needSecond": "Symudwch yr olygfa a daliwch ail ffrâm allweddol i greu symudiad.",
       "scrub": "Sgrwbio llinell amser y camera",
       "moveEarlier": "Symud ffrâm allweddol yn gynharach",
       "moveLater": "Symud ffrâm allweddol yn ddiweddarach",
       "muteAudio": "Tewi rhagolwg adroddiad",
       "unmuteAudio": "Dad-dewi rhagolwg adroddiad",
-      "evenSpace": "Gofod cyfartal",
-      "evenSpaceHint": "Dosbarthu pob ffrâm allweddol yn gyfartal ar draws y hyd",
-      "customTimingHint": "Amseru personol — llusgwch farcwyr ar y trac i'w halinio â'r adroddiad."
+      "evenSpace": "Gofod cyfartal"
     },
     "settings": {
-      "title": "Gosodiadau'r stori",
-      "subtitle": "Gosodwch deitl y stori a'r sain adrodd",
-      "close": "Cau gosodiadau'r stori",
       "storyId": "ID y stori",
-      "storyTitle": "Teitl y stori ({language})",
-      "titleHint": "Yn ymddangos ym mar uchaf gwyliwr y stori",
       "untitled": "Stori heb deitl",
-      "savedLabel": "Wedi'i gadw fel y gwerth {language} yn label yr AnnotationPage.",
       "identifiers": "Dynodyddion cyhoeddi",
       "identifiersHint": "IDau cyhoeddus sefydlog ar gyfer y stori a'i phenodau",
       "annotationPageId": "ID yr AnnotationPage",
       "annotationBase": "Sail Anodiadau'r penodau",
       "annotationBasePlaceholder": "Yn deillio o ID yr AnnotationPage",
-      "identifiersManaged": "Caiff y dynodyddion hyn eu rheoli gan y gwesteiwr cyhoeddi.",
-      "identifiersWarning": "Bydd newid y sail hon yn newid IDau cyhoeddus Anodiadau penodau a gyhoeddwyd eisoes.",
       "saveIdentifiers": "Cadw'r dynodyddion cyhoeddi",
-      "audioSource": "Ffynhonnell sain {language}",
-      "audioSourceHint": "Caiff ei defnyddio gan bob pennod ag adroddiant yn yr iaith hon",
       "audioFileUrl": "URL y ffeil sain",
-      "audioPreview": "Rhagolwg sain",
-      "audioPreviewHint": "Rhowch URL i gael rhagolwg o'r trac adrodd.",
       "saveAudio": "Cadw'r ffynhonnell sain",
-      "draftIdentifiers": "Heb ID AnnotationPage, mae Mango'n cynhyrchu un o dan mangoviewer.dev. Mae allforion yn aros yn IIIF dilys, ond gosodwch eich parth eich hun cyn cyhoeddi.",
       "presentationAspect": "Siâp ffrâm y stori",
       "presentationAspectHint": "Mae hyn yn cloi pob ffrâm pennod a ffrâm allweddol i un gymhareb agwedd ar draws pob sgrin."
     },
     "overlay": {
-      "closeMetadata": "Cau metadata'r bennod",
-      "selectedChapter": "Y bennod a ddewiswyd",
-      "newStory": "Stori newydd",
-      "loadSource": "Llwytho ffynhonnell",
-      "previewChapter": "Rhagolwg o'r bennod",
-      "previewChapterHint": "Chwaraewch y bennod hon ar ei phen ei hun, yn union fel y mae'r stori'n ei chyflwyno.",
-      "stopChapterPreview": "Atal y rhagolwg",
-      "chapterPreviewPlaying": "Yn chwarae'r bennod hon. Cliciwch i atal.",
-      "sourceHint": "Ychwanegwch ffynhonnell eich stori i greu'r bennod gyntaf. Defnyddiwch reolyddion y gwyliwr i newid cynfas; gallwch addasu lleoliad y ddelwedd wedyn.",
       "noChapter": "Dim pennod wedi'i dewis",
-      "noChapterHint": "Cipiwch bennod neu dewiswch un o'r rhestr penodau i olygu ei chynnwys.",
-      "confirmPosition": "Cadarnhau'r Safle"
-    },
-    "comparison": {
-      "hint": "Llwythwch o leiaf ddwy ffynhonnell gydnaws i greu pennod gymharu."
+      "noChapterHint": "Cipiwch bennod neu dewiswch un o'r rhestr penodau i olygu ei chynnwys."
     },
     "errors": {
       "missingPublicId": "Gosodwch ID Stori canonaidd yng ngosodiadau'r stori cyn cyhoeddi.",
@@ -391,14 +195,6 @@
       "saveTimeout": "Cadw wedi goramseru",
       "network": "Methu cysylltu â'r gweinydd"
     },
-    "panels": {
-      "hideChapters": "Cuddio penodau",
-      "showChapters": "Dangos penodau",
-      "hideTools": "Cuddio offer y bennod",
-      "showTools": "Dangos offer y bennod",
-      "hideAnnotationInspector": "Cuddio'r arolygydd anodiadau",
-      "showAnnotationInspector": "Dangos yr arolygydd anodiadau"
-    },
     "frame": {
       "label": "Ffrâm y bennod",
       "chapterAria": "Ffrâm y bennod",
@@ -406,20 +202,13 @@
       "keyframeTag": "Ffrâm allweddol {number}"
     },
     "inspector": {
-      "edit": "Golygu",
-      "open": "Agor",
       "done": "Wedi gorffen",
-      "annotationsSummary": "{count} anodiad ar y bennod hon.",
-      "annotationsSummaryOne": "{count} anodiad ar y bennod hon.",
       "narrationNone": "Dim segment adrodd ar gyfer {language}.",
       "narrationSummary": "{language}: {start}–{end}",
       "mediaSummary": "Yn chwarae {start}–{end} o'r ffynhonnell.",
-      "mediaWhole": "Yn chwarae'r ffynhonnell gyfan.",
-      "more": "Rhagor",
-      "moreHint": "Rhanbarth y ffrâm, trawsnewid, ffynhonnell, haenau"
+      "mediaWhole": "Yn chwarae'r ffynhonnell gyfan."
     },
     "sources": {
-      "button": "Ffynonellau",
       "title": "Ffynonellau'r stori",
       "subtitle": "Pori maniffestau, casgliadau a chanfasau IIIF ar gyfer eich stori",
       "usedInStory": "Yn y stori hon",
@@ -430,9 +219,7 @@
       "collectionItems": "Eitemau casgliad ({count})",
       "canvases": "Canfasau ({count})",
       "addAsChapter": "Ychwanegu pennod",
-      "useForChapter": "Defnyddio ar gyfer y bennod hon",
-      "changeSource": "Newid ffynhonnell",
-      "canvasNumber": "Canfas {number}"
+      "useForChapter": "Defnyddio ar gyfer y bennod hon"
     },
     "studio": {
       "modes": {
@@ -452,19 +239,16 @@
       "updateShot": "Diweddaru ergyd {number}",
       "addShot": "Ychwanegu ergyd",
       "resetView": "Ailosod",
-      "exitPreview": "Gadael rhagolwg",
       "newChapter": "Pennod newydd",
       "addFromIiif": "Ychwanegu o IIIF",
       "switchSource": "Newid",
       "confirmDelete": "Dileu?",
       "cameraMotion": "Symudiad camera",
       "staticFraming": "Sefydlog",
-      "shotsSummary": "{count} ergyd · {duration}",
       "presetStatic": "Sefydlog",
       "addShotFromView": "Ychwanegu ergyd o’r golwg",
       "oneShotHint": "Paniwch neu chwyddwch i’r golwg nesaf, yna cliciwch Ychwanegu ergyd.",
       "shotLabel": "Ergyd {number}",
-      "updateShotShort": "Diweddaru",
       "playbackTitle": "Symud ymlaen",
       "manualAdvance": "Â llaw",
       "autoAdvance": "Awtomatig",

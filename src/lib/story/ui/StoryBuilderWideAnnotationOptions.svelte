@@ -9,27 +9,36 @@
   import { DEFAULT_DRAWING_COLOR } from "../storyDrawingAnnotations";
   import { t } from "../../core/i18n";
 
-  export let story: Readable<StoryState>;
-  export let selectedChapterId: Readable<string | null>;
-  export let selectedAnnotationId: Readable<string | null> = readable(null);
-  export let language = "en";
-  export let languages: string[] = ["en"];
-  /** `inspector` stacks the fields for a narrow column. */
-  export let layout: "wide" | "inspector" = "wide";
-  export let onSetLabel: (
-    annotationId: string,
-    language: string,
-    value: string,
-  ) => void = () => {};
-  export let onSetStyle: (
-    annotationId: string,
-    style: {
-      color?: string | null;
-      strokeWidth?: "thin" | "medium" | "thick";
-      fillMode?: ChapterDrawingAnnotation["fillMode"];
-      motivation?: ChapterDrawingAnnotation["motivation"] | null;
-    },
-  ) => void = () => {};
+  interface Props {
+    story: Readable<StoryState>;
+    selectedChapterId: Readable<string | null>;
+    selectedAnnotationId?: Readable<string | null>;
+    language?: string;
+    languages?: string[];
+    /** `inspector` stacks the fields for a narrow column. */
+    layout?: "wide" | "inspector";
+    onSetLabel?: (annotationId: string, language: string, value: string) => void;
+    onSetStyle?: (
+      annotationId: string,
+      style: {
+        color?: string | null;
+        strokeWidth?: "thin" | "medium" | "thick";
+        fillMode?: ChapterDrawingAnnotation["fillMode"];
+        motivation?: ChapterDrawingAnnotation["motivation"] | null;
+      },
+    ) => void;
+  }
+
+  let {
+    story,
+    selectedChapterId,
+    selectedAnnotationId = readable(null),
+    language = "en",
+    languages = ["en"],
+    layout = "wide",
+    onSetLabel = () => {},
+    onSetStyle = () => {},
+  }: Props = $props();
 
   /* The first swatch is the colour an annotation has before one is chosen,
      so the swatch that reads as selected is the colour on the image. */
@@ -42,16 +51,22 @@
     "#ef5f7a",
   ];
 
-  let activeLanguage = language;
-  $: if (!languages.includes(activeLanguage)) {
-    activeLanguage = languages.includes(language) ? language : (languages[0] ?? "en");
-  }
-  $: chapter =
-    $story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null;
-  $: selected =
+  let pickedLanguage = $state<string | null>(null);
+  let activeLanguage = $derived(
+    pickedLanguage && languages.includes(pickedLanguage)
+      ? pickedLanguage
+      : languages.includes(language)
+        ? language
+        : (languages[0] ?? "en"),
+  );
+  let chapter = $derived(
+    $story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null,
+  );
+  let selected = $derived(
     chapter?.drawingAnnotations?.find(
       (annotation) => annotation.id === $selectedAnnotationId,
-    ) ?? null;
+    ) ?? null,
+  );
 </script>
 
 <section
@@ -68,7 +83,7 @@
           {activeLanguage}
           ariaLabel={$t("storyBuilder.annotations.translations")}
           testIdPrefix="drawing-language"
-          onchange={(nextLanguage) => (activeLanguage = nextLanguage)}
+          onchange={(nextLanguage) => (pickedLanguage = nextLanguage)}
         />
         <label class="annotation-options__translation">
           <small>{activeLanguage.toUpperCase()}</small>
@@ -78,7 +93,7 @@
             placeholder={$t("storyBuilder.annotations.textPlaceholder", {
               language: activeLanguage.toUpperCase(),
             })}
-            on:input={(event) =>
+            oninput={(event) =>
               onSetLabel(
                 selected!.id,
                 activeLanguage,
@@ -98,14 +113,14 @@
               class:annotation-options__swatch--active={(selected.color ?? DEFAULT_DRAWING_COLOR) === color}
               aria-label={$t("storyBuilder.annotations.setColour", { colour: color })}
               aria-pressed={(selected.color ?? DEFAULT_DRAWING_COLOR) === color}
-              on:click={() => onSetStyle(selected!.id, { color })}
+              onclick={() => onSetStyle(selected!.id, { color })}
             ></button>
           {/each}
           <input
             type="color"
             value={selected.color ?? DEFAULT_DRAWING_COLOR}
             aria-label={$t("storyBuilder.annotations.customColour")}
-            on:input={(event) =>
+            oninput={(event) =>
               onSetStyle(selected!.id, {
                 color: (event.currentTarget as HTMLInputElement).value,
               })}
@@ -121,14 +136,14 @@
               <button
                 type="button"
                 class:annotation-options__segment--active={selected.fillMode !== "solid"}
-                on:click={() =>
+                onclick={() =>
                   onSetStyle(selected!.id, { fillMode: "transparent" })}
                 >{$t("storyBuilder.annotations.transparent")}</button
               >
               <button
                 type="button"
                 class:annotation-options__segment--active={selected.fillMode === "solid"}
-                on:click={() => onSetStyle(selected!.id, { fillMode: "solid" })}
+                onclick={() => onSetStyle(selected!.id, { fillMode: "solid" })}
                 >{$t("storyBuilder.annotations.solid")}</button
               >
             </div>
@@ -142,7 +157,7 @@
               <button
                 type="button"
                 class:annotation-options__segment--active={(selected.strokeWidth ?? "medium") === width}
-                on:click={() =>
+                onclick={() =>
                   onSetStyle(selected!.id, {
                     strokeWidth: width as "thin" | "medium" | "thick",
                   })}
@@ -160,7 +175,7 @@
         <select
           id="wide-drawing-motivation"
           value={selected.motivation ?? ""}
-          on:change={(event) =>
+          onchange={(event) =>
             onSetStyle(selected!.id, {
               motivation: (event.currentTarget.value ||
                 null) as ChapterDrawingAnnotation["motivation"] | null,

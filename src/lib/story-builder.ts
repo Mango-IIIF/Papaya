@@ -1,8 +1,4 @@
 export { default as StoryBuilder } from './story/host/StoryBuilder.svelte';
-export { default as StoryMainSidebar } from './story/ui/MainSidebar.svelte';
-export { default as StoryBottomAuthoringBar } from './story/ui/BottomAuthoringBar.svelte';
-export { default as StoryNarrationOverlay } from './story/ui/NarrationOverlay.svelte';
-export { default as StoryChapterOverlay } from './story/ui/ChapterOverlay.svelte';
 export { default as StoryAnnotationOverlay } from './story/ui/StoryAnnotationOverlay.svelte';
 export {
   captureAudioVideo,
@@ -14,20 +10,6 @@ export { createModelPose } from './story/modelPose';
 export { setChapterManifest } from './core/state/story.svelte';
 export { resolveManifestForNewChapter } from './story/manifestResolver';
 export { validateStory } from './story/validation';
-export {
-  evaluateChapterTasks,
-  evaluateTaskAvailability,
-  evaluateTaskStatus,
-  taskForValidationMessage,
-  inspectorGroupForTask,
-  isStageTool,
-  INSPECTOR_GROUPS,
-  type ChapterTaskId,
-  type InspectorGroup,
-  type CompletionState,
-  type TaskAvailability,
-  type TaskStatus,
-} from './story/chapterTasks';
 export {
   buildChapterAnnotationId,
   deriveChapterAnnotationBase,
@@ -80,11 +62,11 @@ export {
   updateChapterFromCapture,
   type StoryStoreRunes,
 } from './core/state/story.svelte';
-export { createStoryBuilderPlugins } from './plugins/storyBuilder';
 export type {
   AnnotationPlacement,
   Chapter,
   ChapterAdvance,
+  ChapterTaskId,
   ChapterEntryTransition,
   ChapterCameraKeyframe,
   ChapterCameraTrack,

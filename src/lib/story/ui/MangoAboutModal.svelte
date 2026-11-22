@@ -1,13 +1,16 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
   import { ExternalLink, X } from '@lucide/svelte';
   import MangoLogoIcon from './MangoLogoIcon.svelte';
   import pkg from '../../../../package.json';
   import { t } from '../../core/i18n';
 
-  export let open = false;
-  export let onClose: () => void = () => {};
-  export let version: string = pkg.version;
+  interface Props {
+    open?: boolean;
+    onClose?: () => void;
+    version?: string;
+  }
+
+  let { open = false, onClose = () => {}, version = pkg.version }: Props = $props();
 
   /*
    * Easter egg: the Ringo theme turns the About box into a jukebox.
@@ -18,40 +21,24 @@
    * embedded — and no request reaches YouTube — unless the reader is on Ringo
    * and has actually opened the dialog.
    */
-  let backdropEl: HTMLElement | null = null;
-  let isRingo = false;
-  let themeObserver: MutationObserver | null = null;
+  let backdropEl: HTMLElement | null = $state(null);
+  let isRingo = $state(false);
 
-  const readTheme = () => {
-    isRingo = backdropEl?.closest('.viewer')?.getAttribute('data-theme') === 'ringo';
-  };
-
-  /*
-   * `data-theme` is an attribute on an ancestor, not reactive state here, so
-   * reading it once would go stale: the host can switch theme through the
-   * config API while the dialog is open, which left the embed showing under a
-   * theme that should not have it. Watch the attribute for as long as we are
-   * open, and stop watching as soon as we are not.
-   */
-  const stopWatching = () => {
-    themeObserver?.disconnect();
-    themeObserver = null;
-  };
-
-  $: if (open && backdropEl) {
-    readTheme();
-    stopWatching();
-    const viewer = backdropEl.closest('.viewer');
-    if (viewer && typeof MutationObserver !== 'undefined') {
-      themeObserver = new MutationObserver(readTheme);
-      themeObserver.observe(viewer, { attributes: true, attributeFilter: ['data-theme'] });
+  $effect(() => {
+    if (!open || !backdropEl) {
+      isRingo = false;
+      return;
     }
-  } else if (!open) {
-    stopWatching();
-    isRingo = false;
-  }
-
-  onDestroy(stopWatching);
+    const readTheme = () => {
+      isRingo = backdropEl?.closest('.viewer')?.getAttribute('data-theme') === 'ringo';
+    };
+    readTheme();
+    const viewer = backdropEl.closest('.viewer');
+    if (!viewer || typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver(readTheme);
+    observer.observe(viewer, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  });
 
   const handleKeydown = (event: KeyboardEvent) => {
     if (open && event.key === 'Escape') {
@@ -60,14 +47,16 @@
   };
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 {#if open}
   <div
     class="mango-about-backdrop"
     role="presentation"
     bind:this={backdropEl}
-    on:click|self={onClose}
+    onclick={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}
   >
     <div
       class="mango-about-modal"
@@ -79,7 +68,7 @@
         class="mango-about-modal__close"
         type="button"
         aria-label={$t('common.closeModal')}
-        on:click={onClose}
+        onclick={onClose}
       >
         <X aria-hidden="true" size={18} />
       </button>
@@ -124,7 +113,7 @@
         <button
           class="mango-about-modal__button"
           type="button"
-          on:click={onClose}
+          onclick={onClose}
         >
           {$t('common.close')}
         </button>

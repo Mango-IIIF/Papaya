@@ -15,26 +15,43 @@
    * section — the section owns the card and its heading.
    */
 
-  export let activeLanguage = 'en';
-  export let languages: string[] = ['en'];
-  export let chapterTitleDraft = '';
-  export let chapterDescriptionDraft = '';
+  interface Props {
+    activeLanguage?: string;
+    languages?: string[];
+    chapterTitleDraft?: string;
+    chapterDescriptionDraft?: string;
+    onLanguageChange?: (lang: string) => void;
+    onChapterTitleInput?: (event: Event) => void;
+    onChapterDescriptionInput?: (event: Event) => void;
+  }
 
-  export let onLanguageChange: ((lang: string) => void) | undefined = undefined;
-  export let onChapterTitleInput: ((event: Event) => void) | undefined = undefined;
-  export let onChapterDescriptionInput: ((event: Event) => void) | undefined = undefined;
+  let {
+    activeLanguage = 'en',
+    languages = ['en'],
+    chapterTitleDraft = '',
+    chapterDescriptionDraft = '',
+    onLanguageChange = undefined,
+    onChapterTitleInput = undefined,
+    onChapterDescriptionInput = undefined,
+  }: Props = $props();
 
-  let descriptionView: 'plain' | 'formatted' = 'plain';
-  let descriptionEl: HTMLTextAreaElement | null = null;
+  let descriptionView = $state<'plain' | 'formatted'>('plain');
+  let descriptionEl: HTMLTextAreaElement | null = $state(null);
+  let localDescription = $state('');
 
-  $: richPreviewHtml =
-    descriptionView === 'formatted' ? renderChapterRichText(chapterDescriptionDraft) : '';
+  $effect(() => {
+    localDescription = chapterDescriptionDraft;
+  });
+
+  let richPreviewHtml = $derived(
+    descriptionView === 'formatted' ? renderChapterRichText(localDescription) : '',
+  );
 
   const applyFormat = async (action: RichTextFormatAction) => {
-    const start = descriptionEl?.selectionStart ?? chapterDescriptionDraft.length;
-    const end = descriptionEl?.selectionEnd ?? chapterDescriptionDraft.length;
-    const result = applyMarkdownFormat(chapterDescriptionDraft, start, end, action);
-    chapterDescriptionDraft = result.value;
+    const start = descriptionEl?.selectionStart ?? localDescription.length;
+    const end = descriptionEl?.selectionEnd ?? localDescription.length;
+    const result = applyMarkdownFormat(localDescription, start, end, action);
+    localDescription = result.value;
     if (descriptionEl) {
       descriptionEl.value = result.value;
       descriptionEl.dispatchEvent(new Event('input', { bubbles: true }));
@@ -64,7 +81,7 @@
       type="text"
       data-testid="chapter-title"
       value={chapterTitleDraft}
-      on:input={onChapterTitleInput}
+      oninput={onChapterTitleInput}
     />
   </label>
 
@@ -83,7 +100,7 @@
           class:chapter-text-form__view-btn--active={descriptionView === 'plain'}
           aria-pressed={descriptionView === 'plain'}
           data-testid="chapter-description-view-plain"
-          on:click={() => (descriptionView = 'plain')}
+          onclick={() => (descriptionView = 'plain')}
         >
           {$t('storyBuilder.content.plainView')}
         </button>
@@ -92,7 +109,7 @@
           class:chapter-text-form__view-btn--active={descriptionView === 'formatted'}
           aria-pressed={descriptionView === 'formatted'}
           data-testid="chapter-description-view-formatted"
-          on:click={() => (descriptionView = 'formatted')}
+          onclick={() => (descriptionView = 'formatted')}
         >
           {$t('storyBuilder.content.formattedView')}
         </button>
@@ -111,7 +128,7 @@
           title={$t('storyBuilder.content.formatBold')}
           aria-label={$t('storyBuilder.content.formatBold')}
           data-testid="format-bold"
-          on:click={() => applyFormat('bold')}
+          onclick={() => applyFormat('bold')}
         >
           <Bold aria-hidden="true" />
         </button>
@@ -120,7 +137,7 @@
           title={$t('storyBuilder.content.formatItalic')}
           aria-label={$t('storyBuilder.content.formatItalic')}
           data-testid="format-italic"
-          on:click={() => applyFormat('italic')}
+          onclick={() => applyFormat('italic')}
         >
           <Italic aria-hidden="true" />
         </button>
@@ -129,7 +146,7 @@
           title={$t('storyBuilder.content.formatLink')}
           aria-label={$t('storyBuilder.content.formatLink')}
           data-testid="format-link"
-          on:click={() => applyFormat('link')}
+          onclick={() => applyFormat('link')}
         >
           <Link2 aria-hidden="true" />
         </button>
@@ -138,7 +155,7 @@
           title={$t('storyBuilder.content.formatList')}
           aria-label={$t('storyBuilder.content.formatList')}
           data-testid="format-list"
-          on:click={() => applyFormat('list')}
+          onclick={() => applyFormat('list')}
         >
           <List aria-hidden="true" />
         </button>
@@ -147,7 +164,7 @@
           title={$t('storyBuilder.content.formatQuote')}
           aria-label={$t('storyBuilder.content.formatQuote')}
           data-testid="format-quote"
-          on:click={() => applyFormat('quote')}
+          onclick={() => applyFormat('quote')}
         >
           <Quote aria-hidden="true" />
         </button>
@@ -160,8 +177,11 @@
       class="chapter-overlay__textarea"
       rows="3"
       data-testid="chapter-description"
-      value={chapterDescriptionDraft}
-      on:input={onChapterDescriptionInput}
+      value={localDescription}
+      oninput={(event) => {
+        localDescription = (event.currentTarget as HTMLTextAreaElement).value;
+        onChapterDescriptionInput?.(event);
+      }}
     ></textarea>
 
     {#if descriptionView === 'formatted'}

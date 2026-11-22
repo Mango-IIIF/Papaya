@@ -5,22 +5,35 @@
   import { DEFAULT_DRAWING_COLOR } from '../storyDrawingAnnotations';
   import { t } from '../../core/i18n';
 
-  export let story: Readable<StoryState>;
-  export let selectedChapterId: Readable<string | null>;
-  export let selectedAnnotationId: Readable<string | null> = readable(null);
-  export let language = 'en';
-  export let layout: 'wide' | 'inspector' = 'wide';
-  export let allowDelete = true;
-  export let onDeleteDrawing: (annotationId: string) => void;
-  export let onEditDrawing: (annotationId: string) => void;
+  interface Props {
+    story: Readable<StoryState>;
+    selectedChapterId: Readable<string | null>;
+    selectedAnnotationId?: Readable<string | null>;
+    language?: string;
+    layout?: 'wide' | 'inspector';
+    allowDelete?: boolean;
+    onDeleteDrawing: (annotationId: string) => void;
+    onEditDrawing: (annotationId: string) => void;
+  }
+
+  let {
+    story,
+    selectedChapterId,
+    selectedAnnotationId = readable(null),
+    language = 'en',
+    layout = 'wide',
+    allowDelete = true,
+    onDeleteDrawing,
+    onEditDrawing,
+  }: Props = $props();
 
   const typeLabel = (annotation: ChapterDrawingAnnotation): string =>
     $t(`viewer.panels.annotations.editor.tools.${annotation.type}`);
   const labelValue = (annotation: ChapterDrawingAnnotation): string =>
     annotation.label?.[language] ?? annotation.label?.en ?? Object.values(annotation.label ?? {})[0] ?? '';
 
-  $: chapter = $story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null;
-  $: items = chapter?.drawingAnnotations ?? [];
+  let chapter = $derived($story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null);
+  let items = $derived(chapter?.drawingAnnotations ?? []);
 </script>
 
 <section
@@ -45,7 +58,7 @@
             type="button"
             aria-label={`${$t('storyBuilder.annotations.editDrawing', { type: typeLabel(annotation), index: index + 1 })}: ${labelValue(annotation) || typeLabel(annotation)}`}
             aria-pressed={$selectedAnnotationId === annotation.id}
-            on:click={() => onEditDrawing(annotation.id)}
+            onclick={() => onEditDrawing(annotation.id)}
           >
             <span class="story-wide-annotations__number" style={`--annotation-color:${annotation.color ?? DEFAULT_DRAWING_COLOR}`}>{index + 1}</span>
             <span class="story-wide-annotations__copy">
@@ -58,7 +71,7 @@
               class="story-wide-annotations__delete"
               type="button"
               aria-label={`${$t('storyBuilder.annotations.deleteDrawing', { type: typeLabel(annotation), index: index + 1 })}: ${labelValue(annotation) || typeLabel(annotation)}`}
-              on:click={() => onDeleteDrawing(annotation.id)}
+              onclick={() => onDeleteDrawing(annotation.id)}
             ><Trash2 aria-hidden="true" /></button>
           {/if}
         </article>
