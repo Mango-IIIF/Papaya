@@ -187,6 +187,10 @@
       osdViewer = renderer.kind === 'image' ? renderer.viewer : null;
       osdViewer?.addHandler('open', syncCanvasSize);
       syncCanvasSize();
+      const zoom = bridge.api.getZoom?.();
+      if (typeof zoom === 'number' && Number.isFinite(zoom) && zoom > 0) {
+        viewerZoomPercent = Math.round(zoom);
+      }
     }),
     bridge.events.on('mediaChange', ({ canvasId: id, mediaType }) => {
       canvasId = id;
@@ -197,6 +201,10 @@
     }),
     bridge.events.on('viewBoxChange', ({ viewBox }) => {
       liveViewBox = viewBox ?? null;
+      const zoom = bridge.api.getZoom?.();
+      if (typeof zoom === 'number' && Number.isFinite(zoom) && zoom > 0) {
+        viewerZoomPercent = Math.round(zoom);
+      }
     }),
     bridge.events.on('stageFade', ({ opacity, durationMs }) => {
       stageOpacity = opacity;
@@ -253,6 +261,9 @@
   let layers = $state<MediaSource[]>([]);
   let layerOpacities = $state<Record<string, number>>({});
   let currentManifest = $state<string | null>(null);
+  let viewerCanvasIndex = $state(0);
+  let viewerCanvasCount = $state(0);
+  let viewerZoomPercent = $state(100);
   let sourcesModalOpen = $state(false);
   let saveModalOpen = $state(false);
   let saveModalPayload = $state<ExportEnvelope | null>(null);
@@ -278,6 +289,8 @@
       ctrl.mediaSources.subscribe((v) => (layers = v)),
       ctrl.layerOpacities.subscribe((v) => (layerOpacities = v)),
       ctrl.currentManifest.subscribe((v) => (currentManifest = v)),
+      ctrl.viewerCanvasIndex.subscribe((v) => (viewerCanvasIndex = v)),
+      ctrl.viewerCanvasCount.subscribe((v) => (viewerCanvasCount = v)),
       ctrl.sourcesModalOpen.subscribe((v) => {
         sourcesModalOpen = v;
         if (!v) sourcesInitialUrl = null;
@@ -700,7 +713,7 @@
                 config={normalisedConfig}
                 {plugins}
                 chrome={false}
-                toolbar={!isPreviewing}
+                toolbar={false}
               />
 
               <AnnotationEditorLayer
@@ -814,7 +827,8 @@
           onAddShot={(atTimeMs) => controller?.addMotionPoint(atTimeMs)}
           onGoToShot={(id) => controller?.goToMotionPoint(id)}
           onSelectShot={(id) => controller?.selectMotionPoint(id)}
-          onMoveShotTime={(id, ms) => controller?.moveMotionPointTime(id, ms)}
+          onMoveShotTime={(id, ms, maxMs) => controller?.moveMotionPointTime(id, ms, maxMs)}
+          onEvenSpaceShots={() => controller?.evenSpaceMotionPoints()}
           onScrubTo={(ms) => controller?.scrubMotionTo(ms)}
           onPreviewMotion={(opts) => controller?.previewMotion(opts)}
           onStopMotionPreview={() => controller?.stopMotionPreview()}
@@ -848,6 +862,27 @@
           {selectedPointId}
           selectedAnnotationIdStore={controller.selectedDrawingAnnotationId}
           {selectedAnnotationId}
+          {viewerCanvasIndex}
+          {viewerCanvasCount}
+          {viewerZoomPercent}
+          onPrevCanvas={() =>
+            controller?.selectCanvas(Math.max(0, viewerCanvasIndex - 1))}
+          onNextCanvas={() =>
+            controller?.selectCanvas(
+              Math.min(Math.max(0, viewerCanvasCount - 1), viewerCanvasIndex + 1),
+            )}
+          onZoomOut={() => {
+            userMovedStage = true;
+            bridge.api.zoomOut();
+          }}
+          onZoomIn={() => {
+            userMovedStage = true;
+            bridge.api.zoomIn();
+          }}
+          onGoHome={() => {
+            userMovedStage = true;
+            bridge.api.goHome();
+          }}
           onLanguageChange={(lang) => controller?.setAnnotationLanguage(lang)}
           onOpenSources={() => openSourcesWithUrl()}
           onUpdateTitle={(lang, val) => controller?.updateChapterTitle(lang, val)}

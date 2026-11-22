@@ -198,7 +198,11 @@ export type StoryBuilderController = {
   /** Moves a camera point's pin while preserving its framing/zoom. */
   setMotionPointFocus: (keyframeId: string, focus: { x: number; y: number }) => void;
   /** Moves a camera keyframe to an explicit timestamp on the chapter timeline. */
-  moveMotionPointTime: (keyframeId: string, timeMs: number) => void;
+  moveMotionPointTime: (
+    keyframeId: string,
+    timeMs: number,
+    maxDurationMs?: number,
+  ) => void;
   /** Swaps a keyframe earlier (-1) or later (+1) in the sequence. */
   reorderMotionPoint: (keyframeId: string, direction: -1 | 1) => void;
   /** Resets keyframe timestamps to even spacing across the chapter duration. */
@@ -2764,14 +2768,23 @@ export const createStoryBuilderController = (
     });
   };
 
-  const moveMotionPointTime = (keyframeId: string, timeMs: number) => {
+  const moveMotionPointTime = (
+    keyframeId: string,
+    timeMs: number,
+    maxDurationMs?: number,
+  ) => {
     const chapterId = get(selectedChapterId);
     const chapter = get(storyStore).chapters.find((item) => item.id === chapterId);
     if (!chapterId || !chapter?.cameraTrack) return;
     pushHistorySnapshot(`motion-time::${chapterId}::${keyframeId}`);
     storyStoreWrapper.setChapterCameraTrack({
       chapterId,
-      cameraTrack: moveCameraKeyframeTime(chapter.cameraTrack, keyframeId, timeMs),
+      cameraTrack: moveCameraKeyframeTime(
+        chapter.cameraTrack,
+        keyframeId,
+        timeMs,
+        maxDurationMs,
+      ),
     });
   };
 

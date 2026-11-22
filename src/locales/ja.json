@@ -493,7 +493,20 @@
       "sourceMediaTitle": "IIIFソースメディア",
       "sourceMediaHint": "下の波形ドックでこのチャプターのIIIF音声・動画区間を調整します。",
       "none": "なし",
-      "whole": "全体"
+      "whole": "全体",
+      "prevCanvas": "前のキャンバス",
+      "nextCanvas": "次のキャンバス",
+      "zoomOut": "縮小",
+      "zoomIn": "拡大",
+      "fitView": "ズームをリセット",
+      "viewerControlsAria": "ビューア操作",
+      "extendTimeline": "+5秒",
+      "extendTimelineHint": "タイムラインを5秒延長",
+      "timelineDurationAria": "タイムラインの長さ（秒）",
+      "silentTimelineHint": "ナレーションなし — カメラのみ {duration} 再生します。+5秒または長さで延長できます。",
+      "cameraLaneLabel": "カメラ",
+      "narrationClipLabel": "ナレーション {duration}",
+      "secondsUnit": "秒"
     }
   },
   "viewer": {

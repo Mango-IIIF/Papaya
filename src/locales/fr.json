@@ -493,7 +493,20 @@
       "sourceMediaTitle": "Média source IIIF",
       "sourceMediaHint": "Découpez le clip audio ou vidéo IIIF dans la forme d’onde ci-dessous.",
       "none": "Aucun",
-      "whole": "Complet"
+      "whole": "Complet",
+      "prevCanvas": "Canevas précédent",
+      "nextCanvas": "Canevas suivant",
+      "zoomOut": "Zoom arrière",
+      "zoomIn": "Zoom avant",
+      "fitView": "Réinitialiser le zoom",
+      "viewerControlsAria": "Contrôles de la visionneuse",
+      "extendTimeline": "+5s",
+      "extendTimelineHint": "Prolonger la timeline de 5 secondes",
+      "timelineDurationAria": "Durée de la timeline en secondes",
+      "silentTimelineHint": "Sans narration — la caméra joue en silence pendant {duration}. Utilisez +5s ou la durée pour prolonger.",
+      "cameraLaneLabel": "Caméra",
+      "narrationClipLabel": "Narration {duration}",
+      "secondsUnit": "s"
     }
   },
   "viewer": {

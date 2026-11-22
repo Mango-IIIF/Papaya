@@ -493,7 +493,20 @@
       "sourceMediaTitle": "Medio fuente IIIF",
       "sourceMediaHint": "Recorta el clip de audio o vídeo IIIF en el panel de onda inferior.",
       "none": "Ninguno",
-      "whole": "Completo"
+      "whole": "Completo",
+      "prevCanvas": "Lienzo anterior",
+      "nextCanvas": "Siguiente lienzo",
+      "zoomOut": "Alejar",
+      "zoomIn": "Acercar",
+      "fitView": "Restablecer zoom",
+      "viewerControlsAria": "Controles del visor",
+      "extendTimeline": "+5s",
+      "extendTimelineHint": "Ampliar la línea de tiempo 5 segundos",
+      "timelineDurationAria": "Duración de la línea de tiempo en segundos",
+      "silentTimelineHint": "Sin narración — la cámara se reproduce en silencio durante {duration}. Usa +5s o la duración para ampliar.",
+      "cameraLaneLabel": "Cámara",
+      "narrationClipLabel": "Narración {duration}",
+      "secondsUnit": "s"
     }
   },
   "viewer": {

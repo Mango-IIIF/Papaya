@@ -493,7 +493,20 @@
       "sourceMediaTitle": "Cyfrwng ffynhonnell IIIF",
       "sourceMediaHint": "Tociwch glip sain neu fideo IIIF y bennod hon yn y doc tonffurf isod.",
       "none": "Dim",
-      "whole": "Llawn"
+      "whole": "Llawn",
+      "prevCanvas": "Cynfas blaenorol",
+      "nextCanvas": "Cynfas nesaf",
+      "zoomOut": "Chwyddo allan",
+      "zoomIn": "Chwyddo i mewn",
+      "fitView": "Ailosod chwyddo",
+      "viewerControlsAria": "Rheolyddion gwyliwr",
+      "extendTimeline": "+5e",
+      "extendTimelineHint": "Ymestyn y llinell amser 5 eiliad",
+      "timelineDurationAria": "Hyd y llinell amser mewn eiliadau",
+      "silentTimelineHint": "Dim adroddiad — mae’r camera’n chwarae’n dawel am {duration}. Defnyddiwch +5e neu hyd i ymestyn.",
+      "cameraLaneLabel": "Camera",
+      "narrationClipLabel": "Adroddiad {duration}",
+      "secondsUnit": "e"
     }
   },
   "viewer": {

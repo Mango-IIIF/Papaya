@@ -48,7 +48,8 @@
     onAddShot: (atTimeMs?: number) => void;
     onGoToShot: (id: string) => void;
     onSelectShot: (id: string | null) => void;
-    onMoveShotTime: (id: string, timeMs: number) => void;
+    onMoveShotTime: (id: string, timeMs: number, maxDurationMs?: number) => void;
+    onEvenSpaceShots: () => void;
     onScrubTo: (timeMs: number) => void;
     onPreviewMotion: (options?: { startMs?: number; withAudio?: boolean }) => void;
     onStopMotionPreview: () => void;
@@ -85,6 +86,7 @@
     onGoToShot,
     onSelectShot,
     onMoveShotTime,
+    onEvenSpaceShots,
     onScrubTo,
     onPreviewMotion,
     onStopMotionPreview,
@@ -134,6 +136,23 @@
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
+  /** Fixed-width M:SS.t formatter so the transport clock never shifts width or flickers. */
+  const fixedClock = (timeMs: number): string => {
+    const total = Math.max(0, timeMs) / 1000;
+    const m = Math.floor(total / 60);
+    const s = total - m * 60;
+    const whole = Math.floor(s);
+    const tenth = Math.floor((s - whole) * 10);
+    return `${m}:${String(whole).padStart(2, '0')}.${tenth}`;
+  };
+
+  const shortClock = (timeMs: number): string => {
+    const total = Math.max(0, Math.round(timeMs / 1000));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
   let mediaRangeLabel = $derived(
     chapter?.media && chapter.media.end > chapter.media.start
       ? `${formatMmSs(chapter.media.start)}–${formatMmSs(chapter.media.end)}`
@@ -171,8 +190,52 @@
   let canMatchNarration = $derived(
     hasMotion && narrationMs > holdMs && Math.abs(narrationMs - durationMs) > 100,
   );
-  let timelineSpanMs = $derived(durationMs || narrationMs || (track?.durationMs ?? 5000));
-  let showTimeline = $derived(hasMotion || narrationMs > 0);
+
+  /* True-to-scale total ruler span: always covers whichever is longer between
+     camera motion and narration audio so neither track lies about duration. */
+  let timelineSpanMs = $derived(
+    Math.max(1000, durationMs, narrationMs, track?.durationMs ?? 5000),
+  );
+  let narrationWidthPct = $derived(
+    narrationMs > 0 && timelineSpanMs > 0
+      ? Math.max(1, Math.min(100, (narrationMs / timelineSpanMs) * 100))
+      : 0,
+  );
+  let cameraWidthPct = $derived(
+    durationMs > 0 && timelineSpanMs > 0
+      ? Math.max(1, Math.min(100, (durationMs / timelineSpanMs) * 100))
+      : 0,
+  );
+  let showTimeline = $derived(points.length > 0 || narrationMs > 0);
+  let editableDurationSec = $derived(
+    Math.round(((track?.durationMs || durationMs || narrationMs || 5000) / 1000) * 10) / 10,
+  );
+
+  /* Clean ruler ticks spaced at human-friendly intervals (1s, 2s, 5s, 10s, 15s, 30s, 60s). */
+  let rulerTicks = $derived.by(() => {
+    const totalSec = timelineSpanMs / 1000;
+    const candidates = [1, 2, 5, 10, 15, 30, 60, 120];
+    const step =
+      candidates.find((interval) => totalSec / interval <= 8) ?? Math.ceil(totalSec / 6);
+    const ticks: Array<{ timeMs: number; pct: number; label: string }> = [];
+    for (let sec = 0; sec <= totalSec; sec += step) {
+      const ms = sec * 1000;
+      ticks.push({
+        timeMs: ms,
+        pct: Math.min(100, (ms / timelineSpanMs) * 100),
+        label: shortClock(ms),
+      });
+    }
+    const last = ticks[ticks.length - 1];
+    if (!last || 100 - last.pct > 8) {
+      ticks.push({
+        timeMs: timelineSpanMs,
+        pct: 100,
+        label: shortClock(timelineSpanMs),
+      });
+    }
+    return ticks;
+  });
 
   $effect(() => {
     const id = chapter?.id ?? null;
@@ -241,15 +304,6 @@
       ? `${Math.max(0, Math.min(100, (timeMs / timelineSpanMs) * 100))}%`
       : '0%';
 
-  const clock = (timeMs: number): string => {
-    const total = Math.max(0, timeMs) / 1000;
-    const m = Math.floor(total / 60);
-    const s = total - m * 60;
-    const whole = Math.floor(s);
-    const tenth = Math.floor((s - whole) * 10);
-    return `${m}:${String(whole).padStart(2, '0')}${tenth ? `.${tenth}` : ''}`;
-  };
-
   const timeMsFromClientX = (clientX: number): number => {
     if (!trackEl || timelineSpanMs <= 0) return 0;
     const rect = trackEl.getBoundingClientRect();
@@ -268,6 +322,7 @@
     markerMoved = false;
     onSelectShot(pointId);
     const startX = event.clientX;
+    const dragCeiling = timelineSpanMs;
     try {
       trackEl?.setPointerCapture?.(event.pointerId);
     } catch {
@@ -281,7 +336,7 @@
       const nextTime = timeMsFromClientX(moveEvent.clientX);
       elapsedMs = nextTime;
       scrubbed = true;
-      onMoveShotTime(pointId, nextTime);
+      onMoveShotTime(pointId, nextTime, dragCeiling);
     };
 
     const onUp = () => {
@@ -335,6 +390,11 @@
     const startMs = elapsedMs >= durationMs ? 0 : elapsedMs;
     if (startMs === 0) elapsedMs = 0;
     onPreviewMotion({ startMs, withAudio: !audioMuted });
+  };
+
+  const extendByFiveSeconds = () => {
+    const nextTrackMs = Math.max(1000, timelineSpanMs - holdMs + 5000);
+    onUpdateMotionDuration(nextTrackMs);
   };
 </script>
 
@@ -447,35 +507,144 @@
     </button>
   </section>
 {:else if chapter && mode === 'frame' && !isAvChapter}
-  <section class="studio-dock studio-dock--frame" data-testid="camera-timeline">
-    {#if showTimeline}
-      <button
-        type="button"
-        class="studio-dock__icon-btn"
-        data-testid="camera-timeline-play"
-        disabled={!hasMotion}
-        aria-label={motionPreviewing
-          ? $t('storyBuilder.motion.stopPreview')
-          : $t('storyBuilder.motion.preview')}
-        title={motionPreviewing
-          ? $t('storyBuilder.motion.stopPreview')
-          : $t('storyBuilder.motion.preview')}
-        onclick={handlePlayToggle}
-      >
-        {#if motionPreviewing}
-          <Square aria-hidden="true" />
-        {:else}
-          <CirclePlay aria-hidden="true" />
-        {/if}
-      </button>
+  {#if showTimeline}
+    <section class="studio-dock studio-dock--timeline" data-testid="camera-timeline">
+      <div class="studio-dock__controls">
+        <div class="studio-dock__transport">
+          <button
+            type="button"
+            class="studio-dock__icon-btn"
+            data-testid="camera-timeline-play"
+            disabled={!hasMotion}
+            aria-label={motionPreviewing
+              ? $t('storyBuilder.motion.stopPreview')
+              : $t('storyBuilder.motion.preview')}
+            title={motionPreviewing
+              ? $t('storyBuilder.motion.stopPreview')
+              : $t('storyBuilder.motion.preview')}
+            onclick={handlePlayToggle}
+          >
+            {#if motionPreviewing}
+              <Square aria-hidden="true" />
+            {:else}
+              <CirclePlay aria-hidden="true" />
+            {/if}
+          </button>
 
-      <span class="studio-dock__time" data-testid="camera-timeline-time">
-        {clock(elapsedMs)} / {clock(durationMs || timelineSpanMs)}
-      </span>
+          <span class="studio-dock__time" data-testid="camera-timeline-time">
+            {fixedClock(elapsedMs)} / {fixedClock(timelineSpanMs)}
+          </span>
+
+          {#if narrationSrc && narrationMs > 0}
+            <button
+              type="button"
+              class="studio-dock__icon-btn"
+              data-testid="camera-timeline-audio-toggle"
+              aria-pressed={audioMuted}
+              aria-label={audioMuted
+                ? $t('storyBuilder.cameraTimeline.unmuteAudio')
+                : $t('storyBuilder.cameraTimeline.muteAudio')}
+              onclick={() => (audioMuted = !audioMuted)}
+            >
+              {#if audioMuted}
+                <VolumeX aria-hidden="true" />
+              {:else}
+                <Volume2 aria-hidden="true" />
+              {/if}
+            </button>
+          {/if}
+
+          {#if hasMotion}
+            <div class="studio-dock__duration">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                data-testid="camera-timeline-duration-input"
+                aria-label={$t('storyBuilder.studio.timelineDurationAria')}
+                value={editableDurationSec}
+                onchange={(event) => {
+                  const sec = Number((event.currentTarget as HTMLInputElement).value);
+                  if (Number.isFinite(sec) && sec > 0) {
+                    onUpdateMotionDuration(Math.round(sec * 1000));
+                  }
+                }}
+              />
+              <span>{$t('storyBuilder.studio.secondsUnit')}</span>
+            </div>
+
+            <button
+              type="button"
+              class="studio-dock__chip"
+              data-testid="camera-timeline-extend"
+              title={$t('storyBuilder.studio.extendTimelineHint')}
+              onclick={extendByFiveSeconds}
+            >
+              {$t('storyBuilder.studio.extendTimeline')}
+            </button>
+          {/if}
+
+          {#if canMatchNarration}
+            <button
+              type="button"
+              class="studio-dock__chip"
+              data-testid="camera-timeline-match-narration"
+              onclick={() => onUpdateMotionDuration(narrationMs - holdMs)}
+            >
+              {$t('storyBuilder.cameraTimeline.matchNarration')}
+            </button>
+          {/if}
+
+          {#if track?.timingMode === 'custom' && hasMotion}
+            <button
+              type="button"
+              class="studio-dock__chip"
+              data-testid="camera-timeline-even-space"
+              onclick={onEvenSpaceShots}
+            >
+              {$t('storyBuilder.cameraTimeline.evenSpace')}
+            </button>
+          {/if}
+        </div>
+
+        <div class="studio-dock__actions">
+          {#if canFrame}
+            <button
+              type="button"
+              class="studio-dock__btn"
+              data-testid="chapter-position-from-view"
+              title={$t('storyBuilder.position.setFromViewHint')}
+              onclick={onSaveView}
+            >
+              <Scan aria-hidden="true" />
+              <span>{$t('storyBuilder.studio.saveView')}</span>
+            </button>
+          {/if}
+
+          <button
+            type="button"
+            class="studio-dock__btn studio-dock__btn--primary"
+            data-testid="camera-timeline-capture"
+            onclick={() => onAddShot(scrubbed || motionPreviewing ? elapsedMs : undefined)}
+          >
+            <Plus aria-hidden="true" />
+            <span>{$t('storyBuilder.studio.addShot')}</span>
+          </button>
+
+          <button
+            type="button"
+            class="studio-dock__btn"
+            data-testid="chapter-preview"
+            onclick={() => onPreviewChapter(chapter.id)}
+          >
+            <Play aria-hidden="true" />
+            <span>{$t('storyBuilder.studio.previewChapterShort')}</span>
+          </button>
+        </div>
+      </div>
 
       <div
-        bind:this={trackEl}
-        class="studio-dock__track"
+        class="studio-timeline"
         role="slider"
         tabindex="0"
         aria-label={$t('storyBuilder.cameraTimeline.scrub')}
@@ -485,111 +654,150 @@
         data-testid="camera-timeline-track"
         onpointerdown={handleTrackPointerDown}
       >
-        {#if waveformPeaks.length > 0}
-          <div class="studio-dock__waveform" aria-hidden="true" data-testid="camera-timeline-waveform">
-            {#each waveformPeaks as peak}
-              <span style={`height:${Math.round(peak * 100)}%`}></span>
+        <div class="studio-timeline__ruler" aria-hidden="true">
+          {#each rulerTicks as tick (tick.timeMs)}
+            <span
+              class="studio-timeline__tick"
+              class:studio-timeline__tick--end={tick.pct > 95}
+              style={`left:${tick.pct}%`}
+            >
+              {tick.label}
+            </span>
+          {/each}
+        </div>
+
+        <div bind:this={trackEl} class="studio-timeline__lanes">
+          <div class="studio-timeline__lane studio-timeline__lane--camera">
+            <span class="studio-timeline__lane-tag">{$t('storyBuilder.studio.cameraLaneLabel')}</span>
+            {#if cameraWidthPct > 0}
+              <div
+                class="studio-timeline__camera-bar"
+                style={`width:${cameraWidthPct}%`}
+              ></div>
+            {/if}
+            {#each points as point, index (point.id)}
+              <button
+                type="button"
+                class="studio-dock__marker"
+                class:studio-dock__marker--selected={selectedPointId === point.id}
+                class:studio-dock__marker--dragging={draggingMarkerId === point.id}
+                data-testid={`camera-timeline-marker-${index + 1}`}
+                style={`--pos:${position(point.timeMs)}`}
+                aria-label={$t('storyBuilder.cameraTimeline.goTo', {
+                  number: index + 1,
+                  time: shortClock(point.timeMs),
+                })}
+                title={$t('storyBuilder.cameraTimeline.goTo', {
+                  number: index + 1,
+                  time: fixedClock(point.timeMs),
+                })}
+                aria-pressed={selectedPointId === point.id}
+                onpointerdown={(event) => startMarkerDrag(event, point.id)}
+                onclick={() => {
+                  if (!markerMoved) onGoToShot(point.id);
+                  markerMoved = false;
+                }}
+              >
+                <span>{index + 1}</span>
+              </button>
             {/each}
           </div>
-        {/if}
-        <div class="studio-dock__line" aria-hidden="true"></div>
-        {#if motionPreviewing || scrubbed}
-          <div
-            class="studio-dock__playhead"
-            aria-hidden="true"
-            style={`--pos:${position(elapsedMs)}`}
-          ></div>
-        {/if}
-        {#each points as point, index (point.id)}
-          <button
-            type="button"
-            class="studio-dock__marker"
-            class:studio-dock__marker--selected={selectedPointId === point.id}
-            class:studio-dock__marker--dragging={draggingMarkerId === point.id}
-            data-testid={`camera-timeline-marker-${index + 1}`}
-            style={`--pos:${position(point.timeMs)}`}
-            aria-label={$t('storyBuilder.cameraTimeline.goTo', {
-              number: index + 1,
-              time: clock(point.timeMs),
-            })}
-            aria-pressed={selectedPointId === point.id}
-            onpointerdown={(event) => startMarkerDrag(event, point.id)}
-            onclick={() => {
-              if (!markerMoved) onGoToShot(point.id);
-              markerMoved = false;
-            }}
-          >
-            <span></span>
-          </button>
-        {/each}
-      </div>
 
-      {#if narrationSrc && narrationMs > 0}
-        <button
-          type="button"
-          class="studio-dock__icon-btn"
-          data-testid="camera-timeline-audio-toggle"
-          aria-pressed={audioMuted}
-          aria-label={audioMuted
-            ? $t('storyBuilder.cameraTimeline.unmuteAudio')
-            : $t('storyBuilder.cameraTimeline.muteAudio')}
-          onclick={() => (audioMuted = !audioMuted)}
-        >
-          {#if audioMuted}
-            <VolumeX aria-hidden="true" />
-          {:else}
-            <Volume2 aria-hidden="true" />
+          <div class="studio-timeline__lane studio-timeline__lane--audio">
+            {#if narrationMs > 0}
+              <div
+                class="studio-timeline__narration-clip"
+                data-testid="camera-timeline-narration-clip"
+                style={`width:${narrationWidthPct}%`}
+                title={$t('storyBuilder.studio.narrationClipLabel', {
+                  duration: shortClock(narrationMs),
+                })}
+              >
+                {#if waveformPeaks.length > 0}
+                  <div
+                    class="studio-dock__waveform"
+                    aria-hidden="true"
+                    data-testid="camera-timeline-waveform"
+                  >
+                    {#each waveformPeaks as peak}
+                      <span style={`height:${Math.round(peak * 100)}%`}></span>
+                    {/each}
+                  </div>
+                {/if}
+                {#if narrationWidthPct >= 14}
+                  <span class="studio-timeline__clip-label">
+                    {$t('storyBuilder.studio.narrationClipLabel', {
+                      duration: shortClock(narrationMs),
+                    })}
+                  </span>
+                {/if}
+              </div>
+              {#if narrationWidthPct < 14}
+                <span
+                  class="studio-timeline__clip-label studio-timeline__clip-label--outside"
+                  style={`left:calc(${narrationWidthPct}% + 6px)`}
+                >
+                  {$t('storyBuilder.studio.narrationClipLabel', {
+                    duration: shortClock(narrationMs),
+                  })}
+                </span>
+              {/if}
+            {:else}
+              <span class="studio-timeline__silent" data-testid="camera-timeline-silent-hint">
+                {$t('storyBuilder.studio.silentTimelineHint', {
+                  duration: shortClock(timelineSpanMs),
+                })}
+              </span>
+            {/if}
+          </div>
+
+          {#if motionPreviewing || scrubbed}
+            <div
+              class="studio-dock__playhead"
+              aria-hidden="true"
+              style={`--pos:${position(elapsedMs)}`}
+            ></div>
           {/if}
-        </button>
-      {/if}
-
-      {#if canMatchNarration}
+        </div>
+      </div>
+    </section>
+  {:else}
+    <section class="studio-dock studio-dock--frame" data-testid="camera-timeline">
+      <div class="studio-dock__spacer"></div>
+      {#if canFrame}
         <button
           type="button"
           class="studio-dock__btn"
-          data-testid="camera-timeline-match-narration"
-          onclick={() => onUpdateMotionDuration(narrationMs - holdMs)}
+          data-testid="chapter-position-from-view"
+          title={$t('storyBuilder.position.setFromViewHint')}
+          onclick={onSaveView}
         >
-          {$t('storyBuilder.cameraTimeline.matchNarration')}
+          <Scan aria-hidden="true" />
+          <span>{$t('storyBuilder.studio.saveView')}</span>
         </button>
       {/if}
-    {:else}
-      <div class="studio-dock__spacer"></div>
-    {/if}
 
-    {#if canFrame}
+      <button
+        type="button"
+        class="studio-dock__btn studio-dock__btn--primary"
+        data-testid="camera-timeline-capture"
+        onclick={() => onAddShot()}
+      >
+        <Plus aria-hidden="true" />
+        <span>{$t('storyBuilder.studio.addShot')}</span>
+      </button>
+
       <button
         type="button"
         class="studio-dock__btn"
-        data-testid="chapter-position-from-view"
-        title={$t('storyBuilder.position.setFromViewHint')}
-        onclick={onSaveView}
+        data-testid="chapter-preview"
+        onclick={() => onPreviewChapter(chapter.id)}
       >
-        <Scan aria-hidden="true" />
-        <span>{$t('storyBuilder.studio.saveView')}</span>
+        <Play aria-hidden="true" />
+        <span>{$t('storyBuilder.studio.previewChapterShort')}</span>
       </button>
-    {/if}
-
-    <button
-      type="button"
-      class="studio-dock__btn studio-dock__btn--primary"
-      data-testid="camera-timeline-capture"
-      onclick={() => onAddShot(scrubbed || motionPreviewing ? elapsedMs : undefined)}
-    >
-      <Plus aria-hidden="true" />
-      <span>{$t('storyBuilder.studio.addShot')}</span>
-    </button>
-
-    <button
-      type="button"
-      class="studio-dock__btn"
-      data-testid="chapter-preview"
-      onclick={() => onPreviewChapter(chapter.id)}
-    >
-      <Play aria-hidden="true" />
-      <span>{$t('storyBuilder.studio.previewChapterShort')}</span>
-    </button>
-  </section>
+    </section>
+  {/if}
 {/if}
 
 <style>
@@ -607,6 +815,29 @@
     height: 50px;
     padding: 0 14px;
     box-sizing: border-box;
+  }
+
+  .studio-dock--timeline {
+    display: grid;
+    gap: 8px;
+    padding: 9px 14px 11px;
+    box-sizing: border-box;
+  }
+
+  .studio-dock__controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .studio-dock__transport,
+  .studio-dock__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
   }
 
   .studio-dock--audio {
@@ -691,24 +922,191 @@
 
   .studio-dock__time {
     flex: 0 0 auto;
+    min-width: 114px;
+    text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 12px;
     font-variant-numeric: tabular-nums;
-    color: var(--viewer-muted, #9aa6b2);
+    color: var(--viewer-text, #e8edf4);
     white-space: nowrap;
   }
 
-  .studio-dock__track {
+  .studio-dock__duration {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 28px;
+    padding: 0 7px;
+    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
+    border-radius: 7px;
+    background: var(--viewer-input-bg, rgba(6, 10, 16, 0.6));
+    font-size: 11.5px;
+    color: var(--viewer-muted, #9aa6b2);
+  }
+
+  .studio-dock__duration input {
+    width: 44px;
+    border: 0;
+    background: transparent;
+    color: var(--viewer-text, #e8edf4);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .studio-dock__duration input:focus {
+    outline: none;
+  }
+
+  .studio-dock__chip {
+    height: 28px;
+    padding: 0 9px;
+    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
+    border-radius: 7px;
+    background: var(--viewer-toolbar-button-bg, rgba(255, 255, 255, 0.04));
+    color: var(--viewer-text, #e8edf4);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .studio-dock__chip:hover {
+    background: var(--viewer-toolbar-button-hover-bg, rgba(255, 255, 255, 0.1));
+  }
+
+  /* Spacious multi-track timeline */
+  .studio-timeline {
     position: relative;
-    flex: 1 1 auto;
-    min-width: 80px;
-    height: 30px;
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    padding: 6px 14px 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.09));
+    border-radius: 10px;
+    background: color-mix(in srgb, #05080d 72%, var(--viewer-panel, #111720));
     cursor: pointer;
     touch-action: none;
+    user-select: none;
+  }
+
+  .studio-timeline__ruler {
+    position: relative;
+    height: 15px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    color: var(--viewer-muted, #9aa6b2);
+    opacity: 0.85;
+  }
+
+  .studio-timeline__tick {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  .studio-timeline__tick:first-child {
+    transform: none;
+  }
+
+  .studio-timeline__tick--end {
+    transform: translateX(-100%);
+  }
+
+  .studio-timeline__lanes {
+    position: relative;
+    display: grid;
+    gap: 5px;
+  }
+
+  .studio-timeline__lane {
+    position: relative;
+    height: 26px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--viewer-text, #e8edf4) 4%, transparent);
+  }
+
+  .studio-timeline__lane-tag {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--viewer-muted, #9aa6b2);
+    opacity: 0.65;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .studio-timeline__camera-bar {
+    position: absolute;
+    left: 0;
+    top: 3px;
+    bottom: 3px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 42%, transparent);
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+
+  .studio-timeline__narration-clip {
+    position: relative;
+    height: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    background: color-mix(in srgb, #38bdf8 14%, transparent);
+    border: 1px solid color-mix(in srgb, #38bdf8 36%, transparent);
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+
+  .studio-timeline__clip-label {
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(6, 10, 16, 0.72);
+    color: #dbeafe;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .studio-timeline__clip-label--outside {
+    background: transparent;
+    color: var(--viewer-muted, #9aa6b2);
+  }
+
+  .studio-timeline__silent {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: var(--viewer-muted, #9aa6b2);
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 16px);
+    pointer-events: none;
   }
 
   .studio-dock__waveform {
     position: absolute;
-    inset: 3px 0;
+    inset: 2px 0;
     display: flex;
     align-items: center;
     gap: 1px;
@@ -719,38 +1117,29 @@
     flex: 1 1 0;
     min-height: 2px;
     border-radius: 1px;
-    background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 32%, transparent);
-  }
-
-  .studio-dock__line {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    height: 2px;
-    margin-top: -1px;
-    background: color-mix(in srgb, var(--viewer-text, #e8edf4) 24%, transparent);
+    background: color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 55%, transparent);
   }
 
   .studio-dock__playhead {
     position: absolute;
     left: var(--pos);
-    top: 2px;
-    bottom: 2px;
+    top: -4px;
+    bottom: -4px;
     width: 2px;
     margin-left: -1px;
-    background: var(--story-builder-accent, #2ac7ff);
+    background: #ffffff;
+    box-shadow: 0 0 8px rgba(42, 199, 255, 0.8);
     pointer-events: none;
-    z-index: 3;
+    z-index: 6;
   }
 
   .studio-dock__marker {
     position: absolute;
     left: var(--pos);
     top: 50%;
-    z-index: 4;
-    width: 24px;
-    height: 24px;
+    z-index: 5;
+    width: 26px;
+    height: 26px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -764,26 +1153,32 @@
   }
 
   .studio-dock__marker span {
-    display: block;
-    width: 12px;
-    height: 12px;
-    margin: 6px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    margin: 3px;
     box-sizing: border-box;
-    border: 2px solid var(--viewer-text, #e8edf4);
-    border-radius: 50%;
+    border: 1.5px solid var(--viewer-text, #e8edf4);
+    border-radius: 6px;
     background: var(--viewer-panel, #111720);
+    color: var(--viewer-text, #e8edf4);
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1;
     transition: transform 120ms ease, box-shadow 120ms ease;
   }
 
   .studio-dock__marker--selected span {
     border-color: var(--story-builder-accent, #2ac7ff);
     background: var(--story-builder-accent, #2ac7ff);
+    color: var(--story-builder-on-accent, #06141d);
   }
 
   .studio-dock__marker:hover span,
   .studio-dock__marker--dragging span {
-    transform: scale(1.22);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 30%, transparent);
+    transform: scale(1.14);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--story-builder-accent, #2ac7ff) 32%, transparent);
   }
 
   .studio-dock__icon-btn,
@@ -793,25 +1188,25 @@
     justify-content: center;
     flex: 0 0 auto;
     gap: 6px;
-    height: 32px;
+    height: 30px;
     border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
     border-radius: 8px;
     background: var(--viewer-toolbar-button-bg, rgba(255, 255, 255, 0.04));
     color: inherit;
     font: inherit;
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
   }
 
   .studio-dock__icon-btn {
-    width: 32px;
+    width: 30px;
     padding: 0;
   }
 
   .studio-dock__btn {
-    padding: 0 11px;
+    padding: 0 10px;
   }
 
   .studio-dock__icon-btn:hover:not(:disabled),
@@ -847,7 +1242,7 @@
     }
 
     .studio-dock__btn {
-      width: 32px;
+      width: 30px;
       padding: 0;
     }
   }

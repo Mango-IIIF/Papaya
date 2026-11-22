@@ -493,7 +493,20 @@
       "sourceMediaTitle": "IIIF source media",
       "sourceMediaHint": "Trim this chapter’s IIIF audio or video clip in the waveform dock below.",
       "none": "None",
-      "whole": "Full"
+      "whole": "Full",
+      "prevCanvas": "Previous canvas",
+      "nextCanvas": "Next canvas",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "fitView": "Reset zoom",
+      "viewerControlsAria": "Viewer controls",
+      "extendTimeline": "+5s",
+      "extendTimelineHint": "Extend timeline by 5 seconds",
+      "timelineDurationAria": "Timeline duration in seconds",
+      "silentTimelineHint": "No narration — camera plays silently for {duration}. Use +5s or duration to extend.",
+      "cameraLaneLabel": "Camera",
+      "narrationClipLabel": "Narration {duration}",
+      "secondsUnit": "s"
     }
   },
   "viewer": {

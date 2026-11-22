@@ -467,17 +467,22 @@ export const moveCameraKeyframeTime = (
   track: ChapterCameraTrack,
   keyframeId: string,
   nextTimeMs: number,
+  maxDurationMs?: number,
 ): ChapterCameraTrack => {
   const current = balanceCameraTrackKeyframes(track);
   if (!current.some((point) => point.id === keyframeId)) return track;
-  const totalDuration = Math.max(1, animatableCameraDurationMs(track) || track.durationMs || 5000);
-  const clamped = Math.max(0, Math.min(totalDuration, Math.round(nextTimeMs)));
+  const baseDuration = Math.max(1, animatableCameraDurationMs(track) || track.durationMs || 5000);
+  const ceiling =
+    typeof maxDurationMs === 'number' && Number.isFinite(maxDurationMs) && maxDurationMs > baseDuration
+      ? Math.round(maxDurationMs)
+      : baseDuration;
+  const clamped = Math.max(0, Math.min(ceiling, Math.round(nextTimeMs)));
   const updated = current
     .map((point) => (point.id === keyframeId ? { ...point, timeMs: clamped } : point))
     .sort((a, b) => a.timeMs - b.timeMs);
   return {
     ...track,
-    durationMs: totalDuration,
+    durationMs: Math.max(baseDuration, clamped),
     timingMode: 'custom',
     keyframes: updated,
   };

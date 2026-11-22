@@ -417,4 +417,26 @@ describe('in-chapter camera track sampling', () => {
     expect(even.timingMode).toBe('even');
     expect(even.keyframes.map((k) => k.timeMs)).toEqual([0, 3333, 6667, 10_000]);
   });
+
+  it('expands track duration when dragging a keyframe into an extended timeline span', () => {
+    const expanded = moveCameraKeyframeTime(
+      {
+        durationMs: 5000,
+        keyframes: [
+          { id: 'k1', timeMs: 0, viewBox: { x: 0, y: 0, w: 100, h: 100 } },
+          { id: 'k2', timeMs: 5000, viewBox: { x: 40, y: 40, w: 60, h: 60 } },
+        ],
+      },
+      'k2',
+      14_000,
+      16_000,
+    );
+
+    expect(expanded.timingMode).toBe('custom');
+    expect(expanded.durationMs).toBe(14_000);
+    expect(expanded.keyframes.map((k) => [k.id, k.timeMs])).toEqual([
+      ['k1', 0],
+      ['k2', 14_000],
+    ]);
+  });
 });
