@@ -485,7 +485,15 @@
       "previewChapterShort": "Aperçu",
       "hideCard": "Masquer la carte",
       "showCard": "Afficher la carte",
-      "dragCard": "Déplacer la carte"
+      "dragCard": "Déplacer la carte",
+      "audioTrackSwitchAria": "Piste audio à modifier",
+      "narrationTab": "Narration",
+      "iiifAudioTab": "Audio IIIF",
+      "iiifVideoTab": "Vidéo IIIF",
+      "sourceMediaTitle": "Média source IIIF",
+      "sourceMediaHint": "Découpez le clip audio ou vidéo IIIF dans la forme d’onde ci-dessous.",
+      "none": "Aucun",
+      "whole": "Complet"
     }
   },
   "viewer": {

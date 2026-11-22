@@ -216,6 +216,7 @@
   let chaptersOpen = $state(!initialCompact);
   let inspectorOpen = $state(!initialCompact);
   let mode = $state<StudioMode>('frame');
+  let audioTrack = $state<'narration' | 'media'>('narration');
   let settingsOpen = $state(false);
   let sourcesInitialUrl = $state<string | null>(null);
 
@@ -285,8 +286,13 @@
       ctrl.saveModalPayload.subscribe((v) => (saveModalPayload = v)),
       ctrl.activeChapterTask.subscribe((task) => {
         if (task === 'focus') mode = 'annotate';
-        else if (task === 'audio-timing' || task === 'media-timing') mode = 'audio';
-        else if (mode === 'annotate') mode = 'frame';
+        else if (task === 'audio-timing') {
+          mode = 'audio';
+          audioTrack = 'narration';
+        } else if (task === 'media-timing') {
+          mode = 'audio';
+          audioTrack = 'media';
+        } else if (mode === 'annotate') mode = 'frame';
       }),
     ];
     return () => unsubs.forEach((off) => off());
@@ -451,6 +457,14 @@
     };
   });
 
+  /* Keep audioTrack valid when switching to a non-AV chapter. */
+  $effect(() => {
+    const isAv = mediaType === 'audio' || mediaType === 'video' || Boolean(activeChapter?.media);
+    if (!isAv && audioTrack === 'media') {
+      audioTrack = 'narration';
+    }
+  });
+
   /* Mode switching */
   const selectMode = (next: StudioMode) => {
     if (!controller) return;
@@ -468,6 +482,11 @@
     } else {
       controller.activeChapterTask.set(null);
     }
+  };
+
+  const openAudioTrack = (track: 'narration' | 'media') => {
+    audioTrack = track;
+    selectMode('audio');
   };
 
   /* Annotation callbacks from AnnotationEditorLayer */
@@ -775,6 +794,7 @@
       {#if controller && hasChapters && !isPreviewing}
         <StudioBottomDock
           {mode}
+          {audioTrack}
           storyStore={controller.story}
           story={storyState}
           selectedChapterIdStore={controller.selectedChapterId}
@@ -788,6 +808,8 @@
           avMarksValidStore={controller.avMarksValid}
           {selectedPointId}
           {motionPreviewing}
+          onSelectAudioTrack={(track) => (audioTrack = track)}
+          onOpenAudioTrack={openAudioTrack}
           onSaveView={handleSaveView}
           onAddShot={(atTimeMs) => controller?.addMotionPoint(atTimeMs)}
           onGoToShot={(id) => controller?.goToMotionPoint(id)}
@@ -813,6 +835,7 @@
       <div class="studio-workspace__right">
         <StudioInspector
           {mode}
+          {audioTrack}
           storyStore={controller.story}
           story={storyState}
           chapter={activeChapter}
@@ -854,6 +877,7 @@
             controller?.setChapterDrawingAnnotationStyle(id, style)}
           onSetNarrationTrack={(lang, src) => controller?.setNarrationTrack(lang, src)}
           onSkipNarration={(lang) => controller?.skipNarration(lang)}
+          onSelectAudioTrack={(track) => (audioTrack = track)}
         />
       </div>
     {/if}

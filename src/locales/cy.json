@@ -485,7 +485,15 @@
       "previewChapterShort": "Rhagolwg",
       "hideCard": "Cuddio cerdyn",
       "showCard": "Dangos cerdyn",
-      "dragCard": "Llusgo cerdyn stori"
+      "dragCard": "Llusgo cerdyn stori",
+      "audioTrackSwitchAria": "Trac sain i’w olygu",
+      "narrationTab": "Adroddiad",
+      "iiifAudioTab": "Sain IIIF",
+      "iiifVideoTab": "Fideo IIIF",
+      "sourceMediaTitle": "Cyfrwng ffynhonnell IIIF",
+      "sourceMediaHint": "Tociwch glip sain neu fideo IIIF y bennod hon yn y doc tonffurf isod.",
+      "none": "Dim",
+      "whole": "Llawn"
     }
   },
   "viewer": {

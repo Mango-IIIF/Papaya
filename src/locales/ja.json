@@ -485,7 +485,15 @@
       "previewChapterShort": "プレビュー",
       "hideCard": "カードを隠す",
       "showCard": "カードを表示",
-      "dragCard": "ストーリーカードを移動"
+      "dragCard": "ストーリーカードを移動",
+      "audioTrackSwitchAria": "編集する音声トラック",
+      "narrationTab": "ナレーション",
+      "iiifAudioTab": "IIIF音声",
+      "iiifVideoTab": "IIIF動画",
+      "sourceMediaTitle": "IIIFソースメディア",
+      "sourceMediaHint": "下の波形ドックでこのチャプターのIIIF音声・動画区間を調整します。",
+      "none": "なし",
+      "whole": "全体"
     }
   },
   "viewer": {

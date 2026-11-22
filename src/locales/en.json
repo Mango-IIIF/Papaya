@@ -485,7 +485,15 @@
       "previewChapterShort": "Preview",
       "hideCard": "Hide card",
       "showCard": "Show card",
-      "dragCard": "Drag story card"
+      "dragCard": "Drag story card",
+      "audioTrackSwitchAria": "Audio track to edit",
+      "narrationTab": "Narration",
+      "iiifAudioTab": "IIIF Audio",
+      "iiifVideoTab": "IIIF Video",
+      "sourceMediaTitle": "IIIF source media",
+      "sourceMediaHint": "Trim this chapter’s IIIF audio or video clip in the waveform dock below.",
+      "none": "None",
+      "whole": "Full"
     }
   },
   "viewer": {

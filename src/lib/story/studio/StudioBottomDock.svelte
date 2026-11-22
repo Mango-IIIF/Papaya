@@ -2,6 +2,9 @@
   import { onDestroy } from 'svelte';
   import {
     CirclePlay,
+    Film,
+    Headphones,
+    Mic,
     Play,
     Plus,
     Scan,
@@ -25,6 +28,7 @@
 
   interface Props {
     mode: StudioMode;
+    audioTrack: 'narration' | 'media';
     storyStore: Readable<StoryState>;
     story: StoryState;
     selectedChapterIdStore: Readable<string | null>;
@@ -38,6 +42,8 @@
     avMarksValidStore: Readable<boolean>;
     selectedPointId: string | null;
     motionPreviewing: boolean;
+    onSelectAudioTrack: (track: 'narration' | 'media') => void;
+    onOpenAudioTrack: (track: 'narration' | 'media') => void;
     onSaveView: () => void;
     onAddShot: (atTimeMs?: number) => void;
     onGoToShot: (id: string) => void;
@@ -58,6 +64,7 @@
 
   let {
     mode,
+    audioTrack,
     storyStore,
     story,
     selectedChapterIdStore,
@@ -71,6 +78,8 @@
     avMarksValidStore,
     selectedPointId,
     motionPreviewing,
+    onSelectAudioTrack,
+    onOpenAudioTrack,
     onSaveView,
     onAddShot,
     onGoToShot,
@@ -108,9 +117,27 @@
   let durationMs = $derived(
     track && hasMotion ? Math.max(1, animatableCameraDurationMs(track)) : 0,
   );
-  let isAvChapter = $derived(mediaType === 'audio' || mediaType === 'video');
+  let isAvChapter = $derived(
+    mediaType === 'audio' || mediaType === 'video' || Boolean(chapter?.media),
+  );
+  let isVideoChapter = $derived(
+    mediaType === 'video' || $mediaSourcesStore.some((src) => src.type === 'video'),
+  );
   let canFrame = $derived(
     Boolean(chapter) && !isAvChapter && mediaType !== 'model' && !chapter?.model,
+  );
+
+  const formatMmSs = (sec: number): string => {
+    const whole = Math.max(0, Math.floor(sec));
+    const m = Math.floor(whole / 60);
+    const s = whole % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  let mediaRangeLabel = $derived(
+    chapter?.media && chapter.media.end > chapter.media.start
+      ? `${formatMmSs(chapter.media.start)}–${formatMmSs(chapter.media.end)}`
+      : $t('storyBuilder.studio.whole'),
   );
 
   let narrationEntry = $derived.by(() => {
@@ -125,6 +152,11 @@
   let narrationSegment = $derived(narrationEntry?.segment ?? null);
   let narrationSrc = $derived(
     narrationEntry ? (story.narration?.tracks?.[narrationEntry.lang]?.src ?? '') : '',
+  );
+  let narrationRangeLabel = $derived(
+    narrationSegment && narrationSegment.end > narrationSegment.start
+      ? `${formatMmSs(narrationSegment.start)}–${formatMmSs(narrationSegment.end)}`
+      : $t('storyBuilder.studio.none'),
   );
   let narrationMs = $derived(
     narrationSegment && narrationSegment.end > narrationSegment.start
@@ -309,6 +341,47 @@
 {#if chapter && mode === 'audio'}
   <section class="studio-dock studio-dock--audio" data-testid="studio-audio-dock">
     {#if isAvChapter}
+      <div
+        class="studio-dock__audio-tabs"
+        role="tablist"
+        aria-label={$t('storyBuilder.studio.audioTrackSwitchAria')}
+      >
+        <button
+          type="button"
+          role="tab"
+          class="studio-dock__audio-tab"
+          class:studio-dock__audio-tab--active={audioTrack === 'narration'}
+          aria-selected={audioTrack === 'narration'}
+          data-testid="studio-audio-tab-narration"
+          onclick={() => onSelectAudioTrack('narration')}
+        >
+          <Mic aria-hidden="true" />
+          <span>{$t('storyBuilder.studio.narrationTab')}</span>
+          <time>{narrationRangeLabel}</time>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          class="studio-dock__audio-tab"
+          class:studio-dock__audio-tab--active={audioTrack === 'media'}
+          aria-selected={audioTrack === 'media'}
+          data-testid="studio-audio-tab-media"
+          onclick={() => onSelectAudioTrack('media')}
+        >
+          {#if isVideoChapter}
+            <Film aria-hidden="true" />
+            <span>{$t('storyBuilder.studio.iiifVideoTab')}</span>
+          {:else}
+            <Headphones aria-hidden="true" />
+            <span>{$t('storyBuilder.studio.iiifAudioTab')}</span>
+          {/if}
+          <time>{mediaRangeLabel}</time>
+        </button>
+      </div>
+    {/if}
+
+    {#if isAvChapter && audioTrack === 'media'}
       <StoryBuilderWideMediaTiming
         story={storyStore}
         selectedChapterId={selectedChapterIdStore}
@@ -331,6 +404,47 @@
         {onSkipNarration}
       />
     {/if}
+  </section>
+{:else if chapter && mode === 'frame' && isAvChapter}
+  <section class="studio-dock studio-dock--frame studio-dock--av-summary" data-testid="studio-av-summary">
+    <button
+      type="button"
+      class="studio-dock__av-pill"
+      data-testid="studio-av-edit-narration"
+      onclick={() => onOpenAudioTrack('narration')}
+    >
+      <Mic aria-hidden="true" />
+      <span>{$t('storyBuilder.studio.narrationTab')}</span>
+      <time>{narrationRangeLabel}</time>
+    </button>
+
+    <button
+      type="button"
+      class="studio-dock__av-pill"
+      data-testid="studio-av-edit-media"
+      onclick={() => onOpenAudioTrack('media')}
+    >
+      {#if isVideoChapter}
+        <Film aria-hidden="true" />
+        <span>{$t('storyBuilder.studio.iiifVideoTab')}</span>
+      {:else}
+        <Headphones aria-hidden="true" />
+        <span>{$t('storyBuilder.studio.iiifAudioTab')}</span>
+      {/if}
+      <time>{mediaRangeLabel}</time>
+    </button>
+
+    <div class="studio-dock__spacer"></div>
+
+    <button
+      type="button"
+      class="studio-dock__btn"
+      data-testid="chapter-preview"
+      onclick={() => onPreviewChapter(chapter.id)}
+    >
+      <Play aria-hidden="true" />
+      <span>{$t('storyBuilder.studio.previewChapterShort')}</span>
+    </button>
   </section>
 {:else if chapter && mode === 'frame' && !isAvChapter}
   <section class="studio-dock studio-dock--frame" data-testid="camera-timeline">
@@ -496,9 +610,79 @@
   }
 
   .studio-dock--audio {
-    max-height: 310px;
+    display: grid;
+    gap: 10px;
+    max-height: 350px;
     overflow: auto;
-    padding: 10px 16px;
+    padding: 10px 16px 12px;
+  }
+
+  .studio-dock__audio-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-self: start;
+    padding: 3px;
+    border-radius: 10px;
+    border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.1));
+    background: color-mix(in srgb, var(--viewer-text, #e8edf4) 4%, transparent);
+  }
+
+  .studio-dock__audio-tab,
+  .studio-dock__av-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 11px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--viewer-muted, #9aa6b2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .studio-dock__av-pill {
+    height: 32px;
+    border-color: var(--viewer-panel-border, rgba(255, 255, 255, 0.14));
+    border-radius: 8px;
+    background: var(--viewer-toolbar-button-bg, rgba(255, 255, 255, 0.04));
+    color: var(--viewer-text, #e8edf4);
+  }
+
+  .studio-dock__audio-tab:hover,
+  .studio-dock__av-pill:hover {
+    color: var(--viewer-text, #e8edf4);
+    background: var(--viewer-toolbar-button-hover-bg, rgba(255, 255, 255, 0.09));
+  }
+
+  .studio-dock__audio-tab--active {
+    background: var(--story-builder-accent, #2ac7ff);
+    color: var(--story-builder-on-accent, #06141d);
+  }
+
+  .studio-dock__audio-tab--active:hover {
+    background: var(--story-builder-accent, #2ac7ff);
+    color: var(--story-builder-on-accent, #06141d);
+  }
+
+  .studio-dock__audio-tab time,
+  .studio-dock__av-pill time {
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .studio-dock__audio-tab :global(svg),
+  .studio-dock__av-pill :global(svg) {
+    width: 14px;
+    height: 14px;
   }
 
   .studio-dock__spacer {

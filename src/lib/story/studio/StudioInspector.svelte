@@ -33,6 +33,7 @@
 
   interface Props {
     mode: StudioMode;
+    audioTrack: 'narration' | 'media';
     storyStore: Readable<StoryState>;
     story: StoryState;
     chapter: Chapter | null;
@@ -82,10 +83,12 @@
     ) => void;
     onSetNarrationTrack: (lang: string, src: string) => void;
     onSkipNarration: (lang: string) => void;
+    onSelectAudioTrack: (track: 'narration' | 'media') => void;
   }
 
   let {
     mode,
+    audioTrack,
     storyStore,
     story,
     chapter,
@@ -125,6 +128,7 @@
     onSetAnnotationStyle,
     onSetNarrationTrack,
     onSkipNarration,
+    onSelectAudioTrack,
   }: Props = $props();
 
   const chapterIdStore = writable<string | null>(null);
@@ -138,9 +142,13 @@
   let durationMs = $derived(
     track && hasMotion ? Math.max(1, animatableCameraDurationMs(track)) : 0,
   );
-  let spatialChapter = $derived(
-    Boolean(chapter) && mediaType !== 'audio' && mediaType !== 'video',
+  let isAvChapter = $derived(
+    mediaType === 'audio' || mediaType === 'video' || Boolean(chapter?.media),
   );
+  let isVideoChapter = $derived(
+    mediaType === 'video' || layers.some((src) => src.type === 'video'),
+  );
+  let spatialChapter = $derived(Boolean(chapter) && !isAvChapter);
   let supportsLayers = $derived(
     layers.length > 1 && layers.every((src) => src.type === 'image'),
   );
@@ -608,68 +616,120 @@
         </section>
       {:else if mode === 'audio'}
         <section class="studio-section" data-testid="studio-audio-panel">
-          <div class="studio-section__head">
-            <h3>{$t('storyBuilder.studio.audioTrackTitle')}</h3>
-          </div>
-
-          {#if languages.length > 1}
-            <div class="studio-presets">
-              {#each languages as lang}
-                <button
-                  type="button"
-                  class="studio-chip"
-                  class:studio-chip--active={lang === language}
-                  onclick={() => onLanguageChange(lang)}
-                >
-                  {lang.toUpperCase()}
-                </button>
-              {/each}
+          {#if isAvChapter}
+            <div
+              class="studio-segmented studio-segmented--full"
+              role="tablist"
+              aria-label={$t('storyBuilder.studio.audioTrackSwitchAria')}
+            >
+              <button
+                type="button"
+                role="tab"
+                class:studio-segmented--active={audioTrack === 'narration'}
+                aria-selected={audioTrack === 'narration'}
+                data-testid="inspector-audio-tab-narration"
+                onclick={() => onSelectAudioTrack('narration')}
+              >
+                {$t('storyBuilder.studio.narrationTab')}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                class:studio-segmented--active={audioTrack === 'media'}
+                aria-selected={audioTrack === 'media'}
+                data-testid="inspector-audio-tab-media"
+                onclick={() => onSelectAudioTrack('media')}
+              >
+                {isVideoChapter
+                  ? $t('storyBuilder.studio.iiifVideoTab')
+                  : $t('storyBuilder.studio.iiifAudioTab')}
+              </button>
             </div>
           {/if}
 
-          <label class="studio-field">
-            <span>{$t('storyBuilder.narration.audioUrl')}</span>
-            <input
-              type="url"
-              placeholder={$t('storyBuilder.settings.audioFileUrl')}
-              bind:value={audioUrlDraft}
-            />
-          </label>
+          {#if isAvChapter && audioTrack === 'media'}
+            <div class="studio-section__head">
+              <h3>{$t('storyBuilder.studio.sourceMediaTitle')}</h3>
+            </div>
 
-          <button
-            type="button"
-            class="studio-full-btn"
-            onclick={() => onSetNarrationTrack(language, audioUrlDraft.trim())}
-          >
-            {$t('storyBuilder.settings.saveAudio')}
-          </button>
+            <div class="studio-audio-summary" data-testid="studio-source-media-summary">
+              {#if chapter.media && chapter.media.end > chapter.media.start}
+                <strong>
+                  {$t('storyBuilder.inspector.mediaSummary', {
+                    start: formatHms(chapter.media.start),
+                    end: formatHms(chapter.media.end),
+                  })}
+                </strong>
+              {:else}
+                <span>{$t('storyBuilder.inspector.mediaWhole')}</span>
+              {/if}
+            </div>
 
-          <div class="studio-audio-summary">
-            {#if narrationSegment}
-              <strong>
-                {$t('storyBuilder.inspector.narrationSummary', {
-                  language: language.toUpperCase(),
-                  start: formatHms(narrationSegment.start),
-                  end: formatHms(narrationSegment.end),
-                })}
-              </strong>
-              <button
-                type="button"
-                class="studio-chip"
-                onclick={() => onSkipNarration(language)}
-              >
-                {$t('storyBuilder.narration.skip')}
-              </button>
-            {:else}
-              <span>
-                {$t('storyBuilder.inspector.narrationNone', {
-                  language: language.toUpperCase(),
-                })}
-              </span>
+            <p class="studio-hint">{$t('storyBuilder.studio.sourceMediaHint')}</p>
+          {:else}
+            <div class="studio-section__head">
+              <h3>{$t('storyBuilder.studio.audioTrackTitle')}</h3>
+            </div>
+
+            {#if languages.length > 1}
+              <div class="studio-presets">
+                {#each languages as lang}
+                  <button
+                    type="button"
+                    class="studio-chip"
+                    class:studio-chip--active={lang === language}
+                    onclick={() => onLanguageChange(lang)}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                {/each}
+              </div>
             {/if}
-          </div>
 
-          <p class="studio-hint">{$t('storyBuilder.studio.audioTrackHint')}</p>
+            <label class="studio-field">
+              <span>{$t('storyBuilder.narration.audioUrl')}</span>
+              <input
+                type="url"
+                placeholder={$t('storyBuilder.settings.audioFileUrl')}
+                bind:value={audioUrlDraft}
+              />
+            </label>
+
+            <button
+              type="button"
+              class="studio-full-btn"
+              onclick={() => onSetNarrationTrack(language, audioUrlDraft.trim())}
+            >
+              {$t('storyBuilder.settings.saveAudio')}
+            </button>
+
+            <div class="studio-audio-summary">
+              {#if narrationSegment}
+                <strong>
+                  {$t('storyBuilder.inspector.narrationSummary', {
+                    language: language.toUpperCase(),
+                    start: formatHms(narrationSegment.start),
+                    end: formatHms(narrationSegment.end),
+                  })}
+                </strong>
+                <button
+                  type="button"
+                  class="studio-chip"
+                  onclick={() => onSkipNarration(language)}
+                >
+                  {$t('storyBuilder.narration.skip')}
+                </button>
+              {:else}
+                <span>
+                  {$t('storyBuilder.inspector.narrationNone', {
+                    language: language.toUpperCase(),
+                  })}
+                </span>
+              {/if}
+            </div>
+
+            <p class="studio-hint">{$t('storyBuilder.studio.audioTrackHint')}</p>
+          {/if}
         </section>
       {/if}
     </div>
@@ -1014,6 +1074,13 @@
     border-radius: 8px;
     border: 1px solid var(--viewer-panel-border, rgba(255, 255, 255, 0.12));
     background: color-mix(in srgb, var(--viewer-text, #e8edf4) 4%, transparent);
+  }
+
+  .studio-segmented--full {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .studio-segmented button {
