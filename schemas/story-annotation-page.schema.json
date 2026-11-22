@@ -297,6 +297,7 @@
           "required": ["durationMs", "keyframes"],
           "properties": {
             "durationMs": { "type": "number", "minimum": 0 },
+            "timingMode": { "enum": ["even", "custom"] },
             "preset": {
               "enum": [
                 "static",

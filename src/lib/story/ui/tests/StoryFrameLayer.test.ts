@@ -170,7 +170,7 @@ describe('StoryFrameLayer', () => {
     cleanup();
   });
 
-  it('leaves a passive frame out of reach and a keyframe labelled by number', async () => {
+  it('leaves a passive frame out of reach and names only the frame in hand', async () => {
     const { viewer, handle, cleanup } = mountLayer(
       [
         chapterFrame({ editable: false }),
@@ -196,8 +196,52 @@ describe('StoryFrameLayer', () => {
     const tags = [...viewer.container.querySelectorAll('.story-frame__tag')].map(
       (tag) => tag.textContent,
     );
-    expect(tags).toContain('Point 1');
+    // The passive chapter frame under it carries no label to print over.
+    expect(tags).toEqual(['Keyframe 1']);
     expect(handle('nw')).toBeTruthy();
+    cleanup();
+  });
+
+  it('moves an editable keyframe even when a later passive keyframe overlaps it', async () => {
+    const { viewer, svg, onframecommit, cleanup } = mountLayer(
+      [
+        chapterFrame({ editable: false }),
+        {
+          id: 'keyframe:first',
+          kind: 'keyframe',
+          viewBox: { x: 120, y: 80, w: 300, h: 150 },
+          aspect: 2,
+          label: '1',
+          editable: true,
+        },
+        {
+          id: 'keyframe:second',
+          kind: 'keyframe',
+          viewBox: { x: 120, y: 80, w: 300, h: 150 },
+          aspect: 2,
+          label: '2',
+          editable: false,
+        },
+      ],
+      'keyframe:first',
+    );
+    await tick();
+
+    const editableHalo = viewer.container.querySelector(
+      '.story-frame--editable .story-frame__halo',
+    ) as SVGElement;
+    expect(editableHalo).toBeTruthy();
+
+    pointer(editableHalo, 'pointerdown', 124, 120);
+    pointer(svg(), 'pointermove', 174, 150);
+    pointer(svg(), 'pointerup', 174, 150);
+    await tick();
+
+    expect(onframecommit).toHaveBeenCalledTimes(1);
+    expect(onframecommit.mock.calls[0][0]).toEqual({
+      frameId: 'keyframe:first',
+      viewBox: { x: 170, y: 110, w: 300, h: 150 },
+    });
     cleanup();
   });
 });

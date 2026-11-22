@@ -58,6 +58,29 @@ export const normaliseViewBox = (box: ViewBox, aspect: number): ViewBox => {
 };
 
 /**
+ * The largest box of `aspect` that sits inside `box`, centred on it.
+ *
+ * This is what a viewport capture means in the builder: the author's stage is
+ * rarely the story's shape, and the part of what they are looking at that
+ * every reader is guaranteed to see is the story-shaped box inside it. Taking
+ * the box that covers the same area instead (see `normaliseViewBox`) reaches
+ * outside the viewport on one axis, which stores picture the author never saw.
+ */
+export const containViewBox = (box: ViewBox, aspect: number): ViewBox => {
+  if (!isPositive(aspect) || !isPositive(box.w) || !isPositive(box.h)) return box;
+  if (Math.abs(box.w / box.h - aspect) <= aspect * ASPECT_EPSILON) return box;
+
+  const width = Math.min(box.w, box.h * aspect);
+  const height = width / aspect;
+  return {
+    x: box.x + (box.w - width) / 2,
+    y: box.y + (box.h - height) / 2,
+    w: width,
+    h: height,
+  };
+};
+
+/**
  * Brings a framing inside the canvas.
  *
  * A viewport capture is not a region of the image: when the stage is a

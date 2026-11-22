@@ -3,6 +3,7 @@ import type { StoryState } from '../../core/types/story';
 import {
   DEFAULT_PRESENTATION_ASPECT,
   constrainViewBoxToContent,
+  containViewBox,
   fitViewBoxToContent,
   framingsWithin,
   inferPresentationAspect,
@@ -16,6 +17,39 @@ const aspectOf = (box: { w: number; h: number }) => box.w / box.h;
 const centreOf = (box: { x: number; y: number; w: number; h: number }) => ({
   x: box.x + box.w / 2,
   y: box.y + box.h / 2,
+});
+
+describe('containing a view', () => {
+  it('takes the story-shaped box inside a taller view, centred', () => {
+    expect(containViewBox({ x: 400, y: 200, w: 600, h: 600 }, 2)).toEqual({
+      x: 400,
+      y: 350,
+      w: 600,
+      h: 300,
+    });
+  });
+
+  it('takes the story-shaped box inside a wider view, centred', () => {
+    expect(containViewBox({ x: 0, y: 0, w: 1200, h: 300 }, 2)).toEqual({
+      x: 300,
+      y: 0,
+      w: 600,
+      h: 300,
+    });
+  });
+
+  it('never reaches outside the view, unlike an area-preserving reframe', () => {
+    const view = { x: 0, y: 0, w: 1000, h: 1000 };
+    const contained = containViewBox(view, 2);
+    expect(contained.w).toBeLessThanOrEqual(view.w);
+    expect(contained.h).toBeLessThanOrEqual(view.h);
+    expect(normaliseViewBox(view, 2).w).toBeGreaterThan(view.w);
+  });
+
+  it('returns a view already at the aspect untouched', () => {
+    const view = { x: 10, y: 20, w: 800, h: 400 };
+    expect(containViewBox(view, 2)).toBe(view);
+  });
 });
 
 describe('framing normalisation', () => {

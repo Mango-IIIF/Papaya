@@ -5,46 +5,62 @@
   import AudioRegionEditor from "./AudioRegionEditor.svelte";
   import { t } from '../../core/i18n';
 
-  export let story: Readable<StoryState>;
-  export let selectedChapterId: Readable<string | null>;
-  export let language = "en";
-  export let languages: string[] = ["en"];
-  export let onSetNarrationTrack: (language: string, src: string) => void;
-  export let onAssignNarrationSegment: (
-    language: string,
-    start: number,
-    end: number,
-  ) => void;
-  export let onSkipNarration: (language: string) => void = () => {};
+  interface Props {
+    story: Readable<StoryState>;
+    selectedChapterId: Readable<string | null>;
+    language?: string;
+    languages?: string[];
+    onSetNarrationTrack: (language: string, src: string) => void;
+    onAssignNarrationSegment: (language: string, start: number, end: number) => void;
+    onSkipNarration?: (language: string) => void;
+  }
 
-  let activeLanguage = language;
-  let trackDraft = "";
-  let startDraft = "0.00";
-  let endDraft = "0.00";
-  let audioDuration = 0;
+  let {
+    story,
+    selectedChapterId,
+    language = "en",
+    languages = ["en"],
+    onSetNarrationTrack,
+    onAssignNarrationSegment,
+    onSkipNarration = () => {},
+  }: Props = $props();
+
+  let pickedLanguage = $state<string | null>(null);
+  let trackDraft = $state("");
+  let startDraft = $state("0.00");
+  let endDraft = $state("0.00");
+  let audioDuration = $state(0);
   let lastSyncKey = "";
   let lastModeSyncKey = "";
-  let narrationEnabled = false;
-  let previewing = false;
-  let regionEditor: AudioRegionEditor | null = null;
+  let narrationEnabled = $state(false);
+  let previewing = $state(false);
+  let regionEditor: AudioRegionEditor | null = $state(null);
 
   const formatTime = (value: number) => value.toFixed(2);
 
-  $: chapter =
-    $story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null;
-  $: availableLanguages = [
+  let chapter = $derived(
+    $story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null,
+  );
+  let availableLanguages = $derived([
     ...new Set([language, ...languages].filter(Boolean)),
-  ];
-  $: segment = chapter?.narrationSegment?.[activeLanguage];
-  $: trackSource = $story.narration?.tracks?.[activeLanguage]?.src ?? "";
-  $: {
+  ]);
+  let activeLanguage = $derived(
+    pickedLanguage && availableLanguages.includes(pickedLanguage)
+      ? pickedLanguage
+      : language,
+  );
+  let segment = $derived(chapter?.narrationSegment?.[activeLanguage]);
+  let trackSource = $derived($story.narration?.tracks?.[activeLanguage]?.src ?? "");
+
+  $effect(() => {
     const modeSyncKey = `${chapter?.id ?? ""}:${activeLanguage}:${segment ? "1" : "0"}`;
     if (modeSyncKey !== lastModeSyncKey) {
       lastModeSyncKey = modeSyncKey;
       narrationEnabled = Boolean(segment);
     }
-  }
-  $: {
+  });
+
+  $effect(() => {
     const syncKey = `${chapter?.id ?? ""}:${activeLanguage}:${trackSource}:${segment?.start ?? ""}:${segment?.end ?? ""}`;
     if (syncKey !== lastSyncKey) {
       lastSyncKey = syncKey;
@@ -54,14 +70,15 @@
       startDraft = formatTime(segment?.start ?? 0);
       endDraft = segment ? formatTime(segment.end) : "0.00";
     }
-  }
+  });
 
-  $: validSegment =
+  let validSegment = $derived(
     Number.isFinite(Number(startDraft)) &&
-    Number.isFinite(Number(endDraft)) &&
-    Number(startDraft) >= 0 &&
-    Number(endDraft) > Number(startDraft) &&
-    (audioDuration <= 0 || Number(endDraft) <= audioDuration + 0.001);
+      Number.isFinite(Number(endDraft)) &&
+      Number(startDraft) >= 0 &&
+      Number(endDraft) > Number(startDraft) &&
+      (audioDuration <= 0 || Number(endDraft) <= audioDuration + 0.001),
+  );
 
   const commitTrack = () =>
     onSetNarrationTrack(activeLanguage, trackDraft.trim());
@@ -131,7 +148,7 @@
             type="button"
             class:story-wide-narration__language--active={entry ===
               activeLanguage}
-            on:click={() => (activeLanguage = entry)}
+            onclick={() => (pickedLanguage = entry)}
             >{entry.toUpperCase()}</button
           >
         {/each}
@@ -148,7 +165,7 @@
         aria-checked={narrationEnabled}
         class:story-wide-narration__mode--active={narrationEnabled}
         data-testid="chapter-narration-use"
-        on:click={() => (narrationEnabled = true)}
+        onclick={() => (narrationEnabled = true)}
       >{$t('storyBuilder.narration.useNarration')}</button>
       <button
         type="button"
@@ -156,7 +173,7 @@
         aria-checked={!narrationEnabled}
         class:story-wide-narration__mode--active={!narrationEnabled}
         data-testid="chapter-narration-none"
-        on:click={disableNarration}
+        onclick={disableNarration}
       >{$t('storyBuilder.narration.noNarration')}</button>
     </div>
   </div>
@@ -173,7 +190,7 @@
         type="url"
         placeholder="https://example.org/narration.mp3"
         bind:value={trackDraft}
-        on:change={commitTrack}
+        onchange={commitTrack}
         disabled={!narrationEnabled}
       />
     </label>
@@ -181,7 +198,7 @@
       <button
         type="button"
         disabled={!narrationEnabled || !trackSource || !validSegment}
-        on:click={togglePreview}
+        onclick={togglePreview}
       >
         {#if previewing}<Square aria-hidden="true" /> {$t('storyBuilder.media.stop')}{:else}<Play
             aria-hidden="true"
@@ -220,8 +237,8 @@
           step="0.01"
           bind:value={startDraft}
           disabled={!narrationEnabled}
-          on:change={normalizeAndCommitSegment}
-          on:blur={normalizeAndCommitSegment}
+          onchange={normalizeAndCommitSegment}
+          onblur={normalizeAndCommitSegment}
         /></label
       >
       <span>{$t('storyBuilder.media.to')}</span>
@@ -233,15 +250,15 @@
           step="0.01"
           bind:value={endDraft}
           disabled={!narrationEnabled}
-          on:change={normalizeAndCommitSegment}
-          on:blur={normalizeAndCommitSegment}
+          onchange={normalizeAndCommitSegment}
+          onblur={normalizeAndCommitSegment}
         /></label
       >
       <button
         class="story-wide-narration__apply"
         type="button"
         disabled={!narrationEnabled || !chapter || !validSegment}
-        on:click={commitSegment}
+        onclick={commitSegment}
         ><Check aria-hidden="true" /> {$t('storyBuilder.narration.apply')}</button
       >
     </div>
@@ -314,8 +331,8 @@
     display: grid;
     place-items: center;
     border-radius: 9px;
-    color: var(--accent, var(--story-builder-accent, #e07a3f));
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 14%, transparent);
+    color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 14%, transparent);
   }
   .story-wide-narration :global(svg) {
     width: 14px;
@@ -343,7 +360,7 @@
     cursor: pointer;
   }
   .story-wide-narration__languages .story-wide-narration__language--active {
-    border-color: var(--accent, var(--story-builder-accent, #e07a3f));
+    border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
     color: var(--viewer-text, #e8edf4);
   }
   .story-wide-narration__mode {
@@ -364,8 +381,8 @@
     cursor: pointer;
   }
   .story-wide-narration__mode .story-wide-narration__mode--active {
-    border-color: var(--accent, var(--story-builder-accent, #e07a3f));
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 12%, transparent);
+    border-color: var(--accent, var(--story-builder-accent, #2ac7ff));
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 12%, transparent);
     color: var(--viewer-text, #e8edf4);
   }
   .story-wide-narration__editor {
@@ -417,10 +434,10 @@
     align-items: center;
     gap: 6px;
     border: 1px solid
-      color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 55%, transparent);
+      color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 55%, transparent);
     border-radius: 8px;
     padding: 7px 10px;
-    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 12%, transparent);
+    background: color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 12%, transparent);
     color: inherit;
     font-size: 10px;
     cursor: pointer;

@@ -221,7 +221,7 @@
     font-size: 12px;
     line-height: 1.45;
     color: var(--viewer-muted, #d5e2f5);
-    border-left: 3px solid var(--story-builder-accent, #e07a3f);
+    border-left: 3px solid var(--story-builder-accent, #2ac7ff);
     padding-left: 10px;
   }
 
@@ -245,7 +245,7 @@
   }
 
   .save-modal__button--primary {
-    background: var(--story-builder-accent, #e07a3f);
+    background: var(--story-builder-accent, #2ac7ff);
     color: var(--viewer-text, #fffaf6);
   }
 </style>

@@ -1,9 +1,13 @@
 <script lang="ts">
   import { t } from '../../core/i18n';
 
-  export let size = 24;
-  export let color = 'currentColor';
-  export let className = '';
+  interface Props {
+    size?: number;
+    color?: string;
+    className?: string;
+  }
+
+  let { size = 24, color = 'currentColor', className = '' }: Props = $props();
 </script>
 
 <svg

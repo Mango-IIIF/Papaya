@@ -318,9 +318,15 @@ export const animatableCameraDurationMs = (
 ): number => {
   if (!track || (track.keyframes?.length ?? 0) < 2) return 0;
   const durationMs = track.durationMs;
-  return Number.isFinite(durationMs) && durationMs > 0
-    ? durationMs + cameraDwellDurationMs(track)
-    : 0;
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return 0;
+  if (track.timingMode === 'custom') {
+    const maxTime = track.keyframes.reduce(
+      (max, point) => (Number.isFinite(point.timeMs) ? Math.max(max, point.timeMs) : max),
+      0,
+    );
+    return Math.max(durationMs, maxTime);
+  }
+  return durationMs + cameraDwellDurationMs(track);
 };
 
 export const configureCameraTrackPreset = (
@@ -438,11 +444,112 @@ export const balanceCameraTrackKeyframes = (
   track: ChapterCameraTrack,
 ): ChapterCameraKeyframe[] => {
   const authored = [...track.keyframes].sort((a, b) => a.timeMs - b.timeMs);
+  if (track.timingMode === 'custom') {
+    const total = Math.max(1, animatableCameraDurationMs(track) || track.durationMs || 1);
+    return authored.map((point) => ({
+      ...point,
+      timeMs: Math.max(0, Math.min(total, Math.round(Number.isFinite(point.timeMs) ? point.timeMs : 0))),
+    }));
+  }
   const balanced = retimeCameraKeyframes(authored, track.durationMs);
   return authored.map((point, index) => ({
     ...point,
     timeMs: balanced[index]?.timeMs ?? point.timeMs,
   }));
+};
+
+/**
+ * Moves a single keyframe to an explicit timestamp on the chapter timeline,
+ * switching the track to `timingMode: 'custom'` so neighbouring keyframes stay
+ * anchored to their audio or narrative cues.
+ */
+export const moveCameraKeyframeTime = (
+  track: ChapterCameraTrack,
+  keyframeId: string,
+  nextTimeMs: number,
+  maxDurationMs?: number,
+): ChapterCameraTrack => {
+  const current = balanceCameraTrackKeyframes(track);
+  if (!current.some((point) => point.id === keyframeId)) return track;
+  const baseDuration = Math.max(1, animatableCameraDurationMs(track) || track.durationMs || 5000);
+  const ceiling =
+    typeof maxDurationMs === 'number' && Number.isFinite(maxDurationMs) && maxDurationMs > baseDuration
+      ? Math.round(maxDurationMs)
+      : baseDuration;
+  const clamped = Math.max(0, Math.min(ceiling, Math.round(nextTimeMs)));
+  const updated = current
+    .map((point) => (point.id === keyframeId ? { ...point, timeMs: clamped } : point))
+    .sort((a, b) => a.timeMs - b.timeMs);
+  return {
+    ...track,
+    durationMs: Math.max(baseDuration, clamped),
+    timingMode: 'custom',
+    keyframes: updated,
+  };
+};
+
+/**
+ * Inserts a newly captured keyframe at an explicit playhead time while keeping
+ * every existing keyframe at its current timestamp.
+ */
+export const insertCameraKeyframeAtTime = (
+  track: ChapterCameraTrack,
+  point: ChapterCameraKeyframe,
+  timeMs: number,
+): ChapterCameraTrack => {
+  const existing = balanceCameraTrackKeyframes(track);
+  const totalDuration = Math.max(1, animatableCameraDurationMs(track) || track.durationMs || 5000);
+  const clamped = Math.max(0, Math.min(totalDuration, Math.round(timeMs)));
+  const inserted: ChapterCameraKeyframe = { ...point, timeMs: clamped };
+  const keyframes = [...existing, inserted].sort((a, b) => a.timeMs - b.timeMs);
+  return {
+    ...track,
+    durationMs: totalDuration,
+    timingMode: 'custom',
+    keyframes,
+  };
+};
+
+/**
+ * Swaps a keyframe with its previous (`-1`) or next (`+1`) neighbour while
+ * keeping the timeline timestamps in place.
+ */
+export const reorderCameraKeyframes = (
+  track: ChapterCameraTrack,
+  keyframeId: string,
+  direction: -1 | 1,
+): ChapterCameraTrack => {
+  const ordered = balanceCameraTrackKeyframes(track);
+  const index = ordered.findIndex((point) => point.id === keyframeId);
+  const targetIndex = index + direction;
+  if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return track;
+
+  const next = ordered.map((point) => ({ ...point }));
+  const a = next[index];
+  const b = next[targetIndex];
+  const timeA = a.timeMs;
+  const timeB = b.timeMs;
+  next[index] = { ...b, timeMs: timeA };
+  next[targetIndex] = { ...a, timeMs: timeB };
+
+  return {
+    ...track,
+    keyframes: next,
+  };
+};
+
+/**
+ * Resets a track back to evenly spaced keyframe timing across `track.durationMs`.
+ */
+export const evenSpaceCameraTrack = (track: ChapterCameraTrack): ChapterCameraTrack => {
+  const ordered = [...track.keyframes].sort((a, b) => a.timeMs - b.timeMs);
+  const durationMs = Math.max(1, track.durationMs || 5000);
+  return {
+    ...track,
+    durationMs,
+    timingMode: 'even',
+    keyframes: retimeCameraKeyframes(ordered, durationMs),
+  };
 };
 
 /** Samples one camera segment on the automatically spaced track clock. */

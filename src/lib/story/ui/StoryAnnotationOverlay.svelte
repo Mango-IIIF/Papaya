@@ -10,43 +10,64 @@
     STORY_LABEL_SIZING,
   } from '../annotations/rectangleLabelLayout';
   import { coerceAnnotationPlacement, DEFAULT_ANNOTATION_PLACEMENT } from '../annotationPlacement';
+  import { sanitizeCssColor } from '../sanitize';
 
-  export let story: Readable<StoryState>;
-  export let viewBox: Readable<ViewBox | null> = readable(null);
-  export let chapterId: string | null = null;
-  export let language = 'en';
-  export let visible = true;
-  export let showDrawings = true;
-  export let editable = false;
-  export let onEditText: ((language: string) => void) | undefined = undefined;
+  interface Props {
+    story: Readable<StoryState>;
+    viewBox?: Readable<ViewBox | null>;
+    chapterId?: string | null;
+    language?: string;
+    visible?: boolean;
+    showDrawings?: boolean;
+    editable?: boolean;
+    onEditText?: (language: string) => void;
+  }
 
-  $: chapter = $story.chapters.find((item) => item.id === chapterId) ?? null;
-  $: annotation = chapter?.annotations?.[language] ?? null;
-  $: text = annotation?.text ?? '';
-  $: fallbackPlacement = Object.values(chapter?.annotations ?? {})
-    .map((entry) => coerceAnnotationPlacement(entry?.placement))
-    .find((entry) => Boolean(entry));
-  $: placement =
-    coerceAnnotationPlacement(annotation?.placement) ??
-    coerceAnnotationPlacement(chapter?.annotationPlacement) ??
-    fallbackPlacement ??
-    DEFAULT_ANNOTATION_PLACEMENT;
-  $: captureViewBox = chapter?.viewBox ?? null;
-  $: currentViewBox = $viewBox;
-  $: isAbsolute = Boolean(
-    placement && (placement.x > 1 || placement.y > 1 || placement.w > 1 || placement.h > 1),
+  let {
+    story,
+    viewBox = readable(null),
+    chapterId = null,
+    language = 'en',
+    visible = true,
+    showDrawings = true,
+    editable = false,
+    onEditText = undefined,
+  }: Props = $props();
+
+  let chapter = $derived($story.chapters.find((item) => item.id === chapterId) ?? null);
+  let annotation = $derived(chapter?.annotations?.[language] ?? null);
+  let text = $derived(annotation?.text ?? '');
+  let fallbackPlacement = $derived(
+    Object.values(chapter?.annotations ?? {})
+      .map((entry) => coerceAnnotationPlacement(entry?.placement))
+      .find((entry) => Boolean(entry)),
   );
-  $: canvasBounds = isAbsolute
-    ? placement
-    : captureViewBox
-      ? {
-          x: captureViewBox.x + captureViewBox.w * placement.x,
-          y: captureViewBox.y + captureViewBox.h * placement.y,
-          w: captureViewBox.w * placement.w,
-          h: captureViewBox.h * placement.h,
-        }
-      : null;
-  $: projectedBounds =
+  let placement = $derived(
+    coerceAnnotationPlacement(annotation?.placement) ??
+      coerceAnnotationPlacement(chapter?.annotationPlacement) ??
+      fallbackPlacement ??
+      DEFAULT_ANNOTATION_PLACEMENT,
+  );
+  let captureViewBox = $derived(chapter?.viewBox ?? null);
+  let currentViewBox = $derived($viewBox);
+  let isAbsolute = $derived(
+    Boolean(
+      placement && (placement.x > 1 || placement.y > 1 || placement.w > 1 || placement.h > 1),
+    ),
+  );
+  let canvasBounds = $derived(
+    isAbsolute
+      ? placement
+      : captureViewBox
+        ? {
+            x: captureViewBox.x + captureViewBox.w * placement.x,
+            y: captureViewBox.y + captureViewBox.h * placement.y,
+            w: captureViewBox.w * placement.w,
+            h: captureViewBox.h * placement.h,
+          }
+        : null,
+  );
+  let projectedBounds = $derived(
     canvasBounds && currentViewBox
       ? {
           x: (canvasBounds.x - currentViewBox.x) / currentViewBox.w,
@@ -54,27 +75,34 @@
           w: canvasBounds.w / currentViewBox.w,
           h: canvasBounds.h / currentViewBox.h,
         }
-      : null;
-  $: anchored =
+      : null,
+  );
+  let anchored = $derived(
     projectedBounds !== null &&
-    Number.isFinite(projectedBounds.x) &&
-    Number.isFinite(projectedBounds.y) &&
-    Number.isFinite(projectedBounds.w) &&
-    Number.isFinite(projectedBounds.h);
-  $: inView =
+      Number.isFinite(projectedBounds.x) &&
+      Number.isFinite(projectedBounds.y) &&
+      Number.isFinite(projectedBounds.w) &&
+      Number.isFinite(projectedBounds.h),
+  );
+  let inView = $derived(
     anchored &&
-    projectedBounds.x + projectedBounds.w >= 0 &&
-    projectedBounds.x <= 1 &&
-    projectedBounds.y + projectedBounds.h >= 0 &&
-    projectedBounds.y <= 1;
-  $: annotationScale =
+      projectedBounds !== null &&
+      projectedBounds.x + projectedBounds.w >= 0 &&
+      projectedBounds.x <= 1 &&
+      projectedBounds.y + projectedBounds.h >= 0 &&
+      projectedBounds.y <= 1,
+  );
+  let annotationScale = $derived(
     captureViewBox && currentViewBox && currentViewBox.w > 0
       ? Math.max(0.15, captureViewBox.w / currentViewBox.w)
-      : 1;
-  $: noteStyle = anchored
-    ? `left: ${(projectedBounds.x * 100).toFixed(3)}%; top: ${(projectedBounds.y * 100).toFixed(3)}%; width: ${(projectedBounds.w * 100).toFixed(3)}%; height: ${(projectedBounds.h * 100).toFixed(3)}%; --annotation-scale:${annotationScale};`
-    : `left: ${(placement.x * 100).toFixed(3)}%; top: ${(placement.y * 100).toFixed(3)}%; width: ${(placement.w * 100).toFixed(3)}%; height: ${(placement.h * 100).toFixed(3)}%; --annotation-scale:1;`;
-  $: show = Boolean(visible && text && chapterId && (!anchored || inView));
+      : 1,
+  );
+  let noteStyle = $derived(
+    anchored && projectedBounds
+      ? `left: ${(projectedBounds.x * 100).toFixed(3)}%; top: ${(projectedBounds.y * 100).toFixed(3)}%; width: ${(projectedBounds.w * 100).toFixed(3)}%; height: ${(projectedBounds.h * 100).toFixed(3)}%; --annotation-scale:${annotationScale};`
+      : `left: ${(placement.x * 100).toFixed(3)}%; top: ${(placement.y * 100).toFixed(3)}%; width: ${(placement.w * 100).toFixed(3)}%; height: ${(placement.h * 100).toFixed(3)}%; --annotation-scale:1;`,
+  );
+  let show = $derived(Boolean(visible && text && chapterId && (!anchored || inView)));
 
   type DrawingShape = {
     id: string;
@@ -95,10 +123,10 @@
     pointNumber?: number;
   };
 
-  const labelForDrawing = (annotation: ChapterDrawingAnnotation): string =>
-    annotation.label?.[language] ?? annotation.label?.en ?? annotation.text ?? '';
+  const labelForDrawing = (item: ChapterDrawingAnnotation): string =>
+    item.label?.[language] ?? item.label?.en ?? item.text ?? '';
 
-  $: drawingShapes = ((): DrawingShape[] => {
+  let drawingShapes = $derived.by((): DrawingShape[] => {
     const cvb = currentViewBox;
     if (!cvb) return [];
     const project = (point: { x: number; y: number }) => ({
@@ -106,33 +134,33 @@
       y: ((point.y - cvb.y) / cvb.h) * 100,
     });
     let pointCounter = 0;
-    return (chapter?.drawingAnnotations ?? []).flatMap((annotation): DrawingShape[] => {
-      const color = annotation.color?.trim() || 'var(--accent, #e07a3f)';
-      const strokePx = ANNOTATION_STROKE_WIDTH_PX[annotation.strokeWidth ?? 'medium'];
-      const label = labelForDrawing(annotation);
-      const fillMode = annotation.fillMode ?? 'transparent';
-      const base = { id: annotation.id, color, strokePx, label, fillMode };
-      if (annotation.rect) {
-        const origin = project(annotation.rect);
-        const w = (annotation.rect.w / cvb.w) * 100;
-        const h = (annotation.rect.h / cvb.h) * 100;
+    return (chapter?.drawingAnnotations ?? []).flatMap((item): DrawingShape[] => {
+      const color = sanitizeCssColor(item.color, 'var(--accent, #e07a3f)');
+      const strokePx = ANNOTATION_STROKE_WIDTH_PX[item.strokeWidth ?? 'medium'];
+      const label = labelForDrawing(item);
+      const fillMode = item.fillMode ?? 'transparent';
+      const base = { id: item.id, color, strokePx, label, fillMode };
+      if (item.rect) {
+        const origin = project(item.rect);
+        const w = (item.rect.w / cvb.w) * 100;
+        const h = (item.rect.h / cvb.h) * 100;
         return [
           { ...base, kind: 'rect', x: origin.x, y: origin.y, w, h, cx: origin.x + w / 2, cy: origin.y + h / 2 },
         ];
       }
-      if (annotation.point) {
-        const point = project(annotation.point);
+      if (item.point) {
+        const point = project(item.point);
         pointCounter += 1;
         return [{ ...base, kind: 'point', cx: point.x, cy: point.y, pointNumber: pointCounter }];
       }
-      if (annotation.points?.length) {
-        const projected = annotation.points.map(project);
+      if (item.points?.length) {
+        const projected = item.points.map(project);
         const cx = projected.reduce((sum, p) => sum + p.x, 0) / projected.length;
         const cy = projected.reduce((sum, p) => sum + p.y, 0) / projected.length;
         return [
           {
             ...base,
-            kind: annotation.type === 'polygon' ? 'polygon' : 'line',
+            kind: item.type === 'polygon' ? 'polygon' : 'line',
             pointsStr: projected.map((p) => `${p.x},${p.y}`).join(' '),
             cx,
             cy,
@@ -141,14 +169,14 @@
       }
       return [];
     });
-  })();
-  $: svgShapes = drawingShapes.filter((shape) => shape.kind !== 'point');
-  $: pointMarkers = drawingShapes.filter((shape) => shape.kind === 'point');
-  $: shapeLabels = drawingShapes.filter((shape) => shape.label.trim().length > 0);
-  $: hasDrawings = visible && showDrawings && drawingShapes.length > 0;
+  });
+  let svgShapes = $derived(drawingShapes.filter((shape) => shape.kind !== 'point'));
+  let pointMarkers = $derived(drawingShapes.filter((shape) => shape.kind === 'point'));
+  let shapeLabels = $derived(drawingShapes.filter((shape) => shape.label.trim().length > 0));
+  let hasDrawings = $derived(visible && showDrawings && drawingShapes.length > 0);
 
-  let overlayWidth = 0;
-  let overlayHeight = 0;
+  let overlayWidth = $state(0);
+  let overlayHeight = $state(0);
   const drawingLabelStyle = (shape: DrawingShape): string => {
     if (shape.kind !== 'rect' || shape.w == null || shape.h == null) {
       return `left:${shape.cx}%; top:${shape.cy}%; border-color:${shape.color}; --annotation-scale:${annotationScale};`;
@@ -201,7 +229,7 @@
       style={noteStyle}
       disabled={!editable}
       aria-label={`Edit text annotation: ${text}`}
-      on:click={() => editable && onEditText?.(language)}
+      onclick={() => editable && onEditText?.(language)}
     >
       {text}
     </button>

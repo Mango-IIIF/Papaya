@@ -89,6 +89,15 @@
     ...(frame.label ? { label: frame.label } : {}),
   });
 
+  /*
+   * Keep the editable frame last so it renders above passive guides and wins
+   * OSDAnnotationEditor's top-down hitTest whenever keyframes overlap.
+   */
+  const orderedShapes = (): RectAnnotation[] => [
+    ...frames.filter((frame) => !frame.editable).map(toShape),
+    ...frames.filter((frame) => frame.editable).map(toShape),
+  ];
+
   const bounds = () =>
     canvasWidth > 0 && canvasHeight > 0 ? { width: canvasWidth, height: canvasHeight } : null;
 
@@ -159,7 +168,7 @@
   };
 
   /** The grab band inside the frame's edge, in screen pixels. */
-  const HALO_WIDTH_PX = 7;
+  const HALO_WIDTH_PX = 12;
   /** The tag in the frame's corner, in screen pixels. */
   const TAG_FONT_PX = 10;
   const TAG_INSET_PX = 8;
@@ -219,16 +228,31 @@
      * any frame that reaches it. Drawn in canvas units scaled by the
      * projection so it keeps one size on screen.
      */
-    const tag = document.createElementNS(SVG_NS, 'text');
-    tag.textContent = frameTag(frame);
-    tag.setAttribute('x', String(x + w / 2));
-    tag.setAttribute('y', String(y + (TAG_INSET_PX + TAG_FONT_PX) / scale));
-    tag.setAttribute('text-anchor', 'middle');
-    tag.setAttribute('font-size', String(TAG_FONT_PX / scale));
-    tag.setAttribute('stroke-width', String(3 / scale));
-    tag.setAttribute('class', 'story-frame__tag');
-    tag.style.pointerEvents = 'none';
-    group.append(tag);
+    /*
+     * Only the frame in hand is named in full. The others are guides: a
+     * keyframe keeps just its number, tucked into its corner, and the chapter
+     * frame says nothing — so frames that coincide, as a chapter frame and its
+     * first keyframe usually do, never print one label over another.
+     */
+    const named = Boolean(frame?.editable);
+    const numbered = !named && frame?.kind === 'keyframe' && Boolean(frame.label);
+    if (named || numbered) {
+      const tag = document.createElementNS(SVG_NS, 'text');
+      tag.textContent = named ? frameTag(frame) : (frame?.label ?? '');
+      tag.setAttribute('x', String(named ? x + w / 2 : x + TAG_INSET_PX / scale));
+      tag.setAttribute('y', String(y + (TAG_INSET_PX + TAG_FONT_PX) / scale));
+      tag.setAttribute('text-anchor', named ? 'middle' : 'start');
+      tag.setAttribute('font-size', String(TAG_FONT_PX / scale));
+      tag.setAttribute('stroke-width', String(3 / scale));
+      tag.setAttribute('class', 'story-frame__tag');
+      if (named) {
+        tag.style.pointerEvents = 'all';
+        tag.style.cursor = 'move';
+      } else {
+        tag.style.pointerEvents = 'none';
+      }
+      group.append(tag);
+    }
     group.setAttribute(
       'class',
       [
@@ -264,7 +288,7 @@
       keyboardTarget,
       canvasSize: { width: canvasWidth, height: canvasHeight },
       mode: 'select',
-      annotations: frames.map(toShape),
+      annotations: orderedShapes(),
       selectedId: selectedFrameId,
       policy: (shape) => {
         const frame = frameById(shape.id);
@@ -333,10 +357,11 @@
       root.classList.add('story-frame-layer');
       root.dataset.storyFrameLayer = '';
     }
-    for (const shape of untrack(() => frames.map(toShape))) {
+    const initialShapes = untrack(() => orderedShapes());
+    for (const shape of initialShapes) {
       pushedGeometry.set(shape.id, JSON.stringify(shape.geometry));
     }
-    lastPushedShapes = JSON.stringify(untrack(() => frames.map(toShape)));
+    lastPushedShapes = JSON.stringify(initialShapes);
     editor = instance;
     return () => {
       instance.destroy();
@@ -349,7 +374,7 @@
 
   $effect(() => {
     if (!editor) return;
-    const shapes = frames.map(toShape);
+    const shapes = orderedShapes();
     const serialised = JSON.stringify(shapes);
     const selection = selectedFrameId;
     if (serialised !== lastPushedShapes) {
@@ -380,16 +405,16 @@
   }
 
   :global(.story-frame__mask) {
-    fill: rgba(6, 9, 14, 0.42);
+    fill: rgba(6, 9, 14, 0.3);
   }
 
   :global(.story-frame__halo) {
     stroke: rgba(10, 14, 20, 0.35);
-    stroke-width: 7;
+    stroke-width: 12;
   }
 
   :global(.story-frame__line) {
-    stroke: var(--story-builder-accent, #e07a3f);
+    stroke: var(--story-builder-accent, #2ac7ff);
     stroke-width: 1.5;
   }
 
@@ -401,8 +426,14 @@
     stroke: rgba(255, 255, 255, 0.92);
   }
 
+  /* The chapter frame while a keyframe is in hand: still there, but stepped
+     back so the two outlines are never mistaken for one another. */
+  :global(.story-frame--chapter.story-frame--passive .story-frame__line) {
+    stroke-dasharray: 6 5;
+  }
+
   :global(.story-frame--keyframe.story-frame--selected .story-frame__line) {
-    stroke: var(--story-builder-accent, #e07a3f);
+    stroke: var(--story-builder-accent, #2ac7ff);
   }
 
   :global(.story-frame__tag) {

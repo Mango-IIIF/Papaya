@@ -46,9 +46,15 @@ body {
 .page--editor {
   height: 100vh;
   max-height: 100vh;
-  gap: 12px;
-  padding: 12px 20px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
   overflow: hidden;
+  background: #0b1118;
+}
+
+.page--editor .hero {
+  display: none;
 }
 
 .page--editor :global(.viewer) {

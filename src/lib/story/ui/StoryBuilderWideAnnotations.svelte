@@ -2,24 +2,38 @@
   import { Shapes, Trash2 } from '@lucide/svelte';
   import { readable, type Readable } from 'svelte/store';
   import type { ChapterDrawingAnnotation, StoryState } from '../../core/types/story';
+  import { DEFAULT_DRAWING_COLOR } from '../storyDrawingAnnotations';
   import { t } from '../../core/i18n';
 
-  export let story: Readable<StoryState>;
-  export let selectedChapterId: Readable<string | null>;
-  export let selectedAnnotationId: Readable<string | null> = readable(null);
-  export let language = 'en';
-  export let layout: 'wide' | 'inspector' = 'wide';
-  export let allowDelete = true;
-  export let onDeleteDrawing: (annotationId: string) => void;
-  export let onEditDrawing: (annotationId: string) => void;
+  interface Props {
+    story: Readable<StoryState>;
+    selectedChapterId: Readable<string | null>;
+    selectedAnnotationId?: Readable<string | null>;
+    language?: string;
+    layout?: 'wide' | 'inspector';
+    allowDelete?: boolean;
+    onDeleteDrawing: (annotationId: string) => void;
+    onEditDrawing: (annotationId: string) => void;
+  }
+
+  let {
+    story,
+    selectedChapterId,
+    selectedAnnotationId = readable(null),
+    language = 'en',
+    layout = 'wide',
+    allowDelete = true,
+    onDeleteDrawing,
+    onEditDrawing,
+  }: Props = $props();
 
   const typeLabel = (annotation: ChapterDrawingAnnotation): string =>
     $t(`viewer.panels.annotations.editor.tools.${annotation.type}`);
   const labelValue = (annotation: ChapterDrawingAnnotation): string =>
     annotation.label?.[language] ?? annotation.label?.en ?? Object.values(annotation.label ?? {})[0] ?? '';
 
-  $: chapter = $story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null;
-  $: items = chapter?.drawingAnnotations ?? [];
+  let chapter = $derived($story.chapters.find((entry) => entry.id === $selectedChapterId) ?? null);
+  let items = $derived(chapter?.drawingAnnotations ?? []);
 </script>
 
 <section
@@ -44,9 +58,9 @@
             type="button"
             aria-label={`${$t('storyBuilder.annotations.editDrawing', { type: typeLabel(annotation), index: index + 1 })}: ${labelValue(annotation) || typeLabel(annotation)}`}
             aria-pressed={$selectedAnnotationId === annotation.id}
-            on:click={() => onEditDrawing(annotation.id)}
+            onclick={() => onEditDrawing(annotation.id)}
           >
-            <span class="story-wide-annotations__number" style={`--annotation-color:${annotation.color ?? '#e07a3f'}`}>{index + 1}</span>
+            <span class="story-wide-annotations__number" style={`--annotation-color:${annotation.color ?? DEFAULT_DRAWING_COLOR}`}>{index + 1}</span>
             <span class="story-wide-annotations__copy">
               <strong title={labelValue(annotation) || undefined}>{labelValue(annotation) || typeLabel(annotation)}</strong>
               <small>{typeLabel(annotation)} · {annotation.fillMode === 'solid' ? $t('storyBuilder.annotations.solid') : $t('storyBuilder.annotations.transparent')}</small>
@@ -57,7 +71,7 @@
               class="story-wide-annotations__delete"
               type="button"
               aria-label={`${$t('storyBuilder.annotations.deleteDrawing', { type: typeLabel(annotation), index: index + 1 })}: ${labelValue(annotation) || typeLabel(annotation)}`}
-              on:click={() => onDeleteDrawing(annotation.id)}
+              onclick={() => onDeleteDrawing(annotation.id)}
             ><Trash2 aria-hidden="true" /></button>
           {/if}
         </article>
@@ -71,12 +85,12 @@
 <style>
   .story-wide-annotations { display:grid; gap:10px; padding:11px 13px; box-sizing:border-box; border:1px solid var(--viewer-panel-border, rgba(255,255,255,.08)); border-radius:16px; background:color-mix(in srgb, var(--viewer-panel, #121922) 92%, transparent); color:var(--viewer-text, #e8edf4); }
   .story-wide-annotations__header { display:flex; align-items:center; gap:8px; font-size:13px; }
-  .story-wide-annotations__header > :global(svg) { width:16px; color:var(--accent, var(--story-builder-accent, #e07a3f)); }
+  .story-wide-annotations__header > :global(svg) { width:16px; color:var(--accent, var(--story-builder-accent, #2ac7ff)); }
   .story-wide-annotations__header strong { display:flex; gap:7px; align-items:center; }
   .story-wide-annotations__header span { min-width:18px; height:18px; display:grid; place-items:center; border-radius:9px; background:color-mix(in srgb, var(--viewer-text, #e8edf4) 8%, transparent); color:var(--viewer-muted, #9aa6b2); font-size:9px; }
   .story-wide-annotations__items { display:flex; gap:8px; overflow-x:auto; overflow-y:hidden; }
   .story-wide-annotations__item { flex:0 0 min(250px,72cqw); display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; padding:3px; border:1px solid var(--viewer-panel-border, rgba(255,255,255,.08)); border-radius:10px; background:var(--viewer-well-bg, rgba(5, 10, 16, 0.2)); }
-  .story-wide-annotations__item--selected { border-color:var(--accent, var(--story-builder-accent, #e07a3f)); background:color-mix(in srgb, var(--accent, var(--story-builder-accent, #e07a3f)) 9%, transparent); }
+  .story-wide-annotations__item--selected { border-color:var(--accent, var(--story-builder-accent, #2ac7ff)); background:color-mix(in srgb, var(--accent, var(--story-builder-accent, #2ac7ff)) 9%, transparent); }
   .story-wide-annotations__select { min-width:0; display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:9px; padding:7px; border:0; border-radius:7px; background:transparent; color:inherit; text-align:left; cursor:pointer; }
   .story-wide-annotations__select:hover, .story-wide-annotations__select:focus-visible { background:color-mix(in srgb, var(--viewer-text, #e8edf4) 6%, transparent); outline:none; }
   .story-wide-annotations__number { width:29px; height:29px; display:grid; place-items:center; border-radius:9px; background:color-mix(in srgb, var(--annotation-color) 18%, transparent); color:var(--annotation-color); font-size:10px; font-weight:800; }
