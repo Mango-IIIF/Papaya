@@ -482,7 +482,10 @@
       "settingsSubtitle": "Siâp ffrâm a dynodwyr cyhoeddi ar gyfer y stori hon.",
       "saved": "Wedi cadw",
       "unsaved": "Heb gadw",
-      "previewChapterShort": "Rhagolwg"
+      "previewChapterShort": "Rhagolwg",
+      "hideCard": "Cuddio cerdyn",
+      "showCard": "Dangos cerdyn",
+      "dragCard": "Llusgo cerdyn stori"
     }
   },
   "viewer": {

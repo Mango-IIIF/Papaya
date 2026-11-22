@@ -482,7 +482,10 @@
       "settingsSubtitle": "Format du cadre et identifiants de publication.",
       "saved": "Enregistré",
       "unsaved": "Non enregistré",
-      "previewChapterShort": "Aperçu"
+      "previewChapterShort": "Aperçu",
+      "hideCard": "Masquer la carte",
+      "showCard": "Afficher la carte",
+      "dragCard": "Déplacer la carte"
     }
   },
   "viewer": {

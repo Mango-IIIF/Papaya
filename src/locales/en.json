@@ -482,7 +482,10 @@
       "settingsSubtitle": "Frame shape and publishing identifiers for this story.",
       "saved": "Saved",
       "unsaved": "Unsaved",
-      "previewChapterShort": "Preview"
+      "previewChapterShort": "Preview",
+      "hideCard": "Hide card",
+      "showCard": "Show card",
+      "dragCard": "Drag story card"
     }
   },
   "viewer": {

@@ -482,7 +482,10 @@
       "settingsSubtitle": "フレーム比率と公開用識別子を設定します。",
       "saved": "保存済み",
       "unsaved": "未保存",
-      "previewChapterShort": "プレビュー"
+      "previewChapterShort": "プレビュー",
+      "hideCard": "カードを隠す",
+      "showCard": "カードを表示",
+      "dragCard": "ストーリーカードを移動"
     }
   },
   "viewer": {

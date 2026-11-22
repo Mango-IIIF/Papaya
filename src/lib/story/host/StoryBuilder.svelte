@@ -25,6 +25,7 @@
     ChapterAnnotationTool,
     StoryConfig,
     StoryEventMap,
+    StoryFrame,
     StoryState,
   } from '../../core/types/story';
   import type { ExportEnvelope } from '../storySerializer';
@@ -43,6 +44,7 @@
   import { STORY_LABEL_SIZING } from '../annotations/rectangleLabelLayout';
   import { renderChapterRichText } from '../richText';
   import StoryStage from '../ui/StoryStage.svelte';
+  import StoryFrameLayer from '../ui/StoryFrameLayer.svelte';
   import StoryAnnotationOverlay from '../ui/StoryAnnotationOverlay.svelte';
   import StorySourcesModal from '../ui/StorySourcesModal.svelte';
   import SaveExportModal from '../ui/SaveExportModal.svelte';
@@ -101,11 +103,13 @@
   };
   let effectiveStoryUrl = $derived(storyUrl ?? contentStateUrl());
 
-  /* Embedded OpenSeadragon + Annotation state bridged from the controller. */
+  /* Embedded OpenSeadragon + Annotation + Frame state bridged from the controller. */
   let annotationTool = $state<ChapterAnnotationTool>('select');
   let storyAnnotations = $state<ResolvedAnnotation[]>([]);
   let storyAnnotationEditing = $state(false);
   let activeStoryAnnotationId = $state<string | null>(null);
+  let storyFrames = $state<StoryFrame[]>([]);
+  let storyFrameSelection = $state<string | null>(null);
   let presentationAspect = $state(16 / 9);
   let stageOpacity = $state(1);
   let stageFadeMs = $state(0);
@@ -137,6 +141,19 @@
     },
     setStoryPresentationAspect: (aspect) => {
       if (Number.isFinite(aspect) && aspect > 0) presentationAspect = aspect;
+    },
+    setStoryFrames: (frames) => {
+      storyFrames = frames;
+      const declaredAspect = frames.find(
+        (frame) => Number.isFinite(frame.aspect) && frame.aspect > 0,
+      )?.aspect;
+      if (declaredAspect) presentationAspect = declaredAspect;
+      if (storyFrameSelection && !frames.some((frame) => frame.id === storyFrameSelection)) {
+        storyFrameSelection = null;
+      }
+    },
+    setStoryFrameSelection: (frameId) => {
+      storyFrameSelection = frameId;
     },
   });
 
@@ -414,8 +431,8 @@
     return !framingsWithin(comparable, targetBox, tolerance);
   });
 
-  let previewCaption = $derived.by(() => {
-    if (!isPreviewing || !activeChapter) return null;
+  let chapterCard = $derived.by(() => {
+    if (!activeChapter) return null;
     const title =
       activeChapter.title?.[activeLanguage]?.trim() ||
       activeChapter.title?.en?.trim() ||
@@ -656,7 +673,7 @@
         >
           <StoryStage
             aspect={presentationAspect}
-            fluid={normalisedConfig.story?.framingMode === 'fill'}
+            fluid={!isPreviewing || normalisedConfig.story?.framingMode === 'fill'}
           >
             <div class="studio-stage__media">
               <ViewerCore
@@ -687,10 +704,31 @@
                     annotationId: payload.id,
                   })}
                 onannotationselect={(payload) => {
-                  if (storyAnnotationEditing) activeStoryAnnotationId = payload.id;
+                  if (!storyAnnotationEditing) return;
+                  activeStoryAnnotationId = payload.id;
+                  if (payload.id) controller?.editChapterDrawingAnnotation(payload.id);
+                  else controller?.finishChapterDrawingAnnotationEdit();
                 }}
-                ontoolchange={(payload) => (annotationTool = payload.tool)}
+                ontoolchange={(payload) => {
+                  annotationTool = payload.tool;
+                  controller?.setChapterAnnotationTool(payload.tool);
+                }}
               />
+
+              {#if storyFrames.length > 0 && !isPreviewing}
+                <StoryFrameLayer
+                  viewer={osdViewer}
+                  canvasWidth={canvasSize.width}
+                  canvasHeight={canvasSize.height}
+                  frames={storyFrames}
+                  selectedFrameId={storyFrameSelection}
+                  onframecommit={(payload) => bridge.events.emit('storyFrameChange', payload)}
+                  onframeselect={(payload) => {
+                    storyFrameSelection = payload.frameId;
+                    bridge.events.emit('storyFrameSelect', payload);
+                  }}
+                />
+              {/if}
 
               {#if controller && !storyAnnotationEditing && hasChapters}
                 <div class="studio-stage__readonly-annotations">
@@ -716,7 +754,7 @@
             selectedShotNumber={selectedShotIndex >= 0 ? selectedShotIndex + 1 : null}
             canAddShot={canAnnotate}
             {annotationTool}
-            {previewCaption}
+            {chapterCard}
             onSaveView={handleSaveView}
             onAddShot={() => controller?.addMotionPoint()}
             onResetView={() => {
@@ -807,12 +845,13 @@
           onUpdateAdvanceMode={(m) => controller?.updateAdvanceMode(m)}
           onUpdateDelay={(ms) => controller?.updateDelay(ms)}
           onUpdateLayerOpacity={(id, op) => controller?.updateLayerOpacity(id, op)}
-          onEditAnnotation={(id) => controller?.editDrawingAnnotation(id)}
-          onFinishAnnotationEdit={() => controller?.finishDrawingAnnotationEdit()}
-          onDeleteAnnotation={(id) => controller?.deleteDrawingAnnotation(id)}
+          onEditAnnotation={(id) => controller?.editChapterDrawingAnnotation(id)}
+          onFinishAnnotationEdit={() => controller?.finishChapterDrawingAnnotationEdit()}
+          onDeleteAnnotation={(id) => controller?.deleteChapterDrawingAnnotation(id)}
           onSetAnnotationLabel={(id, lang, val) =>
-            controller?.setDrawingAnnotationLabel(id, lang, val)}
-          onSetAnnotationStyle={(id, style) => controller?.setDrawingAnnotationStyle(id, style)}
+            controller?.setChapterDrawingAnnotationLabel(id, lang, val)}
+          onSetAnnotationStyle={(id, style) =>
+            controller?.setChapterDrawingAnnotationStyle(id, style)}
           onSetNarrationTrack={(lang, src) => controller?.setNarrationTrack(lang, src)}
           onSkipNarration={(lang) => controller?.skipNarration(lang)}
         />

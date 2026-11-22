@@ -66,7 +66,12 @@ describe('Studio UI components', () => {
         selectedShotNumber: null,
         canAddShot: true,
         annotationTool: 'select',
-        previewCaption: null,
+        chapterCard: {
+          index: 0,
+          total: 3,
+          title: 'Chapter 1',
+          descriptionHtml: '<p>Hello world</p>',
+        },
         onSaveView,
         onAddShot,
         onResetView,
@@ -75,6 +80,16 @@ describe('Studio UI components', () => {
       },
     });
     await tick();
+
+    expect(target.querySelector('[data-testid="studio-story-card"]')?.textContent).toContain(
+      'Chapter 1',
+    );
+    target.querySelector<HTMLButtonElement>('[data-testid="studio-hide-card"]')?.click();
+    await tick();
+    expect(target.querySelector('[data-testid="studio-story-card"]')).toBeNull();
+    target.querySelector<HTMLButtonElement>('[data-testid="studio-show-card"]')?.click();
+    await tick();
+    expect(target.querySelector('[data-testid="studio-story-card"]')).not.toBeNull();
 
     target.querySelector<HTMLButtonElement>('[data-testid="studio-save-view"]')?.click();
     target.querySelector<HTMLButtonElement>('[data-testid="studio-hud-add-shot"]')?.click();

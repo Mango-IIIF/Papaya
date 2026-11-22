@@ -482,7 +482,10 @@
       "settingsSubtitle": "Proporción del marco e identificadores de publicación.",
       "saved": "Guardado",
       "unsaved": "Sin guardar",
-      "previewChapterShort": "Vista previa"
+      "previewChapterShort": "Vista previa",
+      "hideCard": "Ocultar tarjeta",
+      "showCard": "Mostrar tarjeta",
+      "dragCard": "Arrastrar tarjeta"
     }
   },
   "viewer": {
