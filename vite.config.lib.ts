@@ -15,8 +15,15 @@ const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json')
   dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
 };
-/* Dependencies stay external so an app that also uses the viewer loads one copy. */
-const externalPackages = Object.keys({ ...pkg.dependencies, ...pkg.peerDependencies });
+/*
+ * Dependencies stay external so an app that also uses the viewer loads one copy.
+ * `@lucide/svelte` ships uncompiled `.svelte` files, so bundle it into the compiled
+ * library output rather than forcing every consumer to run the Svelte Vite plugin.
+ */
+const BUNDLED = ['@lucide/svelte'];
+const externalPackages = Object.keys({ ...pkg.dependencies, ...pkg.peerDependencies }).filter(
+  (name) => !BUNDLED.includes(name),
+);
 const isExternal = (id: string) =>
   externalPackages.some((name) => id === name || id.startsWith(`${name}/`));
 

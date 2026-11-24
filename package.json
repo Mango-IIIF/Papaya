@@ -1,6 +1,6 @@
 {
   "name": "@mango-iiif/story",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Guided IIIF stories for Mango: a story viewer and a story builder on top of @mango-iiif/iiif-viewer.",
   "license": "MIT",
   "repository": {
@@ -47,13 +47,16 @@
       "types": "./src/dist/story-builder.d.ts"
     },
     "./element": {
-      "import": "./src/dist/element.js"
+      "import": "./src/dist/mango-story-element.js"
     },
     "./element/story-viewer": {
-      "import": "./src/dist/element-story-viewer.js"
+      "import": "./src/dist/mango-story-element.js"
     },
     "./element/story-builder": {
-      "import": "./src/dist/element-story-builder.js"
+      "import": "./src/dist/mango-story-element.js"
+    },
+    "./standalone": {
+      "import": "./src/dist/mango-story-element.js"
     },
     "./style.css": "./src/dist/story.css"
   },
@@ -79,6 +82,11 @@
   },
   "peerDependencies": {
     "svelte": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "svelte": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@lucide/svelte": "^1.25.0",
