@@ -5,11 +5,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Mango-IIIF/story.git"
+    "url": "git+https://github.com/Mango-IIIF/Papaya.git"
   },
-  "homepage": "https://github.com/Mango-IIIF/story#readme",
+  "homepage": "https://github.com/Mango-IIIF/Papaya#readme",
   "bugs": {
-    "url": "https://github.com/Mango-IIIF/story/issues"
+    "url": "https://github.com/Mango-IIIF/Papaya/issues"
   },
   "keywords": [
     "iiif",
