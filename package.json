@@ -1,6 +1,6 @@
 {
   "name": "@mango-iiif/story",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Guided IIIF stories for Mango: a story viewer and a story builder on top of @mango-iiif/iiif-viewer.",
   "license": "MIT",
   "repository": {
