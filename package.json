@@ -1,6 +1,6 @@
 {
   "name": "@mango-iiif/story",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Guided IIIF stories for Mango: a story viewer and a story builder on top of @mango-iiif/iiif-viewer.",
   "license": "MIT",
   "repository": {
@@ -92,7 +92,7 @@
     "@lucide/svelte": "^1.25.0",
     "@mango-iiif/annotation": "^1.0.0",
     "@mango-iiif/av": "^1.0.0",
-    "@mango-iiif/iiif-viewer": "0.6.5",
+    "@mango-iiif/iiif-viewer": "0.7.0",
     "@mango-iiif/w3c-parser": "^1.0.0",
     "wavesurfer.js": "^7.12.11"
   },

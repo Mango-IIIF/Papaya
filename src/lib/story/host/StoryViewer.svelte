@@ -3,6 +3,7 @@
   import { writable } from 'svelte/store';
   import { Globe } from '@lucide/svelte';
   import {
+    MangoFooterBrand,
     ViewerCore,
     fetchManifest,
     manifestsStore,
@@ -13,12 +14,12 @@
     type ViewerCoreInstance,
     type ViewerPlugin,
   } from '@mango-iiif/iiif-viewer/core';
+  import pkg from '../../../../package.json';
   import { t, translate } from '../../core/i18n';
   import type { StoryConfig, StoryEventMap } from '../../core/types/story';
   import { extractManifestAttribution } from '../manifestAttribution';
   import StoryShell from './StoryShell.svelte';
   import { createStoryViewerBridge } from './storyViewerBridge';
-  import MangoFooterBrand from '../ui/MangoFooterBrand.svelte';
   import StoryAnnotationOverlay from '../ui/StoryAnnotationOverlay.svelte';
   import StoryControlsStage from '../viewer/StoryControlsStage.svelte';
   import {
@@ -364,7 +365,7 @@
 
 <StoryShell variant="viewer" theme={normalisedConfig.theme} bind:root>
   {#snippet title()}
-    <MangoFooterBrand position="inline" />
+    <MangoFooterBrand position="inline" aboutVersion={pkg.version} />
     {#if storyTitle}
       <span class="viewer__title-divider" aria-hidden="true">|</span>
       <span>{storyTitle}</span>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { PanelLeft } from '@lucide/svelte';
-  import MangoFooterBrand from '../ui/MangoFooterBrand.svelte';
+  import { MangoFooterBrand } from '@mango-iiif/iiif-viewer/core';
+  import pkg from '../../../../package.json';
   import { t } from '../../core/i18n';
 
   interface Props {
@@ -23,7 +24,7 @@
 </script>
 
 <div class="studio-titlebar" data-testid="studio-titlebar">
-  <MangoFooterBrand position="inline" />
+  <MangoFooterBrand position="inline" aboutVersion={pkg.version} />
 
   {#if hasChapters}
     <button

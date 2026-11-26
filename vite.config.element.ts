@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { webcrypto } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
@@ -20,13 +20,16 @@ const customElementConfig = (filename: string | undefined) => {
 
 export default defineConfig({
   root: resolve(import.meta.dirname, 'src'),
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production'),
+  },
   /*
    * `@mango-iiif/iiif-viewer` may be linked from a sibling checkout, which
    * would otherwise resolve its own copies of these from its own
    * node_modules: two Svelte runtimes cannot share components or stores.
    */
   resolve: {
-    dedupe: ['svelte', '@lucide/svelte', '@mango-iiif/annotation', '@mango-iiif/w3c-parser'],
+    dedupe: ['svelte', '@lucide/svelte', '@mango-iiif/annotation', '@mango-iiif/av', '@mango-iiif/w3c-parser'],
   },
   plugins: [
     svelte({
@@ -37,6 +40,9 @@ export default defineConfig({
     }),
     {
       name: 'mango-story-element-shadow-css',
+      buildStart() {
+        rmSync(resolve(import.meta.dirname, 'src/dist/standalone'), { recursive: true, force: true });
+      },
       closeBundle() {
         const jsPath = resolve(import.meta.dirname, 'src/dist/mango-story-element.js');
         const cssPath = resolve(import.meta.dirname, 'src/dist/mango-story-element.css');
@@ -72,6 +78,7 @@ export default defineConfig({
     },
     rolldownOptions: {
       output: {
+        chunkFileNames: 'standalone/[name]-[hash].js',
         assetFileNames: 'mango-story-element.[ext]',
       },
     },

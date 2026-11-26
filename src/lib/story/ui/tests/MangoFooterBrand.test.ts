@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from 'svelte';
-import MangoFooterBrand from '../MangoFooterBrand.svelte';
-import MangoAboutModal from '../MangoAboutModal.svelte';
+import { MangoAboutModal, MangoFooterBrand } from '@mango-iiif/iiif-viewer/core';
 import pkg from '../../../../../package.json';
 
 describe('MangoFooterBrand & MangoAboutModal', () => {
@@ -17,6 +16,7 @@ describe('MangoFooterBrand & MangoAboutModal', () => {
       target,
       props: {
         position: 'fixed',
+        aboutVersion: pkg.version,
       },
     });
 
