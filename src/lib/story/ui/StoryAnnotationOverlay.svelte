@@ -1,6 +1,13 @@
 <script lang="ts">
   import { t } from '../../core/i18n';
   import { readable, type Readable } from 'svelte/store';
+  import {
+    AnnotationOverlay,
+    projectOverlayItems,
+    viewBoxProjector,
+    type CanvasOverlayItem,
+  } from '@mango-iiif/annotation/view';
+  import '@mango-iiif/annotation/view.css';
   import { ANNOTATION_STROKE_WIDTH_PX } from '../../core/types/story';
   import type { ChapterDrawingAnnotation, StoryState } from '../../core/types/story';
   import type { ViewBox } from '@mango-iiif/iiif-viewer/core';
@@ -104,85 +111,123 @@
   );
   let show = $derived(Boolean(visible && text && chapterId && (!anchored || inView)));
 
-  type DrawingShape = {
+  type DrawingMeta = {
     id: string;
     kind: 'rect' | 'point' | 'polygon' | 'line';
     color: string;
-    strokePx: number;
-    fillMode: 'transparent' | 'solid';
     label: string;
-    // Centroid in overlay percentage coords (for markers and labels).
     cx: number;
     cy: number;
-    // Geometry (only the relevant fields are set per kind).
-    x?: number;
-    y?: number;
     w?: number;
     h?: number;
-    pointsStr?: string;
     pointNumber?: number;
   };
 
   const labelForDrawing = (item: ChapterDrawingAnnotation): string =>
     item.label?.[language] ?? item.label?.en ?? item.text ?? '';
 
-  let drawingShapes = $derived.by((): DrawingShape[] => {
+  let projected = $derived.by(() => {
     const cvb = currentViewBox;
-    if (!cvb) return [];
-    const project = (point: { x: number; y: number }) => ({
-      x: ((point.x - cvb.x) / cvb.w) * 100,
-      y: ((point.y - cvb.y) / cvb.h) * 100,
-    });
+    if (!cvb) return { overlayShapes: [], meta: [] as DrawingMeta[] };
+
+    const items: CanvasOverlayItem[] = [];
+    const colorById = new Map<string, string>();
+    const labelById = new Map<string, string>();
     let pointCounter = 0;
-    return (chapter?.drawingAnnotations ?? []).flatMap((item): DrawingShape[] => {
+
+    for (const item of chapter?.drawingAnnotations ?? []) {
       const color = sanitizeCssColor(item.color, 'var(--accent, #e07a3f)');
-      const strokePx = ANNOTATION_STROKE_WIDTH_PX[item.strokeWidth ?? 'medium'];
-      const label = labelForDrawing(item);
+      const strokeWidth = ANNOTATION_STROKE_WIDTH_PX[item.strokeWidth ?? 'medium'];
       const fillMode = item.fillMode ?? 'transparent';
-      const base = { id: item.id, color, strokePx, label, fillMode };
+      const label = labelForDrawing(item);
+      colorById.set(item.id, color);
+      labelById.set(item.id, label);
+
+      const fillColor =
+        fillMode === 'solid' ? color : `color-mix(in srgb, ${color} 16%, transparent)`;
+
       if (item.rect) {
-        const origin = project(item.rect);
-        const w = (item.rect.w / cvb.w) * 100;
-        const h = (item.rect.h / cvb.h) * 100;
-        return [
-          { ...base, kind: 'rect', x: origin.x, y: origin.y, w, h, cx: origin.x + w / 2, cy: origin.y + h / 2 },
-        ];
-      }
-      if (item.point) {
-        const point = project(item.point);
+        items.push({
+          id: item.id,
+          rect: item.rect,
+          className: 'story-annotation-overlay__shape',
+          style: { strokeColor: color, strokeWidth, fillColor },
+        });
+      } else if (item.point) {
         pointCounter += 1;
-        return [{ ...base, kind: 'point', cx: point.x, cy: point.y, pointNumber: pointCounter }];
+        items.push({
+          id: item.id,
+          point: item.point,
+          pointNumber: pointCounter,
+          style: { strokeColor: color, strokeWidth, fillColor: color },
+        });
+      } else if (item.points?.length) {
+        const isPolygon = item.type === 'polygon';
+        items.push({
+          id: item.id,
+          polygon: { points: item.points },
+          openPath: !isPolygon,
+          className: isPolygon ? 'story-annotation-overlay__shape' : 'story-annotation-overlay__line',
+          style: isPolygon
+            ? { strokeColor: color, strokeWidth, fillColor }
+            : { strokeColor: color, strokeWidth },
+        });
       }
-      if (item.points?.length) {
-        const projected = item.points.map(project);
-        const cx = projected.reduce((sum, p) => sum + p.x, 0) / projected.length;
-        const cy = projected.reduce((sum, p) => sum + p.y, 0) / projected.length;
-        return [
-          {
-            ...base,
-            kind: item.type === 'polygon' ? 'polygon' : 'line',
-            pointsStr: projected.map((p) => `${p.x},${p.y}`).join(' '),
-            cx,
-            cy,
-          },
-        ];
+    }
+
+    const overlayShapes = projectOverlayItems(items, viewBoxProjector(cvb, 100, 100));
+    const meta: DrawingMeta[] = overlayShapes.map((shape) => {
+      const color = colorById.get(shape.id) ?? 'var(--accent, #e07a3f)';
+      const label = labelById.get(shape.id) ?? '';
+      if (shape.kind === 'rect' && shape.rect) {
+        return {
+          id: shape.id,
+          kind: 'rect',
+          color,
+          label,
+          cx: shape.rect.x + shape.rect.width / 2,
+          cy: shape.rect.y + shape.rect.height / 2,
+          w: shape.rect.width,
+          h: shape.rect.height,
+        };
       }
-      return [];
+      if (shape.kind === 'point' && shape.point) {
+        return {
+          id: shape.id,
+          kind: 'point',
+          color,
+          label,
+          cx: shape.point.x,
+          cy: shape.point.y,
+          pointNumber: shape.pointNumber,
+        };
+      }
+      const pts = shape.points ?? [];
+      const cx = pts.length ? pts.reduce((sum, p) => sum + p.x, 0) / pts.length : 0;
+      const cy = pts.length ? pts.reduce((sum, p) => sum + p.y, 0) / pts.length : 0;
+      return {
+        id: shape.id,
+        kind: shape.kind === 'polygon' ? 'polygon' : 'line',
+        color,
+        label,
+        cx,
+        cy,
+      };
     });
+
+    return { overlayShapes, meta };
   });
-  let svgShapes = $derived(drawingShapes.filter((shape) => shape.kind !== 'point'));
-  let pointMarkers = $derived(drawingShapes.filter((shape) => shape.kind === 'point'));
-  let shapeLabels = $derived(drawingShapes.filter((shape) => shape.label.trim().length > 0));
-  let hasDrawings = $derived(visible && showDrawings && drawingShapes.length > 0);
+
+  let pointMarkers = $derived(projected.meta.filter((shape) => shape.kind === 'point'));
+  let shapeLabels = $derived(projected.meta.filter((shape) => shape.label.trim().length > 0));
+  let hasDrawings = $derived(visible && showDrawings && projected.overlayShapes.length > 0);
 
   let overlayWidth = $state(0);
   let overlayHeight = $state(0);
-  const drawingLabelStyle = (shape: DrawingShape): string => {
+  const drawingLabelStyle = (shape: DrawingMeta): string => {
     if (shape.kind !== 'rect' || shape.w == null || shape.h == null) {
       return `left:${shape.cx}%; top:${shape.cy}%; border-color:${shape.color}; --annotation-scale:${annotationScale};`;
     }
-    // Percentages of the overlay element, so these are already screen pixels —
-    // which is the space the label band is defined in.
     const width = (overlayWidth * shape.w) / 100;
     const height = (overlayHeight * shape.h) / 100;
     const { fontSize, lineHeight, visibleLines } = fitRectangleLabelLayout(
@@ -198,11 +243,8 @@
 
   /**
    * Whether a rectangle's label fits inside it at a readable size.
-   *
-   * A label that does not fit is shown as a compact badge beside the shape
-   * rather than crammed in at an unreadable size or silently clipped.
    */
-  const labelOverflows = (shape: DrawingShape): boolean => {
+  const labelOverflows = (shape: DrawingMeta): boolean => {
     if (shape.kind !== 'rect' || shape.w == null || shape.h == null) return false;
     if (!overlayWidth || !overlayHeight) return false;
     return fitRectangleLabelLayout(
@@ -235,37 +277,15 @@
     </button>
   {/if}
   {#if hasDrawings}
-    <svg
-      class="story-annotation-overlay__drawings"
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-      aria-label={$t('storyBuilder.annotations.drawing')}
-    >
-      {#each svgShapes as shape (shape.id)}
-        {#if shape.kind === 'rect'}
-          <rect
-            class="story-annotation-overlay__shape"
-            x={shape.x}
-            y={shape.y}
-            width={shape.w}
-            height={shape.h}
-            style={`stroke:${shape.color};stroke-width:${shape.strokePx}px;fill:${shape.fillMode === 'solid' ? shape.color : `color-mix(in srgb, ${shape.color} 16%, transparent)`};`}
-          />
-        {:else if shape.kind === 'polygon'}
-          <polygon
-            class="story-annotation-overlay__shape"
-            points={shape.pointsStr}
-            style={`stroke:${shape.color};stroke-width:${shape.strokePx}px;fill:${shape.fillMode === 'solid' ? shape.color : `color-mix(in srgb, ${shape.color} 16%, transparent)`};`}
-          />
-        {:else}
-          <polyline
-            class="story-annotation-overlay__line"
-            points={shape.pointsStr}
-            style={`stroke:${shape.color};stroke-width:${shape.strokePx}px;`}
-          />
-        {/if}
-      {/each}
-    </svg>
+    <AnnotationOverlay
+      shapes={projected.overlayShapes}
+      units="percent"
+      interactive={false}
+      labelMode="none"
+      pointMode="none"
+      ariaLabel={$t('storyBuilder.annotations.drawing')}
+      svgClass="story-annotation-overlay__drawings"
+    />
 
     <!-- Point markers and labels render as HTML so they stay circular / upright
          regardless of the (non-uniform) stage aspect ratio. -->
@@ -309,11 +329,6 @@
     padding: calc(10px * var(--annotation-scale, 1)) calc(12px * var(--annotation-scale, 1));
     border: 0;
     border-radius: calc(12px * var(--annotation-scale, 1));
-    /*
-     * `--accent` and `--ink` are per-annotation overrides carried in the story
-     * document, so they must keep winning over the theme; the `--story-note-*`
-     * tokens only decide what an annotation that specifies neither looks like.
-     */
     background: var(--story-note-bg, rgba(255, 255, 255, 0.92));
     color: var(--ink, var(--story-note-text, #2b2520));
     font: inherit;
@@ -340,33 +355,12 @@
     outline-offset: 2px;
   }
 
-  .story-annotation-overlay__drawings {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-  }
-  .story-annotation-overlay__shape,
-  .story-annotation-overlay__line {
-    vector-effect: non-scaling-stroke;
-    stroke: var(--accent, #e07a3f);
-    stroke-width: 2px;
-  }
-  .story-annotation-overlay__shape {
-    fill: color-mix(in srgb, var(--accent, #e07a3f) 16%, transparent);
-  }
-  .story-annotation-overlay__line {
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
   .story-annotation-overlay__markers {
     position: absolute;
     inset: 0;
     pointer-events: none;
   }
+
   /* Round marker for point annotations (HTML keeps it circular on any aspect). */
   .story-annotation-overlay__point {
     position: absolute;
@@ -384,6 +378,7 @@
     line-height: 1;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   }
+
   .story-annotation-overlay__label {
     position: absolute;
     transform: translate(-50%, 8px);
@@ -399,6 +394,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
   .story-annotation-overlay__label--rectangle {
     transform: translate(-50%, -50%);
     box-sizing: border-box;
@@ -419,22 +415,7 @@
     paint-order: stroke fill;
   }
 
-  /*
-   * A label too long for its region becomes a badge that sits over the shape
-   * rather than text crammed inside it. Clipping the text was the previous
-   * outcome, which reads as a rendering fault rather than as a label that has
-   * more to say — the full text is on the element's title and in the inspector.
-   */
   .story-annotation-overlay__label--badge {
-    /*
-     * A label too long for its region is clamped, not restyled.
-     *
-     * This used to swap in a dark rounded box, which meant the same annotation
-     * changed colour purely because its text no longer fitted — the shape's own
-     * colour said one thing and the label said another. The treatment now stays
-     * put and only the number of lines gives way; the full text is on the
-     * element's title and in the inspector.
-     */
     overflow: hidden;
     display: -webkit-box;
     -webkit-box-orient: vertical;

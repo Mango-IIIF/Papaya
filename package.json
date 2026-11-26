@@ -1,6 +1,6 @@
 {
   "name": "@mango-iiif/story",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Guided IIIF stories for Mango: a story viewer and a story builder on top of @mango-iiif/iiif-viewer.",
   "license": "MIT",
   "repository": {
@@ -89,10 +89,11 @@
     }
   },
   "dependencies": {
+    "@annotorious/openseadragon": "3.9.5",
     "@lucide/svelte": "^1.25.0",
-    "@mango-iiif/annotation": "^1.0.0",
+    "@mango-iiif/annotation": "^3.0.0",
     "@mango-iiif/av": "^1.0.0",
-    "@mango-iiif/iiif-viewer": "0.7.0",
+    "@mango-iiif/iiif-viewer": "^0.8.0",
     "@mango-iiif/w3c-parser": "^1.0.0",
     "wavesurfer.js": "^7.12.11"
   },

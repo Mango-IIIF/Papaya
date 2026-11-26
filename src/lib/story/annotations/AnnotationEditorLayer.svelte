@@ -1,20 +1,31 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import type OpenSeadragon from 'openseadragon';
   import {
-    OSDAnnotationEditor,
-    type AnnotationStyle,
-    type AnnotationTheme,
-    type EditorMode,
-    type LabelSpec,
-    type OSDLikeViewer,
-    type RenderContext,
-    type ShapeData,
+    ShapeType,
+    type DrawingStyle,
+    type ImageAnnotation,
+  } from '@annotorious/openseadragon';
+  import {
+    AnnotationCanvasEditor,
+    createPointImageAnnotation,
+    isPointImageAnnotation,
+    pointCenterOf,
+    type AnnotationTool,
+    type AnnotoriousEditor,
   } from '@mango-iiif/annotation';
-  import { serializeWebAnnotation } from '@mango-iiif/w3c-parser';
-  import { createMangoAnnotation, shapeTool } from '@mango-iiif/iiif-viewer/core';
-  import { buildLayerStylesheet, hintsFromInlineStyle, styleClassForLayer } from '@mango-iiif/iiif-viewer/core';
+  import '@mango-iiif/annotation/annotorious.css';
+  import { serializeWebAnnotation, type NeutralShape } from '@mango-iiif/w3c-parser';
+  import {
+    buildLayerStylesheet,
+    createMangoAnnotation,
+    hintsFromInlineStyle,
+    shapeTool,
+    styleClassForLayer,
+    type ResolvedAnnotation,
+  } from '@mango-iiif/iiif-viewer/core';
   import { EDITOR_LABEL_SIZING, type LabelSizing } from './rectangleLabelLayout';
-  import type { ResolvedAnnotation } from '@mango-iiif/iiif-viewer/core';
+  import type { ChapterAnnotationTool as Tool } from '../../core/types/story';
+
   /** A presentation group for drawn shapes: its colour and whether it shows. */
   export type LayerItem = {
     id: string;
@@ -24,11 +35,10 @@
     archived?: boolean;
     readOnly?: boolean;
   };
-  import type { ChapterAnnotationTool as Tool } from '../../core/types/story';
 
   interface Props {
     enabled?: boolean;
-    viewer?: OSDLikeViewer | null;
+    viewer?: OpenSeadragon.Viewer | null;
     canvasId?: string | null;
     canvasWidth?: number;
     canvasHeight?: number;
@@ -38,13 +48,6 @@
     layers?: LayerItem[];
     /** Layer new annotations are created in. A presentation and grouping choice. */
     activeLayerId?: string;
-    /**
-     * Size band for shape labels, in screen pixels.
-     *
-     * Story labels are read from further back than editor labels, so the two
-     * surfaces use different bands — but each surface uses one band for both
-     * viewing and editing, which is the point.
-     */
     labelSizing?: LabelSizing;
     ontoolchange?: ((payload: { tool: Tool }) => void) | undefined;
     onannotationcreate?:
@@ -54,7 +57,7 @@
     onannotationdelete?: ((payload: { id: string }) => void) | undefined;
     onannotationselect?: ((payload: { id: string }) => void) | undefined;
     /** Hands the live editor out so undo/redo and exact edits can reach it. */
-    oneditorready?: ((editor: OSDAnnotationEditor | null) => void) | undefined;
+    oneditorready?: ((editor: AnnotoriousEditor | null) => void) | undefined;
     /** A committed geometry change, already one undo step in the editor. */
     ongeometrycommit?: ((payload: { id: string }) => void) | undefined;
   }
@@ -70,7 +73,7 @@
     activeTool = 'rectangle',
     layers = [],
     activeLayerId = 'mine',
-    labelSizing = EDITOR_LABEL_SIZING,
+    labelSizing: _labelSizing = EDITOR_LABEL_SIZING,
     ontoolchange = undefined,
     onannotationcreate = undefined,
     onannotationupdate = undefined,
@@ -80,154 +83,145 @@
     ongeometrycommit = undefined,
   }: Props = $props();
 
-  let editor: OSDAnnotationEditor | null = $state(null);
+  const toAnnotoriousTool = (tool: Tool): AnnotationTool =>
+    tool === 'freehand' ? 'path' : tool;
 
-  /**
-   * Geometry last handed to the editor, per annotation.
-   *
-   * Deliberately not reactive: it is a record of what was sent, read only to
-   * decide whether an incoming change is news. Making it state would put it in
-   * the very dependency graph it exists to keep quiet.
-   */
-  const pushedGeometry = new Map<string, string>();
+  const pointRadius = $derived(
+    canvasWidth > 0 && canvasHeight > 0
+      ? Math.max(8, Math.min(canvasWidth, canvasHeight) * 0.008)
+      : 12,
+  );
 
-  /*
-   * Labels are the canvas package's to draw.
-   *
-   * Mango used to fit them by walking the package's own SVG after every
-   * mutation — reading a rect's attributes, rewriting the sibling `text`, and
-   * re-running on a MutationObserver. That workaround existed because there was
-   * no extension point; there is one now, and `LabelSpec` clamps in screen
-   * pixels, which is the thing Mango could not do from the outside. Sizes in
-   * image coordinates grew without limit as the viewer zoomed in, so a large
-   * region rendered its label at headline size.
-   */
-  /**
-   * Label text for a shape.
-   *
-   * Shortened rather than wrapped. The canvas package clamps a label's size in
-   * screen pixels and keeps doing so as the viewer zooms, which is the part
-   * that has to stay right; what it cannot do is wrap, and Mango cannot wrap it
-   * from outside either — `renderShape` is sampled once and never re-run on
-   * zoom, so anything fitted there freezes at whatever the first frame
-   * happened to be.
-   *
-   * The same goes for trimming to the shape's width: the callback is not
-   * re-invoked on zoom either, so any width Mango measured would be a width
-   * from some earlier frame. The cap is therefore a fixed number of characters
-   * — short enough to read as a label rather than a sentence.
-   *
-   * A sentence belongs to the annotation's text, which the inspector and the
-   * chapter annotation list show in full.
-   */
-  const SHAPE_LABEL_LIMIT = 30;
-
-  const shapeLabelText = (label: string | undefined): string | undefined => {
-    const value = label?.trim();
-    if (!value) return undefined;
-    return value.length > SHAPE_LABEL_LIMIT
-      ? `${value.slice(0, SHAPE_LABEL_LIMIT - 1).trimEnd()}\u2026`
-      : value;
-  };
-
-  const labelSpec = (context: RenderContext): LabelSpec => {
-    const text = shapeLabelText(context.annotation.label);
-    /*
-     * Placement depends on the shape, never on the label.
-     *
-     * A rectangle has an interior and its label sits in the middle of it, which
-     * is where story playback puts it too. Deciding by length instead made the
-     * label jump from the centre of the region to underneath it as the text
-     * changed — one annotation, two positions.
-     *
-     * Points and lines have no interior, so theirs sits below. That is a
-     * property of the shape and holds for every label on it.
-     */
+  const boundsOfCoords = (points: number[][]) => {
+    const xs = points.map((p) => p[0]);
+    const ys = points.map((p) => p[1]);
     return {
-      text,
-      placement: context.annotation.type === 'rect' ? 'center' : 'below',
-      minFontSize: labelSizing.min,
-      maxFontSize: labelSizing.max,
-      orientation: 'upright',
-      visible: Boolean(text),
+      minX: Math.min(...xs),
+      minY: Math.min(...ys),
+      maxX: Math.max(...xs),
+      maxY: Math.max(...ys),
     };
   };
 
-  /*
-   * Presentation hints are resolved once, when the annotation is projected —
-   * from its own stylesheet, or from a legacy inline `target.style` for
-   * documents Mango wrote before stylesheets. Re-parsing CSS here would be a
-   * second interpretation of the same string, and the sanitising that keeps a
-   * stranger's stylesheet out of the document lives on the projection side.
-   */
-  const editorStyle = (annotation: ResolvedAnnotation): Partial<AnnotationStyle> | undefined => {
-    /*
-     * Falls back to the legacy inline value when nothing has resolved hints.
-     * Story drawings carry their colour that way — they are built directly as
-     * projections rather than parsed from a document — so reading `styleHints`
-     * alone dropped them onto the layer palette, and a chapter's orange
-     * annotation turned purple the moment it was opened for editing.
-     */
-    const hints = annotation.styleHints ?? hintsFromInlineStyle(annotation.targetStyle);
-    if (!hints) return undefined;
-    const { opacity: _opacity, ...style } = hints;
-    return Object.keys(style).length > 0 ? style : undefined;
-  };
-
-  const toShape = (annotation: ResolvedAnnotation): ShapeData | null => {
-    const shared = {
-      id: annotation.id,
-      layer: annotation.targetStyleClass,
-      label: annotation.label,
-      text: annotation.text,
-      style: editorStyle(annotation),
-    };
+  const toImageAnn = (annotation: ResolvedAnnotation): ImageAnnotation | null => {
     if (annotation.rect) {
+      const { x, y, w, h } = annotation.rect;
       return {
-        ...shared,
-        type: 'rect',
-        geometry: {
-          x: annotation.rect.x,
-          y: annotation.rect.y,
-          w: annotation.rect.w,
-          h: annotation.rect.h,
+        id: annotation.id,
+        bodies: [],
+        target: {
+          annotation: annotation.id,
+          selector: {
+            type: ShapeType.RECTANGLE,
+            geometry: { x, y, w, h, bounds: { minX: x, minY: y, maxX: x + w, maxY: y + h } },
+          },
         },
-      };
+      } as unknown as ImageAnnotation;
     }
     if (annotation.point) {
-      return {
-        ...shared,
-        type: 'point',
-        geometry: { x: annotation.point.x, y: annotation.point.y },
-      };
+      return createPointImageAnnotation(
+        annotation.id,
+        annotation.point.x,
+        annotation.point.y,
+        pointRadius,
+      );
     }
     if (annotation.polygon?.points?.length) {
-      if (annotation.shapeType === 'line' && annotation.polygon.points.length >= 2) {
-        const start = annotation.polygon.points[0];
-        const end = annotation.polygon.points[annotation.polygon.points.length - 1];
+      const coords = annotation.polygon.points.map((p) => [p.x, p.y]);
+      const bounds = boundsOfCoords(coords);
+      if (annotation.shapeType === 'line' && coords.length >= 2) {
+        const linePts = [coords[0], coords[coords.length - 1]];
         return {
-          ...shared,
-          type: 'line',
-          geometry: {
-            start: { x: start.x, y: start.y },
-            end: { x: end.x, y: end.y },
+          id: annotation.id,
+          bodies: [],
+          target: {
+            annotation: annotation.id,
+            selector: {
+              type: ShapeType.LINE,
+              geometry: { points: linePts, bounds: boundsOfCoords(linePts) },
+            },
           },
-        };
+        } as unknown as ImageAnnotation;
       }
-      const points = annotation.polygon.points.map((point) => ({ x: point.x, y: point.y }));
-      if (annotation.shapeType === 'freehand') {
-        return {
-          ...shared,
-          type: 'freehand',
-          geometry: { points },
-        };
-      }
-      return { ...shared, type: 'polygon', geometry: { points } };
+      const shapeType =
+        annotation.shapeType === 'freehand' ? ShapeType.POLYLINE : ShapeType.POLYGON;
+      return {
+        id: annotation.id,
+        bodies: [],
+        target: {
+          annotation: annotation.id,
+          selector: {
+            type: shapeType,
+            geometry: { points: coords, bounds },
+          },
+        },
+      } as unknown as ImageAnnotation;
     }
     return null;
   };
 
-  const toPatch = (shape: ShapeData): Partial<ResolvedAnnotation> => {
+  type AnyGeometry = {
+    x?: number;
+    y?: number;
+    w?: number;
+    h?: number;
+    cx?: number;
+    cy?: number;
+    rx?: number;
+    ry?: number;
+    points?: number[][];
+    bounds?: { minX: number; minY: number; maxX: number; maxY: number };
+  };
+
+  const toNeutralShape = (annotation: ImageAnnotation): NeutralShape | null => {
+    const center = pointCenterOf(annotation);
+    if (center) {
+      return { type: 'point', geometry: center };
+    }
+    const selector = annotation.target?.selector;
+    if (!selector) return null;
+    const geom = selector.geometry as unknown as AnyGeometry;
+
+    if (selector.type === ShapeType.RECTANGLE && geom.x != null && geom.y != null && geom.w != null && geom.h != null) {
+      return {
+        type: 'rect',
+        geometry: { x: geom.x, y: geom.y, w: geom.w, h: geom.h },
+      };
+    }
+    if (selector.type === ShapeType.LINE && geom.points && geom.points.length >= 2) {
+      const first = geom.points[0];
+      const last = geom.points[geom.points.length - 1];
+      return {
+        type: 'line',
+        geometry: {
+          start: { x: first[0], y: first[1] },
+          end: { x: last[0], y: last[1] },
+        },
+      };
+    }
+    if (selector.type === ShapeType.POLYLINE && geom.points && geom.points.length >= 2) {
+      return {
+        type: 'freehand',
+        geometry: { points: geom.points.map(([x, y]) => ({ x, y })) },
+      };
+    }
+    if (selector.type === ShapeType.POLYGON && geom.points && geom.points.length >= 3) {
+      return {
+        type: 'polygon',
+        geometry: { points: geom.points.map(([x, y]) => ({ x, y })) },
+      };
+    }
+    if (selector.type === ShapeType.ELLIPSE && geom.bounds) {
+      const { minX, minY, maxX, maxY } = geom.bounds;
+      return {
+        type: 'rect',
+        geometry: { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
+      };
+    }
+    return null;
+  };
+
+  const toPatch = (shape: NeutralShape): Partial<ResolvedAnnotation> => {
     if (shape.type === 'rect') {
       return { shapeType: 'rect', rect: shape.geometry, point: undefined, polygon: undefined };
     }
@@ -242,180 +236,98 @@
         polygon: { points: [shape.geometry.start, shape.geometry.end] },
       };
     }
+    if (shape.type === 'freehand') {
+      return {
+        shapeType: 'freehand',
+        rect: undefined,
+        point: undefined,
+        polygon: { points: shape.geometry.points },
+      };
+    }
+    if (shape.type === 'polygon') {
+      return {
+        shapeType: 'polygon',
+        rect: undefined,
+        point: undefined,
+        polygon: { points: shape.geometry.points },
+      };
+    }
+    return {};
+  };
+
+  const styleFor = (annotation: ImageAnnotation): DrawingStyle => {
+    const resolved = annotations.find((item) => item.id === annotation.id);
+    const hints = resolved
+      ? (resolved.styleHints ?? hintsFromInlineStyle(resolved.targetStyle))
+      : undefined;
+    const layer = layers.find((entry) => entry.id === (resolved?.targetStyleClass ?? activeLayerId));
+    const stroke = hints?.strokeColor ?? layer?.color ?? '#e07a3f';
+    const isPoint = isPointImageAnnotation(annotation);
+    const solidFill = hints?.fillColor && !hints.fillColor.startsWith('rgba');
     return {
-      shapeType: shape.type,
-      rect: undefined,
-      point: undefined,
-      polygon: { points: shape.geometry.points },
+      stroke,
+      strokeWidth: hints?.strokeWidth ?? 2,
+      fill: isPoint ? stroke : (hints?.fillColor ?? stroke),
+      fillOpacity: isPoint ? 0.85 : solidFill ? 0.9 : 0.16,
     };
   };
 
-  const modeForTool = (tool: Tool): EditorMode => (tool === 'select' ? 'select' : tool);
+  let imageAnnotations = $derived(
+    annotations
+      .map(toImageAnn)
+      .filter((item): item is ImageAnnotation => item !== null),
+  );
 
-  const translucentFill = (color: string, opacity = 0.18): string => {
-    const value = color.trim();
-    const shortHex = value.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
-    const longHex = value.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-    const channels = shortHex
-      ? shortHex.slice(1).map((channel) => parseInt(`${channel}${channel}`, 16))
-      : longHex
-        ? longHex.slice(1).map((channel) => parseInt(channel, 16))
-        : null;
-    return channels ? `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${opacity})` : value;
-  };
-
-  const themeForLayers = (items: LayerItem[]): AnnotationTheme => ({
-    layers: Object.fromEntries(
-      items.map((layer) => [
-        layer.id,
-        {
-          strokeColor: layer.color,
-          fillColor: translucentFill(layer.color),
-        },
-      ]),
-    ),
-  });
-
-  $effect(() => {
-    if (!enabled || !viewer || canvasWidth <= 0 || canvasHeight <= 0) return;
-    const instance = new OSDAnnotationEditor({
-      viewer,
-      /*
-       * Keep shortcuts inside the viewer's own DOM tree.
-       *
-       * A window listener sits outside the custom element's shadow root, where
-       * composed keyboard events are retargeted from the real textarea/input
-       * to `<mango-viewer>`. The annotation package then cannot recognise an
-       * editing target and treats Backspace as "delete selected annotation".
-       * Listening on the internal viewer root preserves the original target
-       * for both the standalone inspector and the story-builder inspector.
-       */
-      keyboardTarget:
-        viewer.container.closest<HTMLElement>('.viewer') ?? viewer.container,
-      canvasSize: { width: canvasWidth, height: canvasHeight },
-      annotations: untrack(() =>
-        annotations.map(toShape).filter((shape): shape is ShapeData => Boolean(shape)),
-      ),
-      selectedId: untrack(() => activeAnnotationId),
-      mode: untrack(() => modeForTool(activeTool)),
-      currentLayer: untrack(() => activeLayerId),
-      theme: untrack(() => themeForLayers(layers)),
-      renderer: { label: labelSpec },
-      onSelectionChanged: (id) => {
-        if (id && annotations.some((annotation) => annotation.id === id)) {
-          onannotationselect?.({ id });
-        }
-      },
-      onAnnotationCreated: (shape) => {
-        if (!canvasId) return;
-        const tool = shapeTool(shape);
-        if (!tool) return;
-        /*
-         * The layer becomes a `styleClass` and the motivation is a real term.
-         * These used to be the same argument: the canvas package's `layer` is a
-         * presentation key, it was handed to the serializer as `layer`, and the
-         * serializer wrote it as `motivation` — which is how every annotation
-         * drawn on the stage was exported as `motivation: "mine"`.
-         */
-        const layerId = shape.layer ?? activeLayerId;
-        const layer = layers.find((entry) => entry.id === layerId);
-        const document = createMangoAnnotation({
-          id: shape.id,
-          canvasId,
-          shape,
-          text: shape.text,
-          label: shape.label,
-          styleClass: layerId ? styleClassForLayer(layerId) : undefined,
-          stylesheet: layer ? buildLayerStylesheet([layer]) : null,
-        });
-        onannotationcreate?.({
-          annotation: serializeWebAnnotation(document, { profile: 'iiif-presentation-3' }).json,
-          tool,
-        });
-      },
-      /*
-       * Geometry edits come through `onAnnotationChanged`, not the older
-       * `onAnnotationUpdated`, because only this one says where the change came
-       * from — and that distinction is load bearing rather than tidiness.
-       *
-       * Mango mirrors editor changes into its own state and syncs the result
-       * back. `onAnnotationUpdated` fires for that echo exactly as it does for a
-       * real drag, so reporting it produced a new projection object, which
-       * re-ran the sync, which echoed again: an effect loop Svelte aborts after
-       * a thousand rounds, leaving the editor frozen mid-update. That is why a
-       * saved annotation kept showing as an unsaved draft.
-       *
-       * `transient` changes are the in-flight samples of a drag; only the
-       * committed one is an undo step, already coalesced by the editor.
-       */
-      onAnnotationChanged: (change) => {
-        if (change.transient) return;
-        if (change.kind === 'update' && change.after) {
-          /*
-           * Report only geometry the editor did not get from us.
-           *
-           * Mango mirrors editor changes into its own state and syncs the
-           * result back, and the editor reports that echo as an ordinary
-           * committed change — `operation: 'batch'`, indistinguishable by label
-           * from a real multi-shape edit. Feeding it back produced a fresh
-           * projection object, which re-ran the sync, which echoed again: an
-           * effect loop Svelte aborts after a thousand rounds, leaving the
-           * editor frozen mid-update. That is why a saved annotation went on
-           * showing as an unsaved draft.
-           *
-           * Comparing against what we last pushed is what makes this robust:
-           * it does not depend on how the package labels a sync.
-           */
-          const geometry = JSON.stringify(change.after.geometry);
-          if (pushedGeometry.get(change.id) === geometry) return;
-          pushedGeometry.set(change.id, geometry);
-          onannotationupdate?.({ id: change.id, patch: toPatch(change.after) });
-        }
-        ongeometrycommit?.({ id: change.id });
-      },
-      onAnnotationDeleted: (id) => onannotationdelete?.({ id }),
-      onModeChanged: (mode) => {
-        if (mode === 'select') ontoolchange?.({ tool: 'select' });
-      },
+  const handleCreate = (annotation: ImageAnnotation) => {
+    if (!canvasId) return;
+    const shape = toNeutralShape(annotation);
+    if (!shape) return;
+    const tool = shapeTool(shape);
+    if (!tool) return;
+    const layer = layers.find((entry) => entry.id === activeLayerId);
+    const document = createMangoAnnotation({
+      id: annotation.id,
+      canvasId,
+      shape,
+      styleClass: activeLayerId ? styleClassForLayer(activeLayerId) : undefined,
+      stylesheet: layer ? buildLayerStylesheet([layer]) : null,
     });
-    editor = instance;
-    oneditorready?.(instance);
-    return () => {
-      oneditorready?.(null);
-      instance.destroy();
-      if (editor === instance) editor = null;
-    };
-  });
+    onannotationcreate?.({
+      annotation: serializeWebAnnotation(document, { profile: 'iiif-presentation-3' }).json,
+      tool,
+    });
+    ontoolchange?.({ tool: 'select' });
+  };
 
-  $effect(() => {
-    if (!editor) return;
-    /*
-     * `preserve`, not the default. Mango mirrors every editor change into its
-     * own state and passes the result straight back, so the default `reset`
-     * would wipe the undo stack on every single edit — silently, because
-     * nothing errors and undo simply stops working.
-     */
-    const shapes = annotations.map(toShape).filter((shape): shape is ShapeData => Boolean(shape));
-    // Recorded before the push, so the echo it provokes is recognised as ours.
-    pushedGeometry.clear();
-    for (const shape of shapes) pushedGeometry.set(shape.id, JSON.stringify(shape.geometry));
-    editor.setAnnotations(shapes, { history: 'preserve' });
-    editor.select(activeAnnotationId);
-  });
+  const handleUpdate = (annotation: ImageAnnotation) => {
+    const shape = toNeutralShape(annotation);
+    if (!shape) return;
+    onannotationupdate?.({ id: annotation.id, patch: toPatch(shape) });
+    ongeometrycommit?.({ id: annotation.id });
+  };
 
-  $effect(() => {
-    editor?.setMode(modeForTool(activeTool));
-  });
+  const handleDelete = (id: string) => {
+    onannotationdelete?.({ id });
+  };
 
-  $effect(() => {
-    editor?.updateCanvasSize({ width: canvasWidth, height: canvasHeight });
-  });
-
-  $effect(() => {
-    editor?.updateTheme(themeForLayers(layers));
-  });
-
-  $effect(() => {
-    editor?.setCurrentLayer(activeLayerId);
-  });
+  const handleSelect = (id: string | undefined) => {
+    if (id && annotations.some((annotation) => annotation.id === id)) {
+      onannotationselect?.({ id });
+    }
+  };
 </script>
+
+<AnnotationCanvasEditor
+  {enabled}
+  {viewer}
+  annotations={imageAnnotations}
+  selectedId={activeAnnotationId}
+  tool={toAnnotoriousTool(activeTool)}
+  style={styleFor}
+  {pointRadius}
+  oncreate={handleCreate}
+  onupdate={handleUpdate}
+  ondelete={handleDelete}
+  onselect={handleSelect}
+  onready={(editor) => oneditorready?.(editor)}
+/>
