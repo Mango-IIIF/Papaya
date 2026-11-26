@@ -52,7 +52,7 @@ import type {
   StoryState,
 } from "../core/types/story";
 import { normalizeStoryAnnotations } from "./normalizeAnnotations";
-import { normaliseAuthoringLanguages } from "./annotations/languages";
+import { normaliseAuthoringLanguages } from "@mango-iiif/annotation/model";
 import {
   APPLIED_FRAMING_TOLERANCE,
   collectLatestNarrationSegments,
